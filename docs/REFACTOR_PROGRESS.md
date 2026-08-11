@@ -19,6 +19,8 @@ This file tracks the state of the audit/refactor effort described in `docs/ARCHI
 
 **Phase 5 — Code-quality / developer-experience cleanup (COMPLETE for the items in scope this session).** Removed 10 confirmed-dead files, fixed 2 misclassified `package.json` entries (one of them a real deployment-robustness gap, not just cosmetic), collapsed the 3 near-identical pill-picker components into 1 shared primitive + 2 thin wrappers, extracted a shared `useClickOutside` hook (was copy-pasted 3×), consolidated a duplicated role-list constant, fixed the one naming inconsistency found (a camelCase filename in an otherwise all-kebab-case tree), and wrote a real `README.md`. No business behavior changed — verified via full typecheck/lint/test/build plus live Playwright re-verification of every refactored interactive component. See "Completed Work" below for the full account, including two false-positive Playwright failures that turned out to be test-script bugs, not regressions.
 
+**Phase 6 — Final senior-architect review (COMPLETE).** A fresh, skeptical pass across architecture, code quality, reliability, performance, and security — not trusting prior phases' conclusions, re-verifying them. Found the codebase in genuinely good shape: no new P0/P1s, no circular imports, zero `any`, zero silent error-swallowing, zero N+1 patterns, every Server Action correctly guarded. The two outstanding product decisions (P2-8, P2-12) were put to the user and **both decided**: leave the schema-drift columns as-is, and keep `dropdown-menu.tsx` as the sole shadcn component with no active migration in either direction — both are now closed, not just deferred. The one concrete, no-decision-needed cleanup item (P2-10, the marketplace-closed flag) was implemented. See "Completed Work" below.
+
 ---
 
 ## Completed Work
@@ -189,6 +191,40 @@ Scope: a repo-wide pass for dead code, unused files/deps/imports, duplicate util
   - **Two false-positive failures during the first verification pass, both confirmed as test-script bugs, not regressions:** (1) a vehicle-list assertion checked for the new row immediately after `waitForURL` resolved and failed, then passed after a 1.5s wait — this is the already-documented P1-6 caching characteristic (`ARCHITECTURE_AUDIT.md` finding #6, "self-heals within ~1-2 real seconds"), reproduced exactly as previously characterized, not a new bug. (2) a calendar-open assertion checked `innerText()` for "Previous month," which is an `aria-label` on an icon-only button, never part of rendered text content — the popover was actually open the whole time (confirmed via screenshot); rewritten to check the visible month/year label instead, which passes.
   - `customer-combobox.tsx`'s refactor was not exercised through a live click-outside test — no bookable departure existed in the current seed data to reach `/dashboard/bookings/new`. Its diff is mechanically identical to the other two `useClickOutside` integrations (both proven live), so this is a lower-confidence-but-low-risk gap, noted here rather than silently claimed as fully verified.
 
+### This session (Phase 6 — final senior-architect review)
+
+Scope: a skeptical, from-scratch review across architecture/code-quality/reliability/performance/security/maintainability, per this session's explicit brief — re-verifying prior phases' conclusions against the current repo state rather than trusting the docs. Two of the three items still open going into this session (P2-8 schema drift, P2-12 shadcn-vs-hand-rolled) were product decisions; both were put to the user directly before any further work, per the standing rule in `ARCHITECTURE_AUDIT.md` §9 point 3. Both are now decided and closed — see below.
+
+**Architecture — no violations found:**
+
+- [x] Zero `lib/` files import from `app/` (grepped for `@/app` imports across `lib/`).
+- [x] Zero `components/*` files import the DB/Prisma client at runtime. Two files (`mobile-nav.tsx`, `sidebar-nav.tsx`) import `UserRole` from `@/generated/prisma/enums`, but both are `import type` — erased at compile time, not a runtime DB dependency. Not a violation.
+- [x] Largest files unchanged from the original audit's baseline: `tour-form.tsx` (249 lines) is still the largest hand-written component; `dropdown-menu.tsx` (269 lines) is shadcn-generated boilerplate, not hand-written business logic. No God components/services introduced by any of the last 3 phases' refactors.
+- [x] Every `lib/actions/*.ts` mutation confirmed to start with the correct guard (`requirePermission`/`requirePlatformAdmin`), except the 3 legitimately-unauthenticated entry points (`login`, `registerOrganization`, `createGuestBooking` — all previously reviewed and rate-limited/scope-restricted) and the 2 logout actions (no guard needed).
+
+**Code quality — no new duplication or unsafe typing found:**
+
+- [x] Zero `any` usage anywhere in `app/`, `lib/`, `components/` (re-confirmed; still zero as of the original audit).
+- [x] Zero `.map(async ...)`/`.forEach(async ...)` patterns anywhere — confirms no N+1 query pattern exists beyond the one already fixed in Phase 4.
+- [x] Zero remaining silent `catch {}` / `catch (e) {}` blocks anywhere (the 2 found and fixed in Phase 4 were the only instances).
+
+**Fixed this session (audit finding P2-10 — no user decision needed, purely mechanical):**
+
+- [x] **`proxy.ts`'s marketplace-closed toggle is now a single named, documented flag** (`MARKETPLACE_ENABLED`, read once at module scope) instead of an implicit "the route-prefix list existing at all is the toggle." Defaults to closed when unset — **zero behavior change** by default, verified live (see Verification below). The route-prefix list itself (`/`, `/tours`, `/agencies`, `/book/`, `/bookings/`) is unchanged, just now gated behind the flag instead of being unconditional. Documented in `.env.example` and `README.md`.
+
+**Product decisions — both surfaced to the user this session and both now closed:**
+
+- [x] **P2-8 (schema-drift columns):** decided **leave as-is for now**, revisit once there's real product demand for itinerary/inclusions/exclusions UI or agency branding (logo/address). Not implemented, not dropped — a deliberate deferral. `ARCHITECTURE_AUDIT.md` finding #8 updated to record the decision, not just re-flag it as pending.
+- [x] **P2-12 (shadcn vs. hand-rolled):** decided **keep as-is** — `dropdown-menu.tsx` stays on shadcn (it works, not broken), everything else stays hand-rolled Tailwind, no active migration planned in either direction. This closes what was previously an open standing-convention question; future sessions should not re-raise it as pending.
+
+**Verification:**
+
+- [x] `npx tsc --noEmit` — clean.
+- [x] `npm run lint` — clean.
+- [x] `npm test` — **45/45 passing**, unchanged.
+- [x] `npm run build` — clean; route list unchanged (`proxy.ts` changes don't add/remove routes, only middleware logic).
+- [x] Live Playwright verification: with `MARKETPLACE_ENABLED` unset (the real, deployed default), all 5 marketplace route patterns (`/`, `/tours`, `/agencies/*`, `/book/*`, `/bookings/*`) still redirect to `/login` exactly as before, and `/login` itself still loads directly. The `MARKETPLACE_ENABLED=true` branch was **not** live-tested (would have required editing the running dev server's `.env` and restarting it, which wasn't judged worth the disruption for a one-line boolean negation) — verified by code inspection only. Noted here rather than silently claimed as fully verified.
+
 ---
 
 ## Files Analyzed (exhaustive for this phase)
@@ -219,10 +255,10 @@ Scope: a repo-wide pass for dead code, unused files/deps/imports, duplicate util
    - **What's now ruled out as the sole cause:** Full Route Cache via `force-dynamic` (insufficient alone), `React.cache()` (verified via direct probe: does not memoize outside a render context), Turbopack dev-mode artifacts (reproduces in production), and `connection()` (this session, insufficient alone even centralized). `revalidatePath` remains in place and may be contributing to the bound being as short as ~1-2s rather than longer, but does not eliminate it either.
    - **Do not re-attempt "centralize the dynamic export" as a fix again** — it's been tried, via two different implementations, across two sessions, and both left the same residual ~1-2s window. If a future session wants to keep chasing the root cause, the next untried angle is probably Next.js's Client Router Cache interacting with `page.goto()`-triggered navigations in a way not yet isolated, or an HTTP keep-alive/connection-reuse artifact — both would require lower-level network tracing (e.g. inspecting raw response bytes/timing across the reused connection) rather than another Next.js-config-level attempt.
    - **The `connection()` centralization is being kept anyway** — even though it didn't solve P1-6, it's a strict architectural improvement on its own merits (single choke point instead of 2 scattered per-file exports; now also covers `app/admin/page.tsx` and every individual dashboard/admin page and Server Action, none of which had *any* dynamic-rendering protection before beyond inheriting from a layout).
-3. **Two product decisions are waiting on the user, not on more analysis:**
-   - What to do with schema columns that have no UI (`Tour.itinerary`/`included`/`excluded`/`languagesOffered`, `Organization.logoUrl`/`address`) — implement or drop?
-   - Keep hand-rolling everything (now that the *dead* 9/10 shadcn primitives are gone, just `dropdown-menu.tsx` remains) or commit to shadcn and migrate the hand-rolled components onto it? Removing confirmed-dead files was a safe cleanup call and was made this session (Phase 5); this standing convention question is a separate, still-open decision — see `ARCHITECTURE_AUDIT.md` finding #12.
-   Do not decide either unilaterally — see `ARCHITECTURE_AUDIT.md` §9 point 3.
+3. **Both former open product decisions are now closed (decided in Phase 6, not just re-flagged):**
+   - Schema columns with no UI (`Tour.itinerary`/`included`/`excluded`/`languagesOffered`, `Organization.logoUrl`/`address`) — **decided: leave as-is, revisit on real product demand.** Not implemented, not dropped.
+   - shadcn vs. hand-rolled — **decided: keep as-is.** `dropdown-menu.tsx` stays shadcn, everything else hand-rolled, no active migration either direction.
+   Both were surfaced to the user directly before being closed, per `ARCHITECTURE_AUDIT.md` §9 point 3 ("product decisions get surfaced, not defaulted"). **Do not re-raise either as an open question in a future session** — they're settled, not deferred.
 4. **The RBAC system (built two sessions ago) is the template for what "good" looks like in this codebase** — DB-backed, one choke point, Super-Admin-editable, and now also test-covered. Use it as the reference pattern when proposing fixes elsewhere.
 5. **`README.md` was rewritten in Phase 5** — it now has a real stack summary, a "where does X belong" module map, and setup steps including the manual-migration workaround. This audit + progress file remain the deeper on-ramp; keep all three current.
 6. **Test-writing conventions established this session, follow them going forward:** `server-only`-guarded files need `"server-only"` aliased to `tests/stubs/server-only.ts` (see `vitest.config.mts`) to be importable from Vitest at all — don't rediscover this by hitting the thrown error again. DB-touching tests live under `tests/integration/`, always seed ephemeral/uniquely-stamped data, and always clean up in `afterAll` (mutate-and-restore for shared/global rows like `RolePermission`, delete-cascade via the parent `Organization` for tenant-scoped rows). Pure-logic tests are colocated next to the code they test (`lib/**/*.test.ts`), matching how `lib/` is already organized by domain.
@@ -235,14 +271,12 @@ Scope: a repo-wide pass for dead code, unused files/deps/imports, duplicate util
 
 ## Next Phase
 
-**Phase 6 — remaining P2 items, all needing user input**, per `ARCHITECTURE_AUDIT.md` §11 (adjusted: every purely-mechanical P2/P3 — pill-picker duplication, dead shadcn files, `shadcn`'s `package.json` classification, the README — is now done; everything left genuinely needs a decision or a deliberate tradeoff, not more cleanup):
+Every P0, every P1 except P1-6, and every P2/P3 in `ARCHITECTURE_AUDIT.md` is now either ✅ Resolved or a **closed, deliberate decision** (P2-8, P2-12 — see "Important Discoveries" #3). There is no more unilaterally-actionable cleanup work queued. What's left:
 
-1. Surface the two product decisions to the user **before** acting on either — audit findings P2-8 (schema-drift columns: implement or drop `Tour.itinerary`/`included`/`excluded`/`languagesOffered`, `Organization.logoUrl`/`address`) and P2-12 (now down to "keep `dropdown-menu.tsx` as the sole shadcn primitive and hand-roll everything else forever, or commit to shadcn as the standard and migrate onto it" — a narrower question than before Phase 5, but still not a pure engineering call).
-2. Replace the hardcoded marketplace-closed list in `proxy.ts` with a documented flag (P2-10) — low-risk, no decision needed, just wasn't in this session's scope (this session's brief was dead code/duplication/naming, not the marketplace-gating mechanism).
-3. When there's appetite for a deliberate Next.js version bump (out of scope for a cleanup pass): re-run `npm audit fix --force` to close the last 2 known vulnerabilities (`postcss`, `sharp`, both transitively via `next` 16.2.12 → 16.3.0) — evaluate against P1-6's caching characteristics first, since that's the exact area a Next.js minor bump could change.
-
-Optionally, if the user wants it pursued further: a genuine root-cause investigation of P1-6 (see "Important Discoveries" #2 in the Phase 3 entry above for what's already been ruled out and the one untried angle — Client Router Cache / connection-reuse tracing). This is *not* recommended as a default next step; it's already had disproportionate effort across two sessions relative to its now well-bounded, non-security impact.
+1. **P1-6 (caching characteristic)** — optional, not recommended as a default next step. See "Important Discoveries" #2 for the full account of what's already been ruled out and the one untried angle (Client Router Cache / connection-reuse tracing). Already had disproportionate effort across three sessions relative to its well-bounded, non-security impact.
+2. **`npm audit fix --force`** — when there's appetite for a deliberate Next.js version bump (`next` 16.2.12 → 16.3.0) to close the last 2 known vulnerabilities (`postcss`, `sharp`). Evaluate against P1-6's caching characteristics first, since that's the exact area a Next.js minor bump could change.
+3. **New feature work** — the architecture is stable and documented enough that a future session should default to building on it (see the Phase 6 "Final Assessment" below), not auditing it again from scratch.
 
 ## Exact Next Recommended Action
 
-Both P0s, all P1s, and every purely-mechanical P2/P3 cleanup item are committed and pushed to **https://github.com/Tik-97/gonairi** (private, remote `origin`, branch `master`). Every P1 in `ARCHITECTURE_AUDIT.md` is now ✅ Resolved except P1-6 (caching — empirically mitigated, not root-caused, not recommended for further unilateral effort); every P2/P3 is ✅ Resolved except P2-8, P2-10, and P2-12. Ask the user which of the "Next Phase" items above to do next — item 1 needs the two product decisions surfaced first, per `ARCHITECTURE_AUDIT.md` §9 point 3 ("product decisions get surfaced, not defaulted"). Do not decide the schema-drift or UI-system question without asking.
+Everything from Phases 0–6 is committed and pushed to **https://github.com/Tik-97/gonairi** (private, remote `origin`, branch `master`). There is no pending cleanup or undecided product question blocking new work. If the user wants to proceed, ask what feature or change they want next — this file's "Files Analyzed," module-responsibility docs (`ARCHITECTURE_AUDIT.md` §8), and the README's "where does X belong" table are the on-ramp for that work, not another audit pass.
