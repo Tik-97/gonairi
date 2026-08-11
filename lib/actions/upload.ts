@@ -15,6 +15,14 @@ const ALLOWED_TYPES: Record<string, string> = {
 };
 
 const LOCAL_UPLOAD_PREFIX = "/uploads/tours/";
+const LOCAL_UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads", "tours");
+
+/** True if `candidate` is `root` itself or a path strictly inside it, after resolving
+ *  `..`/symlink-shaped segments — the actual containment check, not just a string prefix. */
+function isInsideDirectory(candidate: string, root: string): boolean {
+  const relative = path.relative(root, candidate);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
 
 /**
  * No BLOB_READ_WRITE_TOKEN configured (e.g. local dev before a Vercel Blob
@@ -67,7 +75,13 @@ export async function deleteTourImage(url: string): Promise<void> {
     if (url.includes(".blob.vercel-storage.com/")) {
       await del(url);
     } else if (url.startsWith(LOCAL_UPLOAD_PREFIX)) {
-      await unlink(path.join(process.cwd(), "public", url));
+      // `url` is caller-supplied — resolve it and confirm it still lands inside the
+      // uploads directory before unlinking, so a crafted `../` segment can't delete
+      // files elsewhere on disk (e.g. another organization's upload, or outside /public).
+      const resolvedPath = path.resolve(path.join(process.cwd(), "public", url));
+      if (isInsideDirectory(resolvedPath, LOCAL_UPLOAD_ROOT)) {
+        await unlink(resolvedPath);
+      }
     }
   } catch {
     // Non-critical: an orphaned file doesn't break anything, so we don't surface this.
