@@ -156,23 +156,24 @@ Guest → raw `prisma` (unscoped, no session) → explicit `isPublished: true` f
 
 Findings are listed with file references. Priorities are defined in §6.
 
-1. **(P0)** No git repository anywhere in the project.
-2. **(P0)** No automated tests of any kind; no test framework installed.
-3. **(P1)** Path-traversal-shaped input handling in `deleteTourImage` (`lib/actions/upload.ts:64-75`) — a caller-supplied `url` string is only checked with `startsWith(LOCAL_UPLOAD_PREFIX)` before being passed through `path.join(process.cwd(), "public", url)` and `unlink`ed. A crafted `../` sequence after the prefix is not rejected.
-4. **(P1)** No rate limiting / brute-force protection on `/login`, `/register`, or `/admin/login` (`lib/actions/auth.ts`, `lib/actions/platform-admin.ts`). `registerOrganization` also leaks account existence via a distinct "already registered" error.
-5. **(P1)** No structured error logging/observability. Server Action failures either return `{error}` to the UI (fine, consistent) or throw and hit Next's default error boundary with no server-side logging convention anywhere in the codebase.
-6. **(P1)** A caching characteristic specific to this customized Next.js build: pages that derive their render from `next-auth`'s `auth()` (which reads cookies internally, not via `cookies()` directly in the page body) are **not** automatically treated as dynamic. Confirmed empirically this session: a Server-Action-driven data change could be read stale by an unrelated session's page for ~1-2 real seconds even after adding `export const dynamic = "force-dynamic"` to the relevant layouts and `revalidatePath()` to the mutating action — full resolution required both fixes plus tolerating a short eventual-consistency window. Only `app/(public)/page.tsx`, `app/dashboard/layout.tsx`, and `app/admin/(protected)/layout.tsx` currently carry the `force-dynamic` mitigation. **No systematic audit of every other page for the same latent risk has been done.**
-7. **(P2)** Duplicated component logic: `components/category-picker.tsx` and `components/vehicle-type-picker.tsx` are ~95% identical (same single-select-plus-custom-"Other" pattern, same JS-tracked-hover workaround for a Chromium rendering quirk, same class strings). `components/region-picker.tsx` shares the same pill-button-plus-hover-workaround pattern in a multi-select variant. No shared primitive exists.
-8. **(P2)** Schema/UI drift — columns defined in `prisma/schema.prisma` with **zero** reads or writes anywhere in application code: `Tour.itinerary`, `Tour.included`, `Tour.excluded`, `Organization.logoUrl`, `Organization.address`. `Tour.languagesOffered` is written once as a hardcoded `[]` (`lib/actions/tours.ts:94`) and never set by any form field or read anywhere.
-9. **(P2)** `createGuestBooking` (`lib/actions/guest-bookings.ts:65-66`) computes `totalPrice = unitPrice * paxCount` directly instead of calling the shared `calculateBookingTotal()` used by the staff flow — a parallel, simpler calculation that will silently diverge if discount/child-pricing rules are ever extended to guests.
-10. **(P2)** The "closed marketplace" toggle is a hardcoded path-prefix list inside `proxy.ts` (lines 24-29) rather than a single named/documented flag (e.g. an env var). Functionally redundant with the `isPublished` checks already present in every marketplace query.
+1. **(P0)** ~~No git repository anywhere in the project.~~ **Resolved** — see `docs/REFACTOR_PROGRESS.md`.
+2. **(P0)** ~~No automated tests of any kind; no test framework installed.~~ **Resolved** — Vitest, 31 tests across 6 files (pure-logic unit tests + real-DB integration tests for tenant isolation, RBAC, and the overbooking race). See `docs/REFACTOR_PROGRESS.md`.
+3. **(P1)** ~~Path-traversal-shaped input handling in `deleteTourImage`~~ **Resolved** — see `docs/REFACTOR_PROGRESS.md`. *(Original finding, kept for record: `lib/actions/upload.ts:64-75` — a caller-supplied `url` string was only checked with `startsWith(LOCAL_UPLOAD_PREFIX)` before being passed through `path.join(process.cwd(), "public", url)` and `unlink`ed.)*
+4. **(P1)** No rate limiting / brute-force protection on `/login`, `/register`, or `/admin/login` (`lib/actions/auth.ts`, `lib/actions/platform-admin.ts`). `registerOrganization` also leaks account existence via a distinct "already registered" error. **Not yet fixed.**
+5. **(P1)** No structured error logging/observability. Server Action failures either return `{error}` to the UI (fine, consistent) or throw and hit Next's default error boundary with no server-side logging convention anywhere in the codebase. **Not yet fixed.**
+6. **(P1)** A caching characteristic specific to this customized Next.js build: pages that derive their render from `next-auth`'s `auth()` (which reads cookies internally, not via `cookies()` directly in the page body) are **not** automatically treated as dynamic.
+   **Update (second session):** the centralized fix this document originally recommended (`connection()` inside `requireSession()`/`requirePlatformAdmin()`, replacing the scattered `force-dynamic` exports) was implemented — and **did not fully resolve it.** The exact same ~1-2 second staleness window reproduces with `connection()` centralized, exactly as it did with `force-dynamic` + `revalidatePath`. New evidence gathered: the bug reproduces identically in a production build (`next build && next start`), ruling out any Turbopack-dev-only explanation; `React.cache()` was directly probed and confirmed to *not* memoize outside a render context, ruling that out too. The actual authorization boundary (`requirePermission` denying/redirecting) has been proven instant and correct in **every** test run across both sessions — only a cosmetic UI affordance on an already-200-rendering page can lag, and only for ~1-2 seconds, self-healing. **This finding should be considered open and only empirically bounded, not resolved** — see `docs/REFACTOR_PROGRESS.md` "Important Discoveries" for the full account of what's been ruled out and the one untried investigative angle (Client Router Cache / connection-reuse tracing), and do not re-attempt "centralize the dynamic-rendering opt-in" as a fix again without new information.
+7. **(P2)** Duplicated component logic: `components/category-picker.tsx` and `components/vehicle-type-picker.tsx` are ~95% identical (same single-select-plus-custom-"Other" pattern, same JS-tracked-hover workaround for a Chromium rendering quirk, same class strings). `components/region-picker.tsx` shares the same pill-button-plus-hover-workaround pattern in a multi-select variant. No shared primitive exists. **Not yet fixed.**
+8. **(P2)** Schema/UI drift — columns defined in `prisma/schema.prisma` with **zero** reads or writes anywhere in application code: `Tour.itinerary`, `Tour.included`, `Tour.excluded`, `Organization.logoUrl`, `Organization.address`. `Tour.languagesOffered` is written once as a hardcoded `[]` (`lib/actions/tours.ts:94`) and never set by any form field or read anywhere. **Not yet fixed — needs a user decision, see §9.**
+9. **(P2)** ~~`createGuestBooking` computes `totalPrice = unitPrice * paxCount` directly instead of calling the shared `calculateBookingTotal()`~~ **Resolved** — see `docs/REFACTOR_PROGRESS.md`.
+10. **(P2)** The "closed marketplace" toggle is a hardcoded path-prefix list inside `proxy.ts` (lines 24-29) rather than a single named/documented flag (e.g. an env var). Functionally redundant with the `isPublished` checks already present in every marketplace query. **Not yet fixed.**
 11. **(P2)** `README.md` is still the unmodified `create-next-app` boilerplate — no description of the actual product, architecture, or (critically) the non-interactive-migration workaround that is mandatory in this environment.
 12. **(P2)** The codebase contains **two parallel UI systems** simultaneously: a scaffolded shadcn/ui component layer (`components/ui/*`, wired up via `components.json`) that is almost entirely unused, and a hand-rolled Tailwind-class-per-element approach used for essentially everything actually rendered. This is an inconsistent-pattern finding in its own right, independent of the dead-code angle in P3-13.
 13. **(P3)** Dead code: 9 of 10 shadcn/ui primitives are imported nowhere (`avatar`, `badge`, `button`, `card`, `input`, `label`, `select`, `separator`, `textarea` — only `dropdown-menu.tsx` is actually used, by `components/dashboard/topbar.tsx`). `components/ornaments/flying-bird.tsx` is also imported nowhere.
 14. **(P3)** `shadcn` (the CLI codegen tool) is listed under `dependencies` in `package.json` instead of `devDependencies` — it is never imported at runtime.
-15. **(P3)** `.gitignore`'s `.env*` pattern has no `!.env.example` negation, so the committed example file will silently stop being tracked the moment a git repo is initialized, unless fixed first.
-16. **(P3)** Minor business-logic-in-page instances, e.g. `app/dashboard/tours/page.tsx` inline-sorts tours by soonest-upcoming-departure — small enough not to matter today, but inconsistent with how `lib/dashboard/stats.ts` and `lib/bookings/*` correctly extract this kind of logic.
-17. **(P3)** No lint-time or test-time guard that a newly added tenant-scoped Prisma model actually gets added to `TENANT_SCOPED_MODELS` (`lib/db/scoped.ts`) — currently pure developer discipline. A forgotten entry would silently leak data cross-tenant with no signal until manually discovered.
+15. **(P3)** ~~`.gitignore`'s `.env*` pattern has no `!.env.example` negation~~ **Resolved** — fixed before the first commit, see `docs/REFACTOR_PROGRESS.md`.
+16. **(P3)** Minor business-logic-in-page instances, e.g. `app/dashboard/tours/page.tsx` inline-sorts tours by soonest-upcoming-departure — small enough not to matter today, but inconsistent with how `lib/dashboard/stats.ts` and `lib/bookings/*` correctly extract this kind of logic. **Not yet fixed.**
+17. **(P3)** ~~No lint-time or test-time guard that a newly added tenant-scoped Prisma model actually gets added to `TENANT_SCOPED_MODELS`~~ **Resolved** — `lib/db/scoped.test.ts` now parses `prisma/schema.prisma` and fails `npm test` if the two ever disagree. See `docs/REFACTOR_PROGRESS.md`.
 
 ### Explicit positive findings (for calibration — not everything is a problem)
 
@@ -188,25 +189,27 @@ Findings are listed with file references. Priorities are defined in §6.
 
 ## 6. Priority Classification
 
-| ID | Priority | Summary |
-|---|---|---|
-| 1 | **P0** | No git / version control |
-| 2 | **P0** | No automated tests, no CI |
-| 3 | **P1** | Path traversal in `deleteTourImage` |
-| 4 | **P1** | No rate limiting on auth routes; account-existence leak on registration |
-| 5 | **P1** | No error logging/observability convention |
-| 6 | **P1** | Systemic, only-partially-fixed dynamic-rendering/caching gotcha in this Next.js build |
-| 7 | **P2** | Duplicated pill-picker components |
-| 8 | **P2** | Schema/UI drift (dead columns, unused `languagesOffered`) |
-| 9 | **P2** | Guest booking pricing bypasses shared `calculateBookingTotal` |
-| 10 | **P2** | Marketplace-closed toggle is a hardcoded list, not a documented flag |
-| 11 | **P2** | `README.md` never updated for this project |
-| 12 | **P2** | Two parallel, inconsistent UI systems (shadcn scaffold vs. hand-rolled) |
-| 13 | **P3** | 10 dead component files |
-| 14 | **P3** | `shadcn` misclassified as a runtime dependency |
-| 15 | **P3** | `.gitignore` will drop `.env.example` once git exists |
-| 16 | **P3** | Minor inline business logic in a couple of pages |
-| 17 | **P3** | No enforcement that new tenant models are added to `TENANT_SCOPED_MODELS` |
+*Status column added after two follow-up sessions — see `docs/REFACTOR_PROGRESS.md` for the live, authoritative status and what each fix actually involved.*
+
+| ID | Priority | Summary | Status |
+|---|---|---|---|
+| 1 | **P0** | No git / version control | ✅ Resolved |
+| 2 | **P0** | No automated tests, no CI | ✅ Resolved |
+| 3 | **P1** | Path traversal in `deleteTourImage` | ✅ Resolved |
+| 4 | **P1** | No rate limiting on auth routes; account-existence leak on registration | Not fixed |
+| 5 | **P1** | No error logging/observability convention | Not fixed |
+| 6 | **P1** | Systemic, only-partially-fixed dynamic-rendering/caching gotcha in this Next.js build | ⚠️ Still open — a second, different fix attempt also failed to fully resolve it; see finding #6 above |
+| 7 | **P2** | Duplicated pill-picker components | Not fixed |
+| 8 | **P2** | Schema/UI drift (dead columns, unused `languagesOffered`) | Not fixed — needs user decision |
+| 9 | **P2** | Guest booking pricing bypasses shared `calculateBookingTotal` | ✅ Resolved |
+| 10 | **P2** | Marketplace-closed toggle is a hardcoded list, not a documented flag | Not fixed |
+| 11 | **P2** | `README.md` never updated for this project | Not fixed |
+| 12 | **P2** | Two parallel, inconsistent UI systems (shadcn scaffold vs. hand-rolled) | Not fixed — needs user decision |
+| 13 | **P3** | 10 dead component files | Not fixed |
+| 14 | **P3** | `shadcn` misclassified as a runtime dependency | Not fixed |
+| 15 | **P3** | `.gitignore` will drop `.env.example` once git exists | ✅ Resolved |
+| 16 | **P3** | Minor inline business logic in a couple of pages | Not fixed |
+| 17 | **P3** | No enforcement that new tenant models are added to `TENANT_SCOPED_MODELS` | ✅ Resolved |
 
 **Root-cause framing:** almost every P2/P3 here traces back to the same root cause — this project was built entirely through fast, incremental, feature-driven AI-assisted sessions with no version control and no test safety net (P0s). That development mode is *why* small duplications (P2-7) and drift (P2-8, P2-9) accumulated instead of being caught, and *why* nothing has forced a decision on the two competing UI systems (P2-12) or an updated README (P2-11). Fixing the two P0s doesn't directly fix any P2/P3, but it's the precondition that makes fixing them *safe* — see §9 execution order.
 

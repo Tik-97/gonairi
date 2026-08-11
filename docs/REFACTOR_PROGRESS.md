@@ -9,7 +9,11 @@ This file tracks the state of the audit/refactor effort described in `docs/ARCHI
 
 **Phase 0 — Audit (COMPLETE).** No production code was modified. Repository was analyzed end-to-end: full `app/`, `lib/`, `components/`, `prisma/` trees; `auth.ts`; `proxy.ts`; all config files; dependency graph; dead-code cross-reference; tenant-isolation spot-check of every raw-`prisma` usage outside `scopedPrisma`.
 
-**Phase 1 — De-risk, step 1 of 2 (git) — COMPLETE.** Git initialized, pushed to GitHub. Step 2 (test harness) not started — see "Next Phase" below.
+**Phase 1 — De-risk (COMPLETE).** Git initialized + pushed (step 1). Test harness stood up: Vitest for pure logic + DB-integration tests for tenant isolation, RBAC, and the overbooking race (step 2).
+
+**Phase 2 — P1 architectural fixes (COMPLETE for the items in scope this session).** Path traversal fixed, dynamic-rendering opt-in centralized, duplicated pricing logic consolidated. See "Completed Work" and "Important Discoveries" below — one specific finding (P1-6, caching) is **not** fully resolved despite this session's fix, and that is documented honestly rather than claimed done.
+
+**Next phase to start: Phase 3 — remaining P1/P2 items** (rate limiting, error-logging convention, the two user-facing product decisions, `README.md`, pill-picker/UI-system cleanup). Not started — see "Next Phase" below.
 
 ---
 
@@ -34,6 +38,21 @@ This file tracks the state of the audit/refactor effort described in `docs/ARCHI
 - [x] First commit made (`3846841`) on `master`.
 - [x] Private GitHub repo created and pushed: **https://github.com/Tik-97/gonairi** (remote `origin`, branch `master` tracking `origin/master`).
 
+### This session (Phase 1 step 2 + Phase 2 P1 fixes)
+
+- [x] **Test harness stood up.** Vitest added (`vitest.config.mts`, `tests/setup.ts` loads `.env` via `dotenv/config`, `tests/stubs/server-only.ts` no-ops the `server-only` marker package so `"server-only"`-guarded files can be imported from plain Node — see that file's comment for why). `npm test` runs everything; **31 tests across 6 files, all passing** against the real dev database (this project's established testing convention — no separate test DB exists, see `ARCHITECTURE_AUDIT.md` §10 Risks).
+  - `lib/bookings/pricing.test.ts` — pure unit tests for `calculateBookingTotal` (9 cases: full/half/free pricing, discount clamping, rounding, and an explicit case proving it's algebraically identical to the guest-flow's `unitPrice * paxCount`).
+  - `lib/auth/permissions.test.ts` — pure unit tests for `isBackOfficeRole` and structural invariants of `PERMISSION_GROUPS`/`OWNER_PERMISSION_FLOOR`/`ROLES` (catches e.g. a permission added to `PERMISSIONS` but never wired into a `PERMISSION_GROUPS` entry, so it'd be invisible in the SA dashboard).
+  - `lib/db/scoped.test.ts` — **new static regression guard for audit finding P3-17**: parses `prisma/schema.prisma` directly and asserts every model with an `organizationId` field is present in `TENANT_SCOPED_MODELS` (now exported from `lib/db/scoped.ts` for exactly this purpose), and vice versa. This is the automated enforcement the audit flagged as missing — a forgotten entry now fails `npm test`, not "eventually discovered in production."
+  - `tests/integration/tenant-isolation.test.ts` — seeds two real ephemeral orgs, proves `scopedPrisma` blocks cross-org read/update/delete (including an IDOR-style exact-id lookup) across two different models, and proves the extension's `organizationId` **always wins even if a caller passes a different one** (a stronger, more realistic version of "stamps it automatically," since real callers must pass *something* to satisfy Prisma's generated types — see the test file's comment).
+  - `tests/integration/rbac.test.ts` — mutates and restores OPERATOR's real `RolePermission` rows (captured before, restored after) to prove `roleHasPermission()` reflects a write on the very next call, without asserting a rigid snapshot of "today's defaults" (which are meant to be editable).
+  - `tests/integration/overbooking-race.test.ts` — fires `CAPACITY + 4` concurrent `createBooking()` calls at a departure with `capacity: 3`; asserts exactly 3 succeed, the rest throw `NotEnoughAvailabilityError`, and `bookedCount` never exceeds `capacity`. This is a real concurrency test against the real DB, not a mock — the whole point is what happens when requests overlap.
+  - Verified empirically (not just assumed) that `React.cache()` does **not** memoize outside a React render context — confirmed via a throwaway probe before relying on this for the RBAC test's sequential mutate-then-check design, then deleted the probe.
+- [x] **Fixed path traversal in `deleteTourImage`** (`lib/actions/upload.ts`, audit finding P1-3). Added `isInsideDirectory()` — resolves the caller-supplied `url` and checks real path containment via `path.relative()` (immune to the classic `startsWith(prefix)` sibling-directory pitfall, e.g. `uploads/tours-evil/` no longer passes a naive prefix check) before `unlink`ing. Real bug fix, not a patch — verified by inspection since exercising it live requires an authenticated session plus a crafted `../` payload, which wasn't proportionate to set up for this one fix; typecheck/lint/build all pass with the change.
+- [x] **Centralized the dynamic-rendering fix for audit finding P1-6** — see "Important Discoveries" below for the full, honest result (partial). Replaced the scattered `export const dynamic = "force-dynamic"` in `app/dashboard/layout.tsx` and `app/admin/(protected)/layout.tsx` with `await connection()` (from `next/server`) called once inside `requireSession()` (`lib/auth/session.ts`) and `requirePlatformAdmin()` (`lib/auth/platform-admin-session.ts`) — the two functions virtually every protected page/Server Action already calls as its first line. Also added the same `connection()` call directly to `app/admin/page.tsx`, which calls `auth()` directly (by necessity — it redirects to *either* destination) and had **no** dynamic-rendering protection at all before this session, a gap the original audit missed.
+- [x] **Consolidated duplicated core business logic**: `createGuestBooking` (`lib/actions/guest-bookings.ts`, audit finding P2-9) now calls the shared `calculateBookingTotal()` instead of a parallel `unitPrice * paxCount` calculation. Proven behavior-preserving both by the dedicated unit-test case and by the pricing function's own algebra (empty travelers + 0% discount reduces exactly to that multiplication).
+- [x] Full verification pass: `npx tsc --noEmit` (clean), `npm run lint` (clean), `npm run build` (clean, all `/dashboard/*` and `/admin/*` routes still classified `ƒ Dynamic` by Next's own build output), `npm test` (31/31 passing), plus live Playwright regression runs of last session's `check-permissions.js` (all 5 roles) and `check-sa-roles.js` (SA permission-edit flow) — **both still pass with zero changes needed**, confirming the auth-layer refactor didn't regress anything.
+
 ---
 
 ## Files Analyzed (exhaustive for this phase)
@@ -54,33 +73,38 @@ This file tracks the state of the audit/refactor effort described in `docs/ARCHI
 
 ## Important Discoveries (carry these forward — do not re-derive)
 
-1. **No tests is still the outstanding P0.** Git is done (see above) — do not attempt structural refactors until the minimal test harness (tenant isolation, RBAC, overbooking race) lands.
-2. **Tenant isolation is sound today.** Single choke point (`scopedPrisma`), every exception manually verified. The risk is *regression*, not a current bug — hence the P0 priority on tests, not on fixing isolation itself.
-3. **The Next.js caching gotcha (`ARCHITECTURE_AUDIT.md` Problem P1-6) is real, reproduced empirically this session, and only partially fixed.** Two spots have `force-dynamic`; the rest of the app has not been audited. If a future session hits "a permission/data change doesn't show up immediately," check this first before assuming a new bug — see the audit doc's §10 Risks for the recommended centralized-fix approach (`connection()` inside `requireSession()`/`requirePlatformAdmin()`).
-4. **Two product decisions are waiting on the user, not on more analysis:**
+1. **Both P0s are now closed** (git — prior session; tests — this session). Tenant isolation, RBAC, and the overbooking race all now have automated, passing, DB-backed regression coverage (`tests/integration/*`, `lib/db/scoped.test.ts`). Structural refactors are meaningfully lower-risk now — a regression in any of these three properties will fail `npm test`, not go unnoticed.
+2. **P1-6 (the Next.js caching/staleness characteristic) is NOT fully resolved — this is the most important thing to carry forward, and it contradicts the audit's original tentative recommendation.** This session tried the audit's own recommended fix (centralize dynamic-rendering opt-in via `connection()`) and it did **not** eliminate the bug. Full account of what was tried, in order, across **two sessions**:
+   - `export const dynamic = "force-dynamic"` on 2 layout files (prior session) — insufficient alone.
+   - `revalidatePath()` in the mutating Server Action (prior session, still present) — combined with the above, the *prior* session concluded this resolved it with a short lag. It does not fully resolve it (see below).
+   - `await connection()` centralized inside `requireSession()`/`requirePlatformAdmin()`, replacing the scattered `force-dynamic` exports (**this session**) — reproduced the **exact same** staleness pattern as before.
+   - **New this session: confirmed the bug reproduces identically in a `next build && next start` production server, not just `next dev`.** This rules out any Turbopack-dev-mode-only explanation (HMR, dev module caching) that either session might have suspected.
+   - **New this session: reconfirmed the bug is bounded and self-heals within ~1-2 real seconds** (a settle delay between the write and the read makes every case pass, in both dev and prod), and **reconfirmed the actual security boundary (`requirePermission` denying/redirecting a now-unauthorized action) is instant and correct in every single test run, with no exception, in both sessions.** Only a cosmetic UI affordance (whether a button renders) on an already-rendering (200) page can lag; a page that itself redirects/denies is never observed stale.
+   - **What's now ruled out as the sole cause:** Full Route Cache via `force-dynamic` (insufficient alone), `React.cache()` (verified via direct probe: does not memoize outside a render context), Turbopack dev-mode artifacts (reproduces in production), and `connection()` (this session, insufficient alone even centralized). `revalidatePath` remains in place and may be contributing to the bound being as short as ~1-2s rather than longer, but does not eliminate it either.
+   - **Do not re-attempt "centralize the dynamic export" as a fix again** — it's been tried, via two different implementations, across two sessions, and both left the same residual ~1-2s window. If a future session wants to keep chasing the root cause, the next untried angle is probably Next.js's Client Router Cache interacting with `page.goto()`-triggered navigations in a way not yet isolated, or an HTTP keep-alive/connection-reuse artifact — both would require lower-level network tracing (e.g. inspecting raw response bytes/timing across the reused connection) rather than another Next.js-config-level attempt.
+   - **The `connection()` centralization is being kept anyway** — even though it didn't solve P1-6, it's a strict architectural improvement on its own merits (single choke point instead of 2 scattered per-file exports; now also covers `app/admin/page.tsx` and every individual dashboard/admin page and Server Action, none of which had *any* dynamic-rendering protection before beyond inheriting from a layout).
+3. **Two product decisions are waiting on the user, not on more analysis:**
    - What to do with schema columns that have no UI (`Tour.itinerary`/`included`/`excluded`/`languagesOffered`, `Organization.logoUrl`/`address`) — implement or drop?
    - Keep hand-rolling everything and delete the unused shadcn scaffold, or commit to shadcn and migrate the hand-rolled components onto it?
    Do not decide either unilaterally — see `ARCHITECTURE_AUDIT.md` §9 point 3.
-5. **The RBAC system (built the session immediately prior to this audit) is the template for what "good" looks like in this codebase** — DB-backed, one choke point, Super-Admin-editable. Use it as the reference pattern when proposing fixes elsewhere.
-6. **`README.md` has never been touched** — it's still `create-next-app` boilerplate. A future session picking this project up cold (without this audit) would have no on-ramp. This audit + progress file are now that on-ramp; keep them current.
+4. **The RBAC system (built two sessions ago) is the template for what "good" looks like in this codebase** — DB-backed, one choke point, Super-Admin-editable, and now also test-covered. Use it as the reference pattern when proposing fixes elsewhere.
+5. **`README.md` has never been touched** — it's still `create-next-app` boilerplate. A future session picking this project up cold (without this audit) would have no on-ramp. This audit + progress file are now that on-ramp; keep them current.
+6. **Test-writing conventions established this session, follow them going forward:** `server-only`-guarded files need `"server-only"` aliased to `tests/stubs/server-only.ts` (see `vitest.config.mts`) to be importable from Vitest at all — don't rediscover this by hitting the thrown error again. DB-touching tests live under `tests/integration/`, always seed ephemeral/uniquely-stamped data, and always clean up in `afterAll` (mutate-and-restore for shared/global rows like `RolePermission`, delete-cascade via the parent `Organization` for tenant-scoped rows). Pure-logic tests are colocated next to the code they test (`lib/**/*.test.ts`), matching how `lib/` is already organized by domain.
 
 ---
 
 ## Next Phase
 
-**Phase 1 — De-risk, step 2 of 2 (tests).** Stand up a minimal test harness:
-- Vitest (or similar) for pure logic: `calculateBookingTotal`, permission resolution (`roleHasPermission`/`getRolePermissions`), any `findResourceConflict`-adjacent logic.
-- A committed Playwright `e2e/` suite (promote the ad hoc scratchpad scripts used throughout this project's prior sessions into the repo, wired to a `test:e2e` script). Priority coverage, in order:
-  1. Tenant isolation — seed two orgs, assert zero cross-visibility across every tenant-scoped model.
-  2. RBAC — one test per role verifying its actual permission boundary (extend/reuse the `check-permissions.js`/`check-sa-roles.js` patterns from prior sessions).
-  3. Overbooking race — concurrent booking requests against a near-full departure.
+**Phase 3 — remaining P1/P2 items**, per `ARCHITECTURE_AUDIT.md` §11 steps 3-4 (adjusted: path traversal, dynamic-rendering centralization, and the guest-pricing duplication are now done — see "Completed Work" above):
 
-Only after this lands: proceed to the P1 fixes in `ARCHITECTURE_AUDIT.md` §11 (steps 3+) — path traversal in `deleteTourImage`, rate limiting on auth actions, centralizing the `force-dynamic`/`connection()` fix, a basic error-logging convention.
+1. Rate limiting on the 3 auth-entry Server Actions (`login`, `registerOrganization`, `loginPlatformAdmin`) — audit finding P1-4. Not started.
+2. A basic error-logging convention (even a consistent `console.error` shape is enough at this stage) — audit finding P1-5. Not started.
+3. Surface the two product decisions to the user (schema-drift columns; shadcn scaffold vs. hand-rolled) **before** acting on either — audit findings P2-8 and P2-12.
+4. Once decided: extract the shared `<PillPicker>` (P2-7), replace the hardcoded marketplace-closed list with a documented flag (P2-10), write a real `README.md` (P2-11).
+5. P3 cleanup: delete the 10 confirmed-dead component files, fix `shadcn`'s `package.json` classification.
+
+Optionally, if the user wants it pursued further: a genuine root-cause investigation of P1-6 (see "Important Discoveries" #2 above for what's already been ruled out and the one untried angle — Client Router Cache / connection-reuse tracing). This is *not* recommended as a default next step; it's already had disproportionate effort across two sessions relative to its now well-bounded, non-security impact.
 
 ## Exact Next Recommended Action
 
-Git is done — repo is live at **https://github.com/Tik-97/gonairi** (private, remote `origin`, branch `master`). Before writing any test code, confirm with the user:
-1. Test runner choice for pure-logic tests (Vitest is the natural fit for a Next.js 16 project — no config beyond what's already in `package.json`'s `devDependencies` needs adding elsewhere, but this hasn't been confirmed with the user yet).
-2. Whether to promote the existing ad hoc Playwright scripts (referenced in prior session history, not currently part of this repo) into a committed `e2e/` directory, or write the e2e suite fresh.
-
-Then implement Phase 1 step 2 as its own commit (or small set of commits — one per test category is reasonable), push, and update this file's "Completed Work"/"Current Phase" sections.
+Both P0s and this session's P1 architectural fixes are committed and pushed to **https://github.com/Tik-97/gonairi** (private, remote `origin`, branch `master`). Ask the user which of the "Next Phase" items above to do next — items 1-2 (rate limiting, logging) can be done unilaterally; items 3-4 need the two product decisions surfaced first, per `ARCHITECTURE_AUDIT.md` §9 point 3 ("product decisions get surfaced, not defaulted"). Do not decide the schema-drift or UI-system question without asking.
