@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PillButton } from "@/components/pill-button";
 
 const ARMENIAN_REGIONS = [
   "Yerevan",
@@ -21,9 +22,6 @@ const OTHER_COUNTRIES = ["Georgia"];
 export function RegionPicker({ name, defaultValue }: { name: string; defaultValue?: string[] }) {
   const [selected, setSelected] = useState<string[]>(defaultValue ?? []);
   const [touched, setTouched] = useState(false);
-  // Tracked in JS rather than relying on CSS :hover — Chromium can mis-share
-  // computed style between sibling buttons that have byte-identical class
-  // lists (seen here: hovering any pill also lit up the first one).
   const [hovered, setHovered] = useState<string | null>(null);
 
   function toggle(region: string) {
@@ -32,25 +30,17 @@ export function RegionPicker({ name, defaultValue }: { name: string; defaultValu
   }
 
   function renderPill(region: string) {
-    const active = selected.includes(region);
-    const isHovered = hovered === region;
     return (
-      <button
+      <PillButton
         key={region}
-        type="button"
+        active={selected.includes(region)}
+        hovered={hovered === region}
         onClick={() => toggle(region)}
         onMouseEnter={() => setHovered(region)}
         onMouseLeave={() => setHovered((prev) => (prev === region ? null : prev))}
-        className={
-          active
-            ? "rounded-full bg-terracotta px-3.5 py-1.5 text-sm font-medium text-white"
-            : isHovered
-              ? "rounded-full border border-terracotta/25 bg-cream-100 px-3.5 py-1.5 text-sm text-espresso-muted"
-              : "rounded-full border border-terracotta/25 px-3.5 py-1.5 text-sm text-espresso-muted"
-        }
       >
         {region}
-      </button>
+      </PillButton>
     );
   }
 
