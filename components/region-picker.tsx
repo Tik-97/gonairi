@@ -65,16 +65,6 @@ export function RegionPicker({ name, defaultValue }: { name: string; defaultValu
       {selected.map((region) => (
         <input key={region} type="hidden" name={name} value={region} />
       ))}
-      <div className="relative h-0 w-0 overflow-hidden">
-        <input
-          type="checkbox"
-          required
-          checked={selected.length > 0}
-          onChange={() => {}}
-          className="h-0 w-0 opacity-0"
-          tabIndex={-1}
-        />
-      </div>
       {touched && selected.length === 0 && (
         <p className="text-xs text-danger">Select at least one region — this powers the marketplace filter later.</p>
       )}
