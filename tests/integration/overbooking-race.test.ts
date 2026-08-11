@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { createBooking, NotEnoughAvailabilityError } from "@/lib/bookings/createBooking";
+import { createBooking, NotEnoughAvailabilityError } from "@/lib/bookings/create-booking";
 import { createTestOrganization, deleteTestOrganization } from "./helpers";
 
 /**

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { createBooking, NotEnoughAvailabilityError } from "@/lib/bookings/createBooking";
+import { createBooking, NotEnoughAvailabilityError } from "@/lib/bookings/create-booking";
 import { calculateBookingTotal, type TravelerPriceType } from "@/lib/bookings/pricing";
 import { optionalPhoneField } from "@/lib/phone";
 import { formStateFromZodError, type FormState } from "@/lib/form-state";

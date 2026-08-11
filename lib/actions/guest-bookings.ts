@@ -4,7 +4,7 @@ import * as z from "zod";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { createBooking, NotEnoughAvailabilityError } from "@/lib/bookings/createBooking";
+import { createBooking, NotEnoughAvailabilityError } from "@/lib/bookings/create-booking";
 import { calculateBookingTotal } from "@/lib/bookings/pricing";
 import { formStateFromZodError, type FormState } from "@/lib/form-state";
 
