@@ -11,11 +11,9 @@ import { HeroBackground } from "@/components/dashboard/hero-background";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
 import { Topbar } from "@/components/dashboard/topbar";
 
-// Every page under here reads the session/role via next-auth's auth() and
-// per-org DB state — none of that is a `fetch`, so Next's static analysis
-// doesn't see a Request-time API and would otherwise cache these pages
-// (Full Route Cache) and serve one org's/role's render to the next visitor.
-export const dynamic = "force-dynamic";
+// Dynamic-rendering opt-in for this whole subtree lives in requireSession()
+// (lib/auth/session.ts) via connection() — not here — so it can never be
+// forgotten on a page that calls it. See that file's doc comment for why.
 
 // Scoped to the dashboard subtree only — the (public) marketplace keeps its
 // own Cormorant/Manrope pairing. Redefining the same CSS custom properties

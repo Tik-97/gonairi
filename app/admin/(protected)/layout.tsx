@@ -1,10 +1,8 @@
 import { requirePlatformAdmin } from "@/lib/auth/platform-admin-session";
 import { logoutPlatformAdmin } from "@/lib/actions/platform-admin";
 
-// See app/dashboard/layout.tsx for why this is required — no Request-time API
-// is used directly, so this route would otherwise be eligible for Full Route
-// Cache and could serve one admin's render to the next.
-export const dynamic = "force-dynamic";
+// Dynamic-rendering opt-in lives in requirePlatformAdmin() (lib/auth/platform-admin-session.ts)
+// via connection() — not here. See lib/auth/session.ts's doc comment for why.
 
 export default async function PlatformAdminLayout({ children }: { children: React.ReactNode }) {
   const session = await requirePlatformAdmin();
