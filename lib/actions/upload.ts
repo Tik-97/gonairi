@@ -5,6 +5,7 @@ import path from "node:path";
 import { put, del } from "@vercel/blob";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
+import { logError } from "@/lib/log";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES: Record<string, string> = {
@@ -63,7 +64,8 @@ export async function uploadTourImage(formData: FormData): Promise<{ url?: strin
     const pathname = `tours/${session.user.organizationId}/${crypto.randomUUID()}.${extension}`;
     const blob = await put(pathname, file, { access: "public" });
     return { url: blob.url };
-  } catch {
+  } catch (error) {
+    logError("uploadTourImage", error);
     return { error: "Upload failed. Please try again." };
   }
 }
@@ -83,7 +85,9 @@ export async function deleteTourImage(url: string): Promise<void> {
         await unlink(resolvedPath);
       }
     }
-  } catch {
-    // Non-critical: an orphaned file doesn't break anything, so we don't surface this.
+  } catch (error) {
+    // Non-critical: an orphaned file doesn't break anything, so we don't surface
+    // this to the user — but still log it so a growing pile of orphans is visible.
+    logError("deleteTourImage", error);
   }
 }
