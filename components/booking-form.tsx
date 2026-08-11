@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { Baby } from "lucide-react";
-import type { FormState } from "@/lib/actions/bookings";
+import type { FormState } from "@/lib/form-state";
 import type { CustomerSearchResult } from "@/lib/actions/customers";
 import { CustomerCombobox } from "@/components/customer-combobox";
 import { PhoneInput } from "@/components/phone-input";

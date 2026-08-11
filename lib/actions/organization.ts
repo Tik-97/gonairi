@@ -4,16 +4,19 @@ import * as z from "zod";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
-import { isValidOptionalPhone } from "@/lib/phone";
+import { optionalPhoneField } from "@/lib/phone";
+import { formStateFromZodError } from "@/lib/form-state";
 
 const OrganizationSchema = z.object({
   name: z.string().trim().min(2, "Agency name must be at least 2 characters."),
   description: z.string().trim().optional(),
   contactEmail: z.string().trim().optional(),
-  contactPhone: z.string().trim().optional().refine(isValidOptionalPhone, "Enter a valid phone number."),
+  contactPhone: optionalPhoneField,
   isPublished: z.coerce.boolean().optional(),
 });
 
+// Genuinely different from the shared FormState (adds `success`), so this one
+// isn't consolidated — see lib/form-state.ts's doc comment.
 export type FormState = { error?: string; success?: boolean } | undefined;
 
 // Organization is the tenant itself (not a tenant-scoped model), so this uses the
@@ -28,7 +31,7 @@ export async function updateOrganization(_prevState: FormState, formData: FormDa
     isPublished: formData.get("isPublished"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return formStateFromZodError(parsed.error);
   }
 
   await prisma.organization.update({

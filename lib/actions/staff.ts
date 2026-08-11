@@ -7,7 +7,8 @@ import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { prisma } from "@/lib/db";
-import { isValidOptionalPhone } from "@/lib/phone";
+import { optionalPhoneField } from "@/lib/phone";
+import { formStateFromZodError, type FormState } from "@/lib/form-state";
 import type { UserRole } from "@/generated/prisma/enums";
 
 const ASSIGNABLE_ROLES = ["ADMIN", "OPERATOR", "DRIVER", "GUIDE"] as const;
@@ -16,17 +17,15 @@ const CreateStaffSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters."),
   email: z.email("Enter a valid email."),
   password: z.string().min(8, "Password must be at least 8 characters."),
-  phone: z.string().trim().optional().refine(isValidOptionalPhone, "Enter a valid phone number."),
+  phone: optionalPhoneField,
   role: z.enum(ASSIGNABLE_ROLES),
 });
 
 const UpdateStaffSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters."),
-  phone: z.string().trim().optional().refine(isValidOptionalPhone, "Enter a valid phone number."),
+  phone: optionalPhoneField,
   role: z.enum(ASSIGNABLE_ROLES),
 });
-
-export type FormState = { error?: string } | undefined;
 
 export async function createStaffMember(_prevState: FormState, formData: FormData): Promise<FormState> {
   const session = await requirePermission(PERMISSIONS.staffManage);
@@ -38,7 +37,7 @@ export async function createStaffMember(_prevState: FormState, formData: FormDat
     role: formData.get("role"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return formStateFromZodError(parsed.error);
   }
 
   // Email is globally unique across the whole platform, not just this org.
@@ -76,7 +75,7 @@ export async function updateStaffMember(
     role: formData.get("role"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return formStateFromZodError(parsed.error);
   }
 
   const db = scopedPrisma(session.user.organizationId);

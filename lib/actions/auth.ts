@@ -5,7 +5,8 @@ import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
 import { prisma } from "@/lib/db";
 import { signIn, signOut } from "@/auth";
-import { slugify } from "@/lib/slug";
+import { slugify, uniqueSlug } from "@/lib/slug";
+import { formStateFromZodError, type FormState } from "@/lib/form-state";
 
 const RegisterSchema = z.object({
   organizationName: z.string().trim().min(2, "Agency name must be at least 2 characters."),
@@ -14,17 +15,9 @@ const RegisterSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters."),
 });
 
-export type FormState = { error?: string } | undefined;
-
 async function uniqueOrganizationSlug(name: string): Promise<string> {
   const base = slugify(name) || "agency";
-  let candidate = base;
-  let attempt = 1;
-  while (await prisma.organization.findUnique({ where: { slug: candidate } })) {
-    attempt += 1;
-    candidate = `${base}-${attempt}`;
-  }
-  return candidate;
+  return uniqueSlug(base, async (candidate) => Boolean(await prisma.organization.findUnique({ where: { slug: candidate } })));
 }
 
 export async function registerOrganization(
@@ -39,7 +32,7 @@ export async function registerOrganization(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return formStateFromZodError(parsed.error);
   }
 
   const { organizationName, ownerName, email, password } = parsed.data;

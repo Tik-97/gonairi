@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import type { FormState } from "@/lib/actions/departures";
+import type { FormState } from "@/lib/form-state";
 import { DateTimePicker } from "@/components/date-time-picker";
 
 type VehicleOption = { id: string; name: string; type: string | null; capacity: number; licensePlate: string | null };

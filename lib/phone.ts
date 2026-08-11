@@ -1,3 +1,4 @@
+import * as z from "zod";
 import { isValidPhoneNumber } from "libphonenumber-js";
 
 /**
@@ -9,3 +10,10 @@ import { isValidPhoneNumber } from "libphonenumber-js";
 export function isValidOptionalPhone(value: string | undefined): boolean {
   return !value || isValidPhoneNumber(value);
 }
+
+/**
+ * The `phone` field shape repeated across every Zod schema in lib/actions/*
+ * that collects a phone number — same trim/optional/validation chain and
+ * message every time, so defined once here instead of six times.
+ */
+export const optionalPhoneField = z.string().trim().optional().refine(isValidOptionalPhone, "Enter a valid phone number.");

@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { isValidOptionalPhone } from "@/lib/phone";
+import { optionalPhoneField } from "@/lib/phone";
+import { formStateFromZodError, type FormState } from "@/lib/form-state";
 
 export type CustomerSearchResult = { id: string; fullName: string; email: string | null; phone: string | null };
 
@@ -40,12 +41,10 @@ export async function searchCustomers(query: string): Promise<CustomerSearchResu
 const CustomerSchema = z.object({
   fullName: z.string().trim().min(2, "Name must be at least 2 characters."),
   email: z.string().trim().optional(),
-  phone: z.string().trim().optional().refine(isValidOptionalPhone, "Enter a valid phone number."),
+  phone: optionalPhoneField,
   nationality: z.string().trim().optional(),
   notes: z.string().trim().optional(),
 });
-
-export type FormState = { error?: string } | undefined;
 
 function parseCustomerForm(formData: FormData) {
   return CustomerSchema.safeParse({
@@ -61,7 +60,7 @@ export async function createCustomer(_prevState: FormState, formData: FormData):
   const session = await requirePermission(PERMISSIONS.customersManage);
   const parsed = parseCustomerForm(formData);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return formStateFromZodError(parsed.error);
   }
 
   const db = scopedPrisma(session.user.organizationId);
@@ -96,7 +95,7 @@ export async function updateCustomer(
   const session = await requirePermission(PERMISSIONS.customersManage);
   const parsed = parseCustomerForm(formData);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return formStateFromZodError(parsed.error);
   }
 
   const db = scopedPrisma(session.user.organizationId);

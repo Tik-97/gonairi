@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { slugify } from "@/lib/slug";
+import { slugify, uniqueSlug } from "@/lib/slug";
+import { formStateFromZodError, type FormState } from "@/lib/form-state";
 
 const MAX_TOUR_IMAGES = 10;
 
@@ -22,25 +23,19 @@ const TourSchema = z.object({
   regions: z.array(z.string().trim()).min(1, "Select at least one region."),
 });
 
-export type FormState = { error?: string } | undefined;
-
 async function uniqueTourSlug(
   db: ReturnType<typeof scopedPrisma>,
   title: string,
   excludeTourId?: string,
 ): Promise<string> {
   const base = slugify(title) || "tour";
-  let candidate = base;
-  let attempt = 1;
-  while (
-    await db.tour.findFirst({
-      where: excludeTourId ? { slug: candidate, NOT: { id: excludeTourId } } : { slug: candidate },
-    })
-  ) {
-    attempt += 1;
-    candidate = `${base}-${attempt}`;
-  }
-  return candidate;
+  return uniqueSlug(base, async (candidate) =>
+    Boolean(
+      await db.tour.findFirst({
+        where: excludeTourId ? { slug: candidate, NOT: { id: excludeTourId } } : { slug: candidate },
+      }),
+    ),
+  );
 }
 
 function parseTourForm(formData: FormData) {
@@ -72,7 +67,7 @@ export async function createTour(_prevState: FormState, formData: FormData): Pro
   const session = await requirePermission(PERMISSIONS.toursManage);
   const parsed = parseTourForm(formData);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return formStateFromZodError(parsed.error);
   }
 
   const db = scopedPrisma(session.user.organizationId);
@@ -107,7 +102,7 @@ export async function updateTour(
   const session = await requirePermission(PERMISSIONS.toursManage);
   const parsed = parseTourForm(formData);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return formStateFromZodError(parsed.error);
   }
 
   const db = scopedPrisma(session.user.organizationId);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import type { FormState } from "@/lib/actions/customers";
+import type { FormState } from "@/lib/form-state";
 import { PhoneInput } from "@/components/phone-input";
 
 type CustomerFormValues = {

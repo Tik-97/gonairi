@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { ImagePlus, Loader2, ImageOff, X } from "lucide-react";
-import type { FormState } from "@/lib/actions/tours";
+import type { FormState } from "@/lib/form-state";
 import { uploadTourImage, deleteTourImage } from "@/lib/actions/upload";
 import { CategoryPicker } from "@/components/category-picker";
 import { RegionPicker } from "@/components/region-picker";

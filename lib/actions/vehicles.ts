@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { isValidOptionalPhone } from "@/lib/phone";
+import { optionalPhoneField } from "@/lib/phone";
+import { formStateFromZodError, type FormState } from "@/lib/form-state";
 
 const VehicleSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters."),
@@ -13,10 +14,8 @@ const VehicleSchema = z.object({
   capacity: z.coerce.number().int().min(1, "Capacity must be at least 1."),
   licensePlate: z.string().trim().optional(),
   driverName: z.string().trim().optional(),
-  driverPhone: z.string().trim().optional().refine(isValidOptionalPhone, "Enter a valid phone number."),
+  driverPhone: optionalPhoneField,
 });
-
-export type FormState = { error?: string } | undefined;
 
 function parseVehicleForm(formData: FormData) {
   return VehicleSchema.safeParse({
@@ -33,7 +32,7 @@ export async function createVehicle(_prevState: FormState, formData: FormData): 
   const session = await requirePermission(PERMISSIONS.vehiclesManage);
   const parsed = parseVehicleForm(formData);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return formStateFromZodError(parsed.error);
   }
 
   const db = scopedPrisma(session.user.organizationId);
@@ -60,7 +59,7 @@ export async function updateVehicle(
   const session = await requirePermission(PERMISSIONS.vehiclesManage);
   const parsed = parseVehicleForm(formData);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return formStateFromZodError(parsed.error);
   }
 
   const db = scopedPrisma(session.user.organizationId);

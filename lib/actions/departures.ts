@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
+import { formStateFromZodError, type FormState } from "@/lib/form-state";
 
 const DepartureSchema = z.object({
   date: z.string().min(1, "Date is required."),
@@ -15,8 +16,6 @@ const DepartureSchema = z.object({
   driverId: z.string().trim().optional(),
   guideId: z.string().trim().optional(),
 });
-
-export type FormState = { error?: string } | undefined;
 
 /** A vehicle/driver/guide can only be on one departure at a time — this finds
  *  any other non-cancelled departure that already has the same resource booked
@@ -42,6 +41,61 @@ async function findResourceConflict(
   });
 }
 
+type DepartureResourceSelections = { vehicleId?: string; driverId?: string; guideId?: string };
+
+/** The vehicle/driver/guide assignment check was three near-identical blocks
+ *  (look up the resource, error if missing, error if already booked that day) —
+ *  same shape, different field names and wording. Table-driven so a 4th
+ *  assignable resource type would mean one new row here, not a fourth copy. */
+const ASSIGNABLE_RESOURCES: {
+  formField: keyof DepartureResourceSelections;
+  conflictField: "assignedVehicleId" | "assignedDriverId" | "assignedGuideId";
+  verb: string;
+  notFoundError: string;
+  findResource: (db: ReturnType<typeof scopedPrisma>, id: string) => Promise<{ name: string } | null>;
+}[] = [
+  {
+    formField: "vehicleId",
+    conflictField: "assignedVehicleId",
+    verb: "assigned to",
+    notFoundError: "Selected vehicle not found.",
+    findResource: (db, id) => db.vehicle.findFirst({ where: { id } }),
+  },
+  {
+    formField: "driverId",
+    conflictField: "assignedDriverId",
+    verb: "driving",
+    notFoundError: "Selected driver not found.",
+    findResource: (db, id) => db.user.findFirst({ where: { id, role: "DRIVER" } }),
+  },
+  {
+    formField: "guideId",
+    conflictField: "assignedGuideId",
+    verb: "guiding",
+    notFoundError: "Selected guide not found.",
+    findResource: (db, id) => db.user.findFirst({ where: { id, role: "GUIDE" } }),
+  },
+];
+
+/** Checks each selected vehicle/driver/guide, in order — returns the first
+ *  problem found (missing or already booked that day), or null if every
+ *  selection is clear to assign. */
+async function checkResourceAssignments(
+  db: ReturnType<typeof scopedPrisma>,
+  date: Date,
+  selections: DepartureResourceSelections,
+): Promise<string | null> {
+  for (const resource of ASSIGNABLE_RESOURCES) {
+    const id = selections[resource.formField];
+    if (!id) continue;
+    const found = await resource.findResource(db, id);
+    if (!found) return resource.notFoundError;
+    const conflict = await findResourceConflict(db, resource.conflictField, id, date);
+    if (conflict) return `${found.name} is already ${resource.verb} "${conflict.tour.title}" that same day.`;
+  }
+  return null;
+}
+
 export async function createDeparture(
   tourId: string,
   _prevState: FormState,
@@ -60,7 +114,7 @@ export async function createDeparture(
     guideId: formData.get("guideId") || undefined,
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return formStateFromZodError(parsed.error);
   }
 
   const db = scopedPrisma(session.user.organizationId);
@@ -71,37 +125,9 @@ export async function createDeparture(
 
   const departureDate = new Date(parsed.data.date);
 
-  if (parsed.data.vehicleId) {
-    const vehicle = await db.vehicle.findFirst({ where: { id: parsed.data.vehicleId } });
-    if (!vehicle) {
-      return { error: "Selected vehicle not found." };
-    }
-    const conflict = await findResourceConflict(db, "assignedVehicleId", parsed.data.vehicleId, departureDate);
-    if (conflict) {
-      return { error: `${vehicle.name} is already assigned to "${conflict.tour.title}" that same day.` };
-    }
-  }
-
-  if (parsed.data.driverId) {
-    const driver = await db.user.findFirst({ where: { id: parsed.data.driverId, role: "DRIVER" } });
-    if (!driver) {
-      return { error: "Selected driver not found." };
-    }
-    const conflict = await findResourceConflict(db, "assignedDriverId", parsed.data.driverId, departureDate);
-    if (conflict) {
-      return { error: `${driver.name} is already driving "${conflict.tour.title}" that same day.` };
-    }
-  }
-
-  if (parsed.data.guideId) {
-    const guide = await db.user.findFirst({ where: { id: parsed.data.guideId, role: "GUIDE" } });
-    if (!guide) {
-      return { error: "Selected guide not found." };
-    }
-    const conflict = await findResourceConflict(db, "assignedGuideId", parsed.data.guideId, departureDate);
-    if (conflict) {
-      return { error: `${guide.name} is already guiding "${conflict.tour.title}" that same day.` };
-    }
+  const conflictError = await checkResourceAssignments(db, departureDate, parsed.data);
+  if (conflictError) {
+    return { error: conflictError };
   }
 
   await db.departure.create({

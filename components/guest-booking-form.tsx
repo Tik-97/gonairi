@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import type { FormState } from "@/lib/actions/guest-bookings";
+import type { FormState } from "@/lib/form-state";
 
 export function GuestBookingForm({
   action,

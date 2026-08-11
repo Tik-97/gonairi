@@ -7,7 +7,8 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { createBooking, NotEnoughAvailabilityError } from "@/lib/bookings/createBooking";
 import { calculateBookingTotal, type TravelerPriceType } from "@/lib/bookings/pricing";
-import { isValidOptionalPhone } from "@/lib/phone";
+import { optionalPhoneField } from "@/lib/phone";
+import { formStateFromZodError, type FormState } from "@/lib/form-state";
 import type { BookingStatus, PaymentStatus } from "@/generated/prisma/enums";
 
 const TRAVELER_PRICE_TYPES = new Set<TravelerPriceType>(["FULL", "HALF", "FREE"]);
@@ -16,7 +17,7 @@ const BookingSchema = z.object({
   existingCustomerId: z.string().trim().optional(),
   newCustomerName: z.string().trim().optional(),
   newCustomerEmail: z.string().trim().optional(),
-  newCustomerPhone: z.string().trim().optional().refine(isValidOptionalPhone, "Enter a valid phone number."),
+  newCustomerPhone: optionalPhoneField,
   paxCount: z.coerce.number().int().min(1, "At least 1 pax required."),
   discountPercent: z.coerce.number().int().min(0).max(100).optional(),
   specialRequests: z.string().trim().optional(),
@@ -42,8 +43,6 @@ function parseTravelers(formData: FormData, paxCount: number) {
   return travelers;
 }
 
-export type FormState = { error?: string } | undefined;
-
 export async function createManualBooking(
   departureId: string,
   _prevState: FormState,
@@ -60,7 +59,7 @@ export async function createManualBooking(
     specialRequests: formData.get("specialRequests"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return formStateFromZodError(parsed.error);
   }
   const travelers = parseTravelers(formData, parsed.data.paxCount);
 

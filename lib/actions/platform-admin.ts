@@ -8,8 +8,7 @@ import { prisma } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/auth/platform-admin-session";
 import { ALL_PERMISSIONS, OWNER_PERMISSION_FLOOR, type Permission } from "@/lib/auth/permissions";
 import type { UserRole } from "@/generated/prisma/enums";
-
-export type FormState = { error?: string } | undefined;
+import type { FormState } from "@/lib/form-state";
 
 export async function loginPlatformAdmin(_prevState: FormState, formData: FormData): Promise<FormState> {
   try {

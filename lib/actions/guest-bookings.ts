@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { createBooking, NotEnoughAvailabilityError } from "@/lib/bookings/createBooking";
 import { calculateBookingTotal } from "@/lib/bookings/pricing";
+import { formStateFromZodError, type FormState } from "@/lib/form-state";
 
 const GuestBookingSchema = z.object({
   fullName: z.string().trim().min(2, "Name is required."),
@@ -14,8 +15,6 @@ const GuestBookingSchema = z.object({
   paxCount: z.coerce.number().int().min(1),
   specialRequests: z.string().trim().optional(),
 });
-
-export type FormState = { error?: string } | undefined;
 
 export async function createGuestBooking(
   departureId: string,
@@ -30,7 +29,7 @@ export async function createGuestBooking(
     specialRequests: formData.get("specialRequests"),
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+    return formStateFromZodError(parsed.error);
   }
 
   // Unscoped lookup is intentional: the guest has no session/organization context yet.
