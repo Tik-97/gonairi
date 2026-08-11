@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GoNairi (ToursOrganizer)
 
-## Getting Started
+A multi-tenant SaaS back-office for Armenian tour agencies — tours, departures,
+customers, bookings, fleet, and staff/HR — built to also power a public
+booking marketplace (currently closed via `proxy.ts`, see below).
 
-First, run the development server:
+For the full architecture writeup, findings, and session-by-session change
+history, see [`docs/ARCHITECTURE_AUDIT.md`](docs/ARCHITECTURE_AUDIT.md) and
+[`docs/REFACTOR_PROGRESS.md`](docs/REFACTOR_PROGRESS.md). This file is a
+practical getting-started guide; those two are the deeper reference.
+
+## Stack
+
+- Next.js (App Router, Turbopack, Server Actions) — **read
+  `node_modules/next/dist/docs/` before writing code that touches routing,
+  caching, or Server Actions.** This is a customized build with breaking
+  changes from stock Next.js; see `AGENTS.md`.
+- React 19, TypeScript (strict)
+- Prisma 7 (`@prisma/adapter-pg`) against Neon serverless Postgres
+- NextAuth v5 (Auth.js) — two Credentials providers: tenant staff and platform
+  Super Admin
+- Tailwind v4, hand-rolled components (a handful of shadcn/ui primitives are
+  used where they earn their keep — e.g. `components/ui/dropdown-menu.tsx`)
+- Vercel Blob for tour photo uploads, with a local-filesystem fallback in dev
+- Vitest for tests (pure-logic unit tests + real-DB integration tests)
+
+## Where things live
+
+| You're looking for... | It's in... |
+|---|---|
+| A page/route | `app/` — one folder per route segment, route groups `(auth)`/`(public)` for shared layout without a URL segment |
+| Business logic / mutations | `lib/actions/<domain>.ts` — one file per domain, all Server Actions (`"use server"`), auth guard first, then Zod validation, then the mutation |
+| Shared business logic used by more than one action | `lib/<domain>/` — e.g. `lib/bookings/create-booking.ts` (the atomic overbooking-safe transaction), `lib/bookings/pricing.ts` |
+| Auth / permission checks | `lib/auth/` — `session.ts` (`requireSession`/`requirePermission`), `permissions.ts` (DB-backed role→permission resolution), `permission-keys.ts` (client-safe constants) |
+| Database access | `lib/db.ts` (raw client — public marketplace reads + platform-admin tooling only) and `lib/db/scoped.ts` (`scopedPrisma(organizationId)` — the **only** sanctioned way to touch tenant data; auto-injects `organizationId` into every query) |
+| Validation | Zod schemas live at the top of the relevant `lib/actions/<domain>.ts` file, next to the action(s) that use them. Shared fragments (e.g. `optionalPhoneField`) live in small `lib/*.ts` utility files |
+| Shared UI components | `components/` — domain forms/pickers/combobox at the top level, `components/dashboard/` for dashboard chrome (sidebar, topbar, charts), `components/ornaments/` for decorative SVGs |
+| Types | Colocated with what they describe — component prop types inline, domain types in the relevant `lib/` file. `types/next-auth.d.ts` is the one global module-augmentation file (session shapes) |
+| Tests | Colocated `*.test.ts` next to pure-logic code in `lib/`; DB-touching integration tests in `tests/integration/` |
+| Database schema | `prisma/schema.prisma` — every model has a `///` comment explaining its purpose |
+
+## Getting started
+
+1. Copy `.env.example` to `.env` and fill in:
+   - `DATABASE_URL` / `DIRECT_URL` — a Neon (or other) Postgres instance. The
+     pooled URL is used at runtime; the direct URL is used only for migrations.
+   - `AUTH_SECRET` — generate with
+     `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+   - `BLOB_READ_WRITE_TOKEN` — optional locally (tour photo uploads fall back
+     to `/public/uploads` if unset); required in production.
+2. `npm install` (this also runs `prisma generate` via `postinstall`).
+3. Apply migrations: `npx prisma migrate deploy`.
+4. `npm run dev`, then visit `/register` to create the first agency.
+
+### Applying a schema change
+
+`prisma migrate dev` cannot run non-interactively in this environment. After
+editing `prisma/schema.prisma`, generate and apply migrations by hand:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+mkdir -p prisma/migrations/<timestamp>_<name>
+npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script \
+  > prisma/migrations/<timestamp>_<name>/migration.sql
+npx prisma migrate deploy
+npx prisma generate
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `npm run dev` / `npm run build` / `npm start`
+- `npm run lint` — ESLint
+- `npm test` / `npm run test:watch` — Vitest (unit + DB integration tests,
+  runs against the real dev database — there is no separate test DB)
+- `node scripts/create-platform-admin.cjs` — bootstrap the first Super Admin
+  account (`/admin/login`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Multi-tenancy & authorization, in one paragraph
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Every tenant-owned table has an `organizationId` column. `scopedPrisma()` is
+a Prisma Client Extension that auto-injects `organizationId` into every
+query for a fixed allowlist of models (`TENANT_SCOPED_MODELS` in
+`lib/db/scoped.ts`, enforced against schema drift by `lib/db/scoped.test.ts`).
+Authorization is a fixed set of `Permission` keys resolved per-role from a
+`RolePermission` DB table (editable live at `/admin/roles`) rather than
+hardcoded role arrays — see `lib/auth/permissions.ts`.
