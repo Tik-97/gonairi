@@ -66,7 +66,7 @@ export async function createCustomer(_prevState: FormState, formData: FormData):
   const db = scopedPrisma(session.user.organizationId);
 
   if (parsed.data.email) {
-    const existing = await db.customer.findFirst({ where: { email: parsed.data.email } });
+    const existing = await db.customer.findFirst({ where: { email: { equals: parsed.data.email, mode: "insensitive" } } });
     if (existing) {
       return { error: `A customer with this email already exists: ${existing.fullName}.` };
     }
@@ -105,7 +105,7 @@ export async function updateCustomer(
   }
 
   if (parsed.data.email) {
-    const emailOwner = await db.customer.findFirst({ where: { email: parsed.data.email } });
+    const emailOwner = await db.customer.findFirst({ where: { email: { equals: parsed.data.email, mode: "insensitive" } } });
     if (emailOwner && emailOwner.id !== customerId) {
       return { error: `Another customer already uses this email: ${emailOwner.fullName}.` };
     }

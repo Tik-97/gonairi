@@ -80,7 +80,7 @@ export async function createManualBooking(
     // Reuse the existing CRM record by email rather than fragmenting one traveler's
     // history across duplicate Customer rows (and their booking-behavior stats).
     const existingByEmail = parsed.data.newCustomerEmail
-      ? await db.customer.findFirst({ where: { email: parsed.data.newCustomerEmail } })
+      ? await db.customer.findFirst({ where: { email: { equals: parsed.data.newCustomerEmail, mode: "insensitive" } } })
       : null;
     if (existingByEmail) {
       customerId = existingByEmail.id;

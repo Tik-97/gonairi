@@ -49,7 +49,7 @@ export async function createGuestBooking(
 
   const db = scopedPrisma(departure.organizationId);
 
-  let customer = await db.customer.findFirst({ where: { email: parsed.data.email } });
+  let customer = await db.customer.findFirst({ where: { email: { equals: parsed.data.email, mode: "insensitive" } } });
   if (!customer) {
     customer = await db.customer.create({
       data: {
