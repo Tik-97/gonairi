@@ -5,8 +5,13 @@ import { prisma } from "@/lib/db";
  * Models that carry an `organizationId` column and must never leak across tenants.
  * Every model added to the schema that belongs to a single Organization must be
  * listed here, or scopedPrisma() will silently pass its queries through unscoped.
+ *
+ * Exported (only) so lib/db/scoped.test.ts can assert this set exactly matches every
+ * model in prisma/schema.prisma that actually has an `organizationId` field — a
+ * forgotten entry here would otherwise leak data cross-tenant with no signal until
+ * someone happens to notice.
  */
-const TENANT_SCOPED_MODELS = new Set([
+export const TENANT_SCOPED_MODELS = new Set([
   "User",
   "Customer",
   "Tour",
