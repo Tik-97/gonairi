@@ -6,7 +6,7 @@ import { AuthError } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/auth/platform-admin-session";
-import { ALL_PERMISSIONS, OWNER_PERMISSION_FLOOR, type Permission } from "@/lib/auth/permissions";
+import { ALL_PERMISSIONS, OWNER_PERMISSION_FLOOR, ROLES, type Permission } from "@/lib/auth/permissions";
 import type { UserRole } from "@/generated/prisma/enums";
 import type { FormState } from "@/lib/form-state";
 import { clientIp, isRateLimited } from "@/lib/rate-limit";
@@ -34,7 +34,7 @@ export async function logoutPlatformAdmin() {
   await signOut({ redirectTo: "/admin/login" });
 }
 
-const VALID_ROLES = new Set<string>(["OWNER", "ADMIN", "OPERATOR", "DRIVER", "GUIDE"]);
+const VALID_ROLES = new Set<string>(ROLES);
 const VALID_PERMISSIONS = new Set<string>(ALL_PERMISSIONS);
 
 /** Replaces a role's entire permission set with the checked boxes from the form.
