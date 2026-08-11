@@ -1,0 +1,359 @@
+// Prisma schema for ToursOrganizer — multi-tenant tour agency SaaS + booking marketplace.
+// See C:\Users\Tigran\.claude\plans\cuddly-inventing-stonebraker.md for the architecture this implements.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  OPERATOR
+  DRIVER
+  GUIDE
+}
+
+enum AttendanceStatus {
+  WORKED
+  ABSENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+enum DepartureStatus {
+  SCHEDULED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+enum BookingSource {
+  MANUAL
+  ONLINE
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD_ONLINE
+  OTHER
+}
+
+enum PaymentRecordStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum TravelerPriceType {
+  FULL
+  HALF
+  FREE
+}
+
+/// A platform-level operator account — not tied to any tenant Organization.
+/// Logs in at /admin/login to manage the RolePermission matrix below.
+model PlatformAdmin {
+  id           String @id @default(cuid())
+  email        String @unique
+  passwordHash String
+  name         String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// A single permission grant for a UserRole, platform-wide (not tenant-scoped).
+/// This is the editable source of truth behind lib/auth/permissions.ts — the
+/// Super Admin dashboard at /admin/roles adds/removes rows here instead of a
+/// permission matrix being hardcoded in application code.
+model RolePermission {
+  id         String   @id @default(cuid())
+  role       UserRole
+  permission String
+  createdAt  DateTime @default(now())
+
+  @@unique([role, permission])
+  @@index([role])
+}
+
+/// A tenant: one tour agency using the platform.
+model Organization {
+  id           String  @id @default(cuid())
+  name         String
+  slug         String  @unique
+  description  String?
+  logoUrl      String?
+  contactEmail String?
+  contactPhone String?
+  address      String?
+  language     String  @default("hy")
+  currency     String  @default("AMD")
+  timezone     String  @default("Asia/Yerevan")
+  isPublished  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users             User[]
+  customers         Customer[]
+  tours             Tour[]
+  departures        Departure[]
+  vehicles          Vehicle[]
+  bookings          Booking[]
+  payments          Payment[]
+  bookingTravelers  BookingTraveler[]
+  attendanceRecords Attendance[]
+}
+
+/// Staff account — owner/admin/operator, plus drivers and guides who can be
+/// assigned to departures. Role governs both permissions and, for
+/// DRIVER/GUIDE, eligibility to show up in departure assignment pickers.
+model User {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  email        String     @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         UserRole   @default(OPERATOR)
+  status       UserStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBookings   Booking[]    @relation("BookingCreatedByUser")
+  guidedDepartures  Departure[]  @relation("DepartureGuide")
+  drivenDepartures  Departure[]  @relation("DepartureDriver")
+  attendanceRecords Attendance[]
+
+  @@index([organizationId])
+}
+
+/// A day marked as worked or absent for a staff member — the basic HR/attendance ledger.
+model Attendance {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date   DateTime         @db.Date
+  status AttendanceStatus
+  note   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([organizationId, date])
+}
+
+/// CRM contact — independent of User; created manually by staff or from a guest booking.
+model Customer {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  fullName    String
+  email       String?
+  phone       String?
+  nationality String?
+  notes       String?
+  source      BookingSource @default(MANUAL)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings Booking[]
+
+  @@index([organizationId])
+  @@index([organizationId, email])
+}
+
+/// A tour product template (not itself bookable — Departures are).
+model Tour {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  title            String
+  slug             String
+  description      String?
+  category         String?
+  regions          String[]
+  durationDays     Int      @default(1)
+  languagesOffered String[]
+  images           String[]
+  itinerary        Json?
+  included         String?
+  excluded         String?
+  basePrice        Decimal  @db.Decimal(10, 2)
+  currency         String   @default("AMD")
+  minPax           Int      @default(1)
+  maxPax           Int      @default(20)
+  isPublished      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  departures Departure[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([organizationId, isPublished])
+}
+
+/// A scheduled, dated, bookable instance of a Tour.
+model Departure {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tourId         String
+  tour           Tour         @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  date              DateTime
+  capacity          Int
+  bookedCount       Int             @default(0)
+  priceOverride     Decimal?        @db.Decimal(10, 2)
+  assignedGuideId   String?
+  assignedGuide     User?           @relation("DepartureGuide", fields: [assignedGuideId], references: [id], onDelete: SetNull)
+  assignedDriverId  String?
+  assignedDriver    User?           @relation("DepartureDriver", fields: [assignedDriverId], references: [id], onDelete: SetNull)
+  assignedVehicleId String?
+  assignedVehicle   Vehicle?        @relation(fields: [assignedVehicleId], references: [id], onDelete: SetNull)
+  status            DepartureStatus @default(SCHEDULED)
+  notes             String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings Booking[]
+
+  @@index([organizationId, tourId, date])
+  @@index([organizationId, date])
+}
+
+/// A customer's reservation on a Departure.
+model Booking {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  departureId    String
+  departure      Departure    @relation(fields: [departureId], references: [id], onDelete: Cascade)
+  customerId     String
+  customer       Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  paxCount        Int
+  totalPrice      Decimal       @db.Decimal(10, 2)
+  discountPercent Int           @default(0)
+  currency        String        @default("AMD")
+  status          BookingStatus @default(PENDING)
+  paymentStatus   PaymentStatus @default(UNPAID)
+  source          BookingSource @default(MANUAL)
+  createdByUserId String?
+  createdByUser   User?         @relation("BookingCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  specialRequests String?
+  lookupToken     String        @unique @default(cuid())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments  Payment[]
+  travelers BookingTraveler[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([departureId])
+}
+
+/// A named member of a booking's party beyond the primary Customer (pax 2..N) —
+/// lets staff record who else is travelling, mark children, and price them
+/// individually (full/half/free) within the same booking.
+model BookingTraveler {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bookingId      String
+  booking        Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  fullName  String
+  isChild   Boolean           @default(false)
+  priceType TravelerPriceType @default(FULL)
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([bookingId])
+}
+
+/// A vehicle an agency can assign to departures.
+model Vehicle {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name         String
+  type         String?
+  capacity     Int
+  licensePlate String?
+  driverName   String?
+  driverPhone  String?
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  departures Departure[]
+
+  @@index([organizationId])
+}
+
+/// A payment (full or partial) recorded against a Booking.
+model Payment {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bookingId      String
+  booking        Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  amount            Decimal             @db.Decimal(10, 2)
+  currency          String              @default("AMD")
+  method            PaymentMethod       @default(CASH)
+  status            PaymentRecordStatus @default(COMPLETED)
+  externalReference String?
+  recordedByUserId  String?
+  paidAt            DateTime            @default(now())
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([bookingId])
+}

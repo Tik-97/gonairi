@@ -1,0 +1,87 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { Menu, X } from "lucide-react";
+import { LogoIcon } from "@/components/logo-icon";
+import { Wordmark } from "@/components/wordmark";
+import { SidebarNav } from "@/components/dashboard/sidebar-nav";
+import type { Permission } from "@/lib/auth/permission-keys";
+import type { UserRole } from "@/generated/prisma/enums";
+
+/**
+ * Mobile-only navigation: a fixed top bar with a hamburger trigger, plus an
+ * off-canvas drawer duplicating the desktop sidebar's content. Everything
+ * here is `lg:hidden` — the desktop <aside> in the layout handles large
+ * screens and is untouched by this component.
+ */
+export function MobileNav({ role, permissions }: { role: UserRole; permissions: Permission[] }) {
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const [lastPathname, setLastPathname] = useState(pathname);
+
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname);
+    setOpen(false);
+  }
+
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  return (
+    <>
+      <div className="fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b border-border bg-cream px-4 py-3 lg:hidden">
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <LogoIcon className="h-10 w-10" />
+          <Wordmark className="font-serif text-lg font-bold" />
+        </Link>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-espresso transition-colors hover:bg-cream-100"
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" strokeWidth={1.75} />
+        </button>
+      </div>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-espresso/40 lg:hidden"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col overflow-hidden border-r border-border bg-cream px-6 py-7 transition-transform duration-300 lg:hidden ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="mb-10 flex items-center justify-between">
+          <Link href="/dashboard" className="flex items-center gap-2.5">
+            <LogoIcon className="h-10 w-10" />
+            <Wordmark className="font-serif text-lg font-bold" />
+          </Link>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-espresso-muted transition-colors hover:bg-cream-100"
+            aria-label="Close menu"
+          >
+            <X className="h-4 w-4" strokeWidth={1.75} />
+          </button>
+        </div>
+        <div className="flex flex-1 flex-col">
+          <SidebarNav role={role} permissions={permissions} />
+        </div>
+        <p className="font-serif text-sm italic text-espresso-muted">Boutique journeys through Armenia.</p>
+      </aside>
+    </>
+  );
+}
