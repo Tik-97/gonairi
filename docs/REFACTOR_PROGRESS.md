@@ -9,7 +9,7 @@ This file tracks the state of the audit/refactor effort described in `docs/ARCHI
 
 **Phase 0 — Audit (COMPLETE).** No production code was modified. Repository was analyzed end-to-end: full `app/`, `lib/`, `components/`, `prisma/` trees; `auth.ts`; `proxy.ts`; all config files; dependency graph; dead-code cross-reference; tenant-isolation spot-check of every raw-`prisma` usage outside `scopedPrisma`.
 
-**Next phase to start: Phase 1 — De-risk (git + tests).** Not started. See "Next Phase" section below before doing anything else.
+**Phase 1 — De-risk, step 1 of 2 (git) — COMPLETE.** Git initialized, pushed to GitHub. Step 2 (test harness) not started — see "Next Phase" below.
 
 ---
 
@@ -26,8 +26,13 @@ This file tracks the state of the audit/refactor effort described in `docs/ARCHI
 - [x] Component-level duplication check: `category-picker.tsx`, `region-picker.tsx`, `vehicle-type-picker.tsx` confirmed near-duplicate.
 - [x] Dead-code sweep of `components/`: 9/10 `components/ui/*` shadcn primitives confirmed zero-imports; `components/ornaments/flying-bird.tsx` confirmed zero-imports.
 - [x] Security spot-check: `dangerouslySetInnerHTML` (none found), path handling in `lib/actions/upload.ts` (path-traversal-shaped bug found), auth flows (no rate limiting found).
-- [x] Confirmed: **no git repository**, **no test framework**, **no `tests/` directory anywhere.**
+- [x] Confirmed (at audit time): **no git repository**, **no test framework**, **no `tests/` directory anywhere.**
 - [x] `ARCHITECTURE_AUDIT.md` written with full findings, prioritization, target architecture, and execution order.
+- [x] **Git initialized** in the project root; `.gitignore` fixed first (`!.env.example` negation added, Problem P3-15 resolved).
+- [x] Verified staged content before first commit — no `.env`, `node_modules`, `.next`, `generated/prisma`, or `public/uploads` included; confirmed clean.
+- [x] Repo-local git identity set (`user.name`/`user.email`, local scope only, derived from the authenticated `gh` account — no global config touched).
+- [x] First commit made (`3846841`) on `master`.
+- [x] Private GitHub repo created and pushed: **https://github.com/Tik-97/gonairi** (remote `origin`, branch `master` tracking `origin/master`).
 
 ---
 
@@ -49,7 +54,7 @@ This file tracks the state of the audit/refactor effort described in `docs/ARCHI
 
 ## Important Discoveries (carry these forward — do not re-derive)
 
-1. **No git, no tests — these are the two P0s and the precondition for everything else.** Do not attempt any refactor beyond the audit until at least git is initialized.
+1. **No tests is still the outstanding P0.** Git is done (see above) — do not attempt structural refactors until the minimal test harness (tenant isolation, RBAC, overbooking race) lands.
 2. **Tenant isolation is sound today.** Single choke point (`scopedPrisma`), every exception manually verified. The risk is *regression*, not a current bug — hence the P0 priority on tests, not on fixing isolation itself.
 3. **The Next.js caching gotcha (`ARCHITECTURE_AUDIT.md` Problem P1-6) is real, reproduced empirically this session, and only partially fixed.** Two spots have `force-dynamic`; the rest of the app has not been audited. If a future session hits "a permission/data change doesn't show up immediately," check this first before assuming a new bug — see the audit doc's §10 Risks for the recommended centralized-fix approach (`connection()` inside `requireSession()`/`requirePlatformAdmin()`).
 4. **Two product decisions are waiting on the user, not on more analysis:**
@@ -63,23 +68,19 @@ This file tracks the state of the audit/refactor effort described in `docs/ARCHI
 
 ## Next Phase
 
-**Phase 1 — De-risk.** Scope, in order (matches `ARCHITECTURE_AUDIT.md` §11):
+**Phase 1 — De-risk, step 2 of 2 (tests).** Stand up a minimal test harness:
+- Vitest (or similar) for pure logic: `calculateBookingTotal`, permission resolution (`roleHasPermission`/`getRolePermissions`), any `findResourceConflict`-adjacent logic.
+- A committed Playwright `e2e/` suite (promote the ad hoc scratchpad scripts used throughout this project's prior sessions into the repo, wired to a `test:e2e` script). Priority coverage, in order:
+  1. Tenant isolation — seed two orgs, assert zero cross-visibility across every tenant-scoped model.
+  2. RBAC — one test per role verifying its actual permission boundary (extend/reuse the `check-permissions.js`/`check-sa-roles.js` patterns from prior sessions).
+  3. Overbooking race — concurrent booking requests against a near-full departure.
 
-1. Initialize git in `c:\Users\Tigran\Desktop\ToursOrganizer`, first commit = current state as-is (including this audit).
-   - **Before the first commit:** fix `.gitignore`'s `.env*` pattern to add `!.env.example` (Problem P3-15), or the example file will be silently excluded from that very first commit.
-2. Stand up a minimal test harness (Vitest for pure logic + a promoted Playwright `e2e/` suite). Priority test content, in order: tenant-isolation cross-org test, per-role RBAC boundary test, overbooking-race test.
-3. Only after 1–2 are done: proceed to the P1 fixes listed in the audit (`§11` steps 3+).
+Only after this lands: proceed to the P1 fixes in `ARCHITECTURE_AUDIT.md` §11 (steps 3+) — path traversal in `deleteTourImage`, rate limiting on auth actions, centralizing the `force-dynamic`/`connection()` fix, a basic error-logging convention.
 
 ## Exact Next Recommended Action
 
-**Ask the user whether to proceed with git initialization now** (it's a workspace-level action — creating a `.git` directory and making a first commit — that this audit's instructions explicitly scoped out of the analysis phase, and it's good practice to confirm before taking the first action with real, lasting side effects). If approved:
+Git is done — repo is live at **https://github.com/Tik-97/gonairi** (private, remote `origin`, branch `master`). Before writing any test code, confirm with the user:
+1. Test runner choice for pure-logic tests (Vitest is the natural fit for a Next.js 16 project — no config beyond what's already in `package.json`'s `devDependencies` needs adding elsewhere, but this hasn't been confirmed with the user yet).
+2. Whether to promote the existing ad hoc Playwright scripts (referenced in prior session history, not currently part of this repo) into a committed `e2e/` directory, or write the e2e suite fresh.
 
-```bash
-cd "c:\Users\Tigran\Desktop\ToursOrganizer"
-# first: add `!.env.example` to .gitignore (see Discovery #6 above / Problem P3-15)
-git init
-git add -A
-git commit -m "Initial commit: GoNairi multi-tenant tour agency SaaS"
-```
-
-Then proceed to test-harness setup (Phase 1, step 2) in the same or a follow-up session, updating this file's "Completed Work" and "Current Phase" sections as each step lands.
+Then implement Phase 1 step 2 as its own commit (or small set of commits — one per test category is reasonable), push, and update this file's "Completed Work"/"Current Phase" sections.
