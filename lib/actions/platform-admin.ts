@@ -9,8 +9,13 @@ import { requirePlatformAdmin } from "@/lib/auth/platform-admin-session";
 import { ALL_PERMISSIONS, OWNER_PERMISSION_FLOOR, type Permission } from "@/lib/auth/permissions";
 import type { UserRole } from "@/generated/prisma/enums";
 import type { FormState } from "@/lib/form-state";
+import { clientIp, isRateLimited } from "@/lib/rate-limit";
 
 export async function loginPlatformAdmin(_prevState: FormState, formData: FormData): Promise<FormState> {
+  if (isRateLimited(`platform-admin-login:${await clientIp()}`, { limit: 10, windowMs: 60_000 })) {
+    return { error: "Too many attempts. Please wait a minute and try again." };
+  }
+
   try {
     await signIn("platform-admin", {
       email: formData.get("email"),

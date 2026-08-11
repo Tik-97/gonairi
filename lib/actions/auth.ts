@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { signIn, signOut } from "@/auth";
 import { slugify, uniqueSlug } from "@/lib/slug";
 import { formStateFromZodError, type FormState } from "@/lib/form-state";
+import { clientIp, isRateLimited } from "@/lib/rate-limit";
 
 const RegisterSchema = z.object({
   organizationName: z.string().trim().min(2, "Agency name must be at least 2 characters."),
@@ -33,6 +34,10 @@ export async function registerOrganization(
 
   if (!parsed.success) {
     return formStateFromZodError(parsed.error);
+  }
+
+  if (isRateLimited(`register:${await clientIp()}`, { limit: 5, windowMs: 60_000 })) {
+    return { error: "Too many attempts. Please wait a minute and try again." };
   }
 
   const { organizationName, ownerName, email, password } = parsed.data;
@@ -64,6 +69,10 @@ export async function registerOrganization(
 }
 
 export async function login(_prevState: FormState, formData: FormData): Promise<FormState> {
+  if (isRateLimited(`login:${await clientIp()}`, { limit: 10, windowMs: 60_000 })) {
+    return { error: "Too many attempts. Please wait a minute and try again." };
+  }
+
   try {
     await signIn("credentials", {
       email: formData.get("email"),
