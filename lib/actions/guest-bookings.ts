@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { createBooking, NotEnoughAvailabilityError } from "@/lib/bookings/createBooking";
+import { calculateBookingTotal } from "@/lib/bookings/pricing";
 
 const GuestBookingSchema = z.object({
   fullName: z.string().trim().min(2, "Name is required."),
@@ -62,8 +63,15 @@ export async function createGuestBooking(
     });
   }
 
+  // Same pricing rule as the staff-manual flow (lib/actions/bookings.ts) — guests just
+  // never supply named travelers or a discount, so this reduces to unitPrice * paxCount.
   const unitPrice = Number(departure.priceOverride ?? departure.tour.basePrice);
-  const totalPrice = unitPrice * parsed.data.paxCount;
+  const totalPrice = calculateBookingTotal({
+    unitPrice,
+    paxCount: parsed.data.paxCount,
+    travelers: [],
+    discountPercent: 0,
+  });
 
   let booking;
   try {
