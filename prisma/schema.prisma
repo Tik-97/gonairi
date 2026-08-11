@@ -292,6 +292,7 @@ model Booking {
   @@index([organizationId])
   @@index([organizationId, status])
   @@index([departureId])
+  @@index([organizationId, customerId])
 }
 
 /// A named member of a booking's party beyond the primary Customer (pax 2..N) —

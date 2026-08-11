@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Map } from "lucide-react";
+import { Map as MapIcon } from "lucide-react";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
@@ -29,12 +29,22 @@ export default async function ToursPage() {
 
   const toursSorted = sortByNextDeparture(toursRaw);
 
-  const tours = await Promise.all(
-    toursSorted.map(async (tour) => ({
-      ...tour,
-      bookingCount: canDelete ? await db.booking.count({ where: { departure: { tourId: tour.id } } }) : 0,
-    })),
-  );
+  const bookingCountByTour = new Map<string, number>();
+  if (canDelete && toursSorted.length > 0) {
+    const bookings = await db.booking.findMany({
+      where: { departure: { tourId: { in: toursSorted.map((tour) => tour.id) } } },
+      select: { departure: { select: { tourId: true } } },
+    });
+    for (const booking of bookings) {
+      const tourId = booking.departure.tourId;
+      bookingCountByTour.set(tourId, (bookingCountByTour.get(tourId) ?? 0) + 1);
+    }
+  }
+
+  const tours = toursSorted.map((tour) => ({
+    ...tour,
+    bookingCount: bookingCountByTour.get(tour.id) ?? 0,
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,7 +85,7 @@ export default async function ToursPage() {
                     />
                   ) : (
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] bg-terracotta/10">
-                      <Map className="h-5 w-5 text-terracotta-700" strokeWidth={1.75} />
+                      <MapIcon className="h-5 w-5 text-terracotta-700" strokeWidth={1.75} />
                     </span>
                   )}
                   <div>
