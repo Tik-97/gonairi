@@ -9,6 +9,7 @@ import {
   parsePhoneNumberFromString,
   type CountryCode,
 } from "libphonenumber-js";
+import { useClickOutside } from "@/components/use-click-outside";
 
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
 
@@ -52,18 +53,8 @@ function CountryPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useClickOutside<HTMLDivElement>(() => setOpen(false));
   const selected = COUNTRY_OPTIONS.find((c) => c.code === country);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const filtered = COUNTRY_OPTIONS.filter(
     (c) =>

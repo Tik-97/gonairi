@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, X, UserPlus } from "lucide-react";
 import { searchCustomers, type CustomerSearchResult } from "@/lib/actions/customers";
+import { useClickOutside } from "@/components/use-click-outside";
 
 export function CustomerCombobox({
   selected,
@@ -15,7 +16,7 @@ export function CustomerCombobox({
   const [results, setResults] = useState<CustomerSearchResult[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useClickOutside<HTMLDivElement>(() => setOpen(false));
 
   useEffect(() => {
     if (!open) return;
@@ -27,16 +28,6 @@ export function CustomerCombobox({
     }, 200);
     return () => clearTimeout(handle);
   }, [query, open]);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   if (selected) {
     return (

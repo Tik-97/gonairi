@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { useClickOutside } from "@/components/use-click-outside";
 
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
@@ -48,17 +49,7 @@ export function DateTimePicker({ name, required }: { name: string; required?: bo
   const [draftTime, setDraftTime] = useState("12:00");
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(new Date().getMonth());
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const containerRef = useClickOutside<HTMLDivElement>(() => setOpen(false));
 
   function openPicker() {
     const base = appliedDate ?? new Date();
