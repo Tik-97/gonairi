@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { deleteCustomer } from "@/lib/actions/customers";
+import { calculateCustomerBookingStats } from "@/lib/customers/stats";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -33,15 +34,10 @@ export default async function CustomerDetailPage({
     orderBy: { createdAt: "desc" },
   });
 
-  const totalBookings = bookings.length;
-  const confirmedCount = bookings.filter((b) => b.status === "CONFIRMED" || b.status === "COMPLETED").length;
-  const cancelledCount = bookings.filter((b) => b.status === "CANCELLED").length;
-  const noShowCount = bookings.filter((b) => b.status === "NO_SHOW").length;
-  const totalSpent = bookings
-    .filter((b) => b.status === "CONFIRMED" || b.status === "COMPLETED")
-    .reduce((sum, b) => sum + Number(b.totalPrice), 0);
-  const currency = bookings[0]?.currency ?? "AMD";
-  const cancellationRate = totalBookings > 0 ? Math.round((cancelledCount / totalBookings) * 100) : 0;
+  const { totalBookings, confirmedCount, cancelledCount, noShowCount, totalSpent, currency, cancellationRate } =
+    calculateCustomerBookingStats(
+      bookings.map((b) => ({ status: b.status, totalPrice: Number(b.totalPrice), currency: b.currency })),
+    );
 
   return (
     <div className="flex flex-col gap-8">

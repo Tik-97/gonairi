@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { deleteTour } from "@/lib/actions/tours";
+import { sortByNextDeparture } from "@/lib/tours/sort";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -26,16 +27,7 @@ export default async function ToursPage() {
     },
   });
 
-  // Soonest-upcoming-departure first, so it's obvious at a glance which tour is next —
-  // tours with nothing scheduled sink to the bottom.
-  const toursSorted = [...toursRaw].sort((a, b) => {
-    const dateA = a.departures[0]?.date;
-    const dateB = b.departures[0]?.date;
-    if (dateA && dateB) return dateA.getTime() - dateB.getTime();
-    if (dateA) return -1;
-    if (dateB) return 1;
-    return 0;
-  });
+  const toursSorted = sortByNextDeparture(toursRaw);
 
   const tours = await Promise.all(
     toursSorted.map(async (tour) => ({
