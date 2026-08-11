@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/auth";
 
+// Single documented kill-switch for the public marketplace, so opening it
+// later is a one-line env change instead of deleting a route-prefix list.
+// Unset/anything other than "true" keeps it closed — today's behavior.
+// Redundant with the isPublished checks already enforced in every marketplace
+// query, so flipping this on is safe even before a deliberate "launch" pass.
+const MARKETPLACE_ENABLED = process.env.MARKETPLACE_ENABLED === "true";
+
 // Optimistic route protection only (reads the session cookie, no DB hit).
 // Real authorization still happens in requireSession()/requireRole() close to the data.
 export async function proxy(request: NextRequest) {
@@ -21,12 +28,13 @@ export async function proxy(request: NextRequest) {
 
   // The public marketplace (marketing homepage, tour browsing, guest booking) is
   // temporarily closed — only the back-office and its login/register are live.
-  const isClosedMarketplaceRoute =
+  const isMarketplaceRoute =
     pathname === "/" ||
     pathname.startsWith("/tours") ||
     pathname.startsWith("/agencies") ||
     pathname.startsWith("/book/") ||
     pathname.startsWith("/bookings/");
+  const isClosedMarketplaceRoute = isMarketplaceRoute && !MARKETPLACE_ENABLED;
 
   if (isClosedMarketplaceRoute) {
     return NextResponse.redirect(new URL("/login", request.url));

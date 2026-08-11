@@ -48,6 +48,7 @@ practical getting-started guide; those two are the deeper reference.
      `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
    - `BLOB_READ_WRITE_TOKEN` — optional locally (tour photo uploads fall back
      to `/public/uploads` if unset); required in production.
+   - `MARKETPLACE_ENABLED` — optional, defaults to closed. See `proxy.ts`.
 2. `npm install` (this also runs `prisma generate` via `postinstall`).
 3. Apply migrations: `npx prisma migrate deploy`.
 4. `npm run dev`, then visit `/register` to create the first agency.
