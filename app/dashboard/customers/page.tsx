@@ -4,12 +4,32 @@ import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { SearchInput } from "@/components/dashboard/search-input";
 
-export default async function CustomersPage() {
+export default async function CustomersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const session = await requirePermission(PERMISSIONS.customersView);
-  const canManage = await roleHasPermission(session.user.role, PERMISSIONS.customersManage);
+  const canManage = await roleHasPermission(
+    session.user.role,
+    PERMISSIONS.customersManage,
+  );
   const db = scopedPrisma(session.user.organizationId);
-  const customers = await db.customer.findMany({ orderBy: { createdAt: "desc" } });
+  const customers = await db.customer.findMany({
+    where: q
+      ? {
+          OR: [
+            { fullName: { contains: q, mode: "insensitive" } },
+            { email: { contains: q, mode: "insensitive" } },
+            { phone: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : undefined,
+    orderBy: { createdAt: "desc" },
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,10 +49,16 @@ export default async function CustomersPage() {
         }
       />
 
+      <SearchInput placeholder="Search by name, email, or phone…" />
+
       {customers.length === 0 ? (
         <EmptyState
-          title="No travelers yet"
-          message="Add a customer by hand, or they'll appear here the moment they book a tour."
+          title={q ? "No customers match your search" : "No travelers yet"}
+          message={
+            q
+              ? "Try a different name, email, or phone number."
+              : "Add a customer by hand, or they'll appear here the moment they book a tour."
+          }
         />
       ) : (
         <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
@@ -45,7 +71,9 @@ export default async function CustomersPage() {
               <div>
                 <p className="font-medium text-espresso">{customer.fullName}</p>
                 <p className="text-sm text-espresso-muted">
-                  {[customer.email, customer.phone].filter(Boolean).join(" · ") || "No contact info"}
+                  {[customer.email, customer.phone]
+                    .filter(Boolean)
+                    .join(" · ") || "No contact info"}
                 </p>
               </div>
             </Link>

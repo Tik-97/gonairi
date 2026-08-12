@@ -4,6 +4,8 @@ import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { toggleStaffStatus } from "@/lib/actions/staff";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { SearchInput } from "@/components/dashboard/search-input";
 
 const ROLE_BADGE: Record<string, string> = {
   OWNER: "bg-terracotta/15 text-terracotta-700",
@@ -13,12 +15,29 @@ const ROLE_BADGE: Record<string, string> = {
   GUIDE: "bg-success/15 text-success",
 };
 
-export default async function StaffPage() {
+export default async function StaffPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const session = await requirePermission(PERMISSIONS.staffView);
-  const canManage = await roleHasPermission(session.user.role, PERMISSIONS.staffManage);
+  const canManage = await roleHasPermission(
+    session.user.role,
+    PERMISSIONS.staffManage,
+  );
 
   const db = scopedPrisma(session.user.organizationId);
   const staff = await db.user.findMany({
+    where: q
+      ? {
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { email: { contains: q, mode: "insensitive" } },
+            { phone: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : undefined,
     orderBy: [{ status: "asc" }, { createdAt: "asc" }],
   });
 
@@ -40,53 +59,84 @@ export default async function StaffPage() {
         }
       />
 
-      <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
-        {staff.map((member) => (
-          <div
-            key={member.id}
-            className={`flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4 ${
-              member.status === "DISABLED" ? "opacity-50" : ""
-            }`}
-          >
-            <div>
-              <p className="font-medium text-espresso">
-                {member.name}
-                {member.id === session.user.id && <span className="ml-2 text-xs text-espresso-muted">(you)</span>}
-              </p>
-              <p className="text-sm text-espresso-muted">
-                {member.email}
-                {member.phone ? ` · ${member.phone}` : ""}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className={`rounded-full px-3 py-1 text-xs font-medium ${ROLE_BADGE[member.role]}`}>{member.role}</span>
-              {member.status === "DISABLED" && (
-                <span className="rounded-full bg-danger/10 px-3 py-1 text-xs font-medium text-danger">Disabled</span>
-              )}
-              {canManage && member.role !== "OWNER" && (
-                <>
-                  <Link href={`/dashboard/staff/${member.id}/attendance`} className="text-sm text-terracotta-700 underline">
-                    Attendance
-                  </Link>
-                  <Link href={`/dashboard/staff/${member.id}/edit`} className="text-sm text-terracotta-700 underline">
-                    Edit
-                  </Link>
-                  {member.id !== session.user.id && (
-                    <form action={toggleStaffStatus.bind(null, member.id)}>
-                      <button
-                        type="submit"
-                        className={member.status === "DISABLED" ? "text-sm text-success underline" : "text-sm text-danger underline"}
-                      >
-                        {member.status === "DISABLED" ? "Activate" : "Disable"}
-                      </button>
-                    </form>
+      <SearchInput placeholder="Search by name, email, or phone…" />
+
+      {staff.length === 0 ? (
+        <EmptyState
+          title="No staff match your search"
+          message="Try a different name, email, or phone number."
+        />
+      ) : (
+        <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+          {staff.map((member) => (
+            <div
+              key={member.id}
+              className={`flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4 ${
+                member.status === "DISABLED" ? "opacity-50" : ""
+              }`}
+            >
+              <div>
+                <p className="font-medium text-espresso">
+                  {member.name}
+                  {member.id === session.user.id && (
+                    <span className="ml-2 text-xs text-espresso-muted">
+                      (you)
+                    </span>
                   )}
-                </>
-              )}
+                </p>
+                <p className="text-sm text-espresso-muted">
+                  {member.email}
+                  {member.phone ? ` · ${member.phone}` : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${ROLE_BADGE[member.role]}`}
+                >
+                  {member.role}
+                </span>
+                {member.status === "DISABLED" && (
+                  <span className="rounded-full bg-danger/10 px-3 py-1 text-xs font-medium text-danger">
+                    Disabled
+                  </span>
+                )}
+                {canManage && member.role !== "OWNER" && (
+                  <>
+                    <Link
+                      href={`/dashboard/staff/${member.id}/attendance`}
+                      className="text-sm text-terracotta-700 underline"
+                    >
+                      Attendance
+                    </Link>
+                    <Link
+                      href={`/dashboard/staff/${member.id}/edit`}
+                      className="text-sm text-terracotta-700 underline"
+                    >
+                      Edit
+                    </Link>
+                    {member.id !== session.user.id && (
+                      <form action={toggleStaffStatus.bind(null, member.id)}>
+                        <button
+                          type="submit"
+                          className={
+                            member.status === "DISABLED"
+                              ? "text-sm text-success underline"
+                              : "text-sm text-danger underline"
+                          }
+                        >
+                          {member.status === "DISABLED"
+                            ? "Activate"
+                            : "Disable"}
+                        </button>
+                      </form>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

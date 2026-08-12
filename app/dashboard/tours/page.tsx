@@ -8,8 +8,14 @@ import { sortByNextDeparture } from "@/lib/tours/sort";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { SearchInput } from "@/components/dashboard/search-input";
 
-export default async function ToursPage() {
+export default async function ToursPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const session = await requirePermission(PERMISSIONS.toursView);
   const [canManage, canDelete] = await Promise.all([
     roleHasPermission(session.user.role, PERMISSIONS.toursManage),
@@ -17,6 +23,14 @@ export default async function ToursPage() {
   ]);
   const db = scopedPrisma(session.user.organizationId);
   const toursRaw = await db.tour.findMany({
+    where: q
+      ? {
+          OR: [
+            { title: { contains: q, mode: "insensitive" } },
+            { description: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : undefined,
     orderBy: { createdAt: "desc" },
     include: {
       departures: {
@@ -32,7 +46,9 @@ export default async function ToursPage() {
   const bookingCountByTour = new Map<string, number>();
   if (canDelete && toursSorted.length > 0) {
     const bookings = await db.booking.findMany({
-      where: { departure: { tourId: { in: toursSorted.map((tour) => tour.id) } } },
+      where: {
+        departure: { tourId: { in: toursSorted.map((tour) => tour.id) } },
+      },
       select: { departure: { select: { tourId: true } } },
     });
     for (const booking of bookings) {
@@ -64,17 +80,26 @@ export default async function ToursPage() {
         }
       />
 
+      <SearchInput placeholder="Search tours by title or description…" />
+
       {tours.length === 0 ? (
         <EmptyState
-          title="Your catalogue is waiting"
-          message="Add your first tour — an itinerary, a price, a story worth telling."
+          title={q ? "No tours match your search" : "Your catalogue is waiting"}
+          message={
+            q
+              ? "Try a different title or keyword."
+              : "Add your first tour — an itinerary, a price, a story worth telling."
+          }
         />
       ) : (
         <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
           {tours.map((tour) => {
             const nextDeparture = tour.departures[0];
             return (
-              <div key={tour.id} className="flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
+              <div
+                key={tour.id}
+                className="flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4"
+              >
                 <div className="flex items-center gap-3">
                   {tour.images[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -85,26 +110,38 @@ export default async function ToursPage() {
                     />
                   ) : (
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] bg-terracotta/10">
-                      <MapIcon className="h-5 w-5 text-terracotta-700" strokeWidth={1.75} />
+                      <MapIcon
+                        className="h-5 w-5 text-terracotta-700"
+                        strokeWidth={1.75}
+                      />
                     </span>
                   )}
                   <div>
                     <p className="font-medium text-espresso">{tour.title}</p>
                     <p className="text-sm text-espresso-muted">
-                      {formatMoney(tour.basePrice.toString(), tour.currency)} · {tour.durationDays}d ·{" "}
+                      {formatMoney(tour.basePrice.toString(), tour.currency)} ·{" "}
+                      {tour.durationDays}d ·{" "}
                       {tour.isPublished ? "Published" : "Draft"}
                     </p>
                     <p className="mt-1 text-sm font-medium text-terracotta-700">
-                      {nextDeparture ? `Next: ${formatDate(nextDeparture.date)}` : "No upcoming departures"}
+                      {nextDeparture
+                        ? `Next: ${formatDate(nextDeparture.date)}`
+                        : "No upcoming departures"}
                     </p>
                   </div>
                 </div>
                 <div className="flex gap-4 text-sm">
-                  <Link href={`/dashboard/tours/${tour.id}/departures`} className="text-terracotta-700 underline">
+                  <Link
+                    href={`/dashboard/tours/${tour.id}/departures`}
+                    className="text-terracotta-700 underline"
+                  >
                     Departures
                   </Link>
                   {canManage && (
-                    <Link href={`/dashboard/tours/${tour.id}/edit`} className="text-terracotta-700 underline">
+                    <Link
+                      href={`/dashboard/tours/${tour.id}/edit`}
+                      className="text-terracotta-700 underline"
+                    >
                       Edit
                     </Link>
                   )}
