@@ -4,9 +4,18 @@ import { Baby } from "lucide-react";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { updateBookingStatus, updateBookingPaymentStatus } from "@/lib/actions/bookings";
+import { updateBookingStatus } from "@/lib/actions/bookings";
+import { recordPayment, deletePayment } from "@/lib/actions/payments";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { PaymentForm } from "@/components/payment-form";
+
+const METHOD_LABEL: Record<string, string> = {
+  CASH: "Cash",
+  BANK_TRANSFER: "Bank transfer",
+  CARD_ONLINE: "Card / online",
+  OTHER: "Other",
+};
 
 const TRAVELER_PRICE_LABEL: Record<string, string> = {
   FULL: "Full price",
@@ -25,13 +34,25 @@ export default async function BookingDetailPage({
 
   const booking = await db.booking.findFirst({
     where: { id: bookingId },
-    include: { departure: { include: { tour: true } }, customer: true, travelers: true },
+    include: {
+      departure: { include: { tour: true } },
+      customer: true,
+      travelers: true,
+      payments: { where: { status: "COMPLETED" }, orderBy: { paidAt: "desc" } },
+    },
   });
   if (!booking) {
     notFound();
   }
 
-  const canManage = await roleHasPermission(session.user.role, PERMISSIONS.bookingsManage);
+  const [canManage, canManageFinances] = await Promise.all([
+    roleHasPermission(session.user.role, PERMISSIONS.bookingsManage),
+    roleHasPermission(session.user.role, PERMISSIONS.financesManage),
+  ]);
+  const totalPaid = booking.payments.reduce(
+    (sum, payment) => sum + Number(payment.amount),
+    0,
+  );
 
   const PAYMENT_BADGE: Record<string, string> = {
     UNPAID: "bg-danger/10 text-danger",
@@ -42,12 +63,19 @@ export default async function BookingDetailPage({
 
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader eyebrow="Your ledger" title={booking.departure.tour.title} subtitle={formatDate(booking.departure.date)} />
+      <PageHeader
+        eyebrow="Your ledger"
+        title={booking.departure.tour.title}
+        subtitle={formatDate(booking.departure.date)}
+      />
 
       <div className="grid grid-cols-2 gap-6 rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)] p-6">
         <div>
           <p className="text-sm text-espresso/60">Customer</p>
-          <Link href={`/dashboard/customers/${booking.customer.id}`} className="font-medium underline">
+          <Link
+            href={`/dashboard/customers/${booking.customer.id}`}
+            className="font-medium underline"
+          >
             {booking.customer.fullName}
           </Link>
         </div>
@@ -57,17 +85,27 @@ export default async function BookingDetailPage({
         </div>
         <div>
           <p className="text-sm text-espresso/60">Total price</p>
-          <p className="font-medium">{formatMoney(booking.totalPrice.toString(), booking.currency)}</p>
+          <p className="font-medium">
+            {formatMoney(booking.totalPrice.toString(), booking.currency)}
+          </p>
           {booking.discountPercent > 0 && (
-            <p className="mt-0.5 text-xs text-terracotta-700">{booking.discountPercent}% discount applied</p>
+            <p className="mt-0.5 text-xs text-terracotta-700">
+              {booking.discountPercent}% discount applied
+            </p>
           )}
         </div>
         <div>
           <p className="text-sm text-espresso/60">Payment status</p>
           <p>
-            <span className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${PAYMENT_BADGE[booking.paymentStatus]}`}>
+            <span
+              className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${PAYMENT_BADGE[booking.paymentStatus]}`}
+            >
               {booking.paymentStatus}
             </span>
+          </p>
+          <p className="mt-1 text-xs text-espresso-muted">
+            {formatMoney(totalPaid, booking.currency)} paid of{" "}
+            {formatMoney(booking.totalPrice.toString(), booking.currency)}
           </p>
         </div>
         <div>
@@ -88,14 +126,21 @@ export default async function BookingDetailPage({
 
       {booking.paxCount > 1 && (
         <div className="rounded-[18px] bg-card p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
-          <h2 className="mb-4 font-serif text-lg font-medium text-espresso">Party ({booking.paxCount} pax)</h2>
+          <h2 className="mb-4 font-serif text-lg font-medium text-espresso">
+            Party ({booking.paxCount} pax)
+          </h2>
           <div className="flex flex-col divide-y divide-border">
             <div className="flex items-center justify-between py-2.5 text-sm">
-              <span className="font-medium text-espresso">{booking.customer.fullName}</span>
+              <span className="font-medium text-espresso">
+                {booking.customer.fullName}
+              </span>
               <span className="text-espresso-muted">Full price</span>
             </div>
             {booking.travelers.map((traveler) => (
-              <div key={traveler.id} className="flex items-center justify-between py-2.5 text-sm">
+              <div
+                key={traveler.id}
+                className="flex items-center justify-between py-2.5 text-sm"
+              >
                 <span className="flex items-center gap-2 text-espresso">
                   {traveler.fullName}
                   {traveler.isChild && (
@@ -105,12 +150,15 @@ export default async function BookingDetailPage({
                     </span>
                   )}
                 </span>
-                <span className="text-espresso-muted">{TRAVELER_PRICE_LABEL[traveler.priceType]}</span>
+                <span className="text-espresso-muted">
+                  {TRAVELER_PRICE_LABEL[traveler.priceType]}
+                </span>
               </div>
             ))}
             {booking.travelers.length < booking.paxCount - 1 && (
               <p className="py-2.5 text-sm text-espresso-muted">
-                {booking.paxCount - 1 - booking.travelers.length} more traveler(s), name not recorded.
+                {booking.paxCount - 1 - booking.travelers.length} more
+                traveler(s), name not recorded.
               </p>
             )}
           </div>
@@ -121,52 +169,96 @@ export default async function BookingDetailPage({
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap gap-3">
             {booking.status === "PENDING" && (
-              <form action={updateBookingStatus.bind(null, booking.id, "CONFIRMED")}>
-                <button type="submit" className="rounded-[12px] bg-terracotta px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-terracotta-700">
+              <form
+                action={updateBookingStatus.bind(null, booking.id, "CONFIRMED")}
+              >
+                <button
+                  type="submit"
+                  className="rounded-[12px] bg-terracotta px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-terracotta-700"
+                >
                   Confirm booking
                 </button>
               </form>
             )}
             {booking.status === "CONFIRMED" && (
-              <form action={updateBookingStatus.bind(null, booking.id, "COMPLETED")}>
-                <button type="submit" className="rounded-[12px] border border-terracotta/25 px-5 py-2.5 text-sm font-medium text-espresso transition-colors hover:bg-cream-100">
+              <form
+                action={updateBookingStatus.bind(null, booking.id, "COMPLETED")}
+              >
+                <button
+                  type="submit"
+                  className="rounded-[12px] border border-terracotta/25 px-5 py-2.5 text-sm font-medium text-espresso transition-colors hover:bg-cream-100"
+                >
                   Mark completed
                 </button>
               </form>
             )}
-            {booking.status !== "CANCELLED" && booking.status !== "COMPLETED" && (
-              <form action={updateBookingStatus.bind(null, booking.id, "CANCELLED")}>
-                <button type="submit" className="rounded-[12px] border border-danger/30 px-5 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/10">
-                  Cancel booking
-                </button>
-              </form>
-            )}
+            {booking.status !== "CANCELLED" &&
+              booking.status !== "COMPLETED" && (
+                <form
+                  action={updateBookingStatus.bind(
+                    null,
+                    booking.id,
+                    "CANCELLED",
+                  )}
+                >
+                  <button
+                    type="submit"
+                    className="rounded-[12px] border border-danger/30 px-5 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/10"
+                  >
+                    Cancel booking
+                  </button>
+                </form>
+              )}
           </div>
+        </div>
+      )}
 
-          {booking.status !== "CANCELLED" && (
-            <div className="flex flex-wrap gap-3">
-              {booking.paymentStatus !== "PAID" && (
-                <form action={updateBookingPaymentStatus.bind(null, booking.id, "PAID")}>
-                  <button type="submit" className="rounded-[12px] bg-success px-5 py-2.5 text-sm font-medium text-white transition-colors hover:opacity-90">
-                    Mark as paid
-                  </button>
-                </form>
-              )}
-              {booking.paymentStatus !== "PARTIAL" && booking.paymentStatus !== "PAID" && (
-                <form action={updateBookingPaymentStatus.bind(null, booking.id, "PARTIAL")}>
-                  <button type="submit" className="rounded-[12px] border border-terracotta/25 px-5 py-2.5 text-sm font-medium text-espresso transition-colors hover:bg-cream-100">
-                    Mark as partially paid
-                  </button>
-                </form>
-              )}
-              {booking.paymentStatus !== "UNPAID" && (
-                <form action={updateBookingPaymentStatus.bind(null, booking.id, "UNPAID")}>
-                  <button type="submit" className="rounded-[12px] border border-border px-5 py-2.5 text-sm font-medium text-espresso-muted transition-colors hover:bg-cream-100">
-                    Mark as unpaid
-                  </button>
-                </form>
-              )}
+      {(canManageFinances || booking.payments.length > 0) && (
+        <div className="rounded-[18px] bg-card p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+          <h2 className="mb-4 font-serif text-lg font-medium text-espresso">
+            Payments
+          </h2>
+
+          {booking.payments.length === 0 ? (
+            <p className="mb-4 text-sm text-espresso-muted">
+              No payments recorded yet.
+            </p>
+          ) : (
+            <div className="mb-5 flex flex-col divide-y divide-border">
+              {booking.payments.map((payment) => (
+                <div
+                  key={payment.id}
+                  className="flex items-center justify-between gap-3 py-2.5 text-sm"
+                >
+                  <div>
+                    <span className="font-medium text-espresso">
+                      {formatMoney(payment.amount.toString(), payment.currency)}
+                    </span>{" "}
+                    <span className="text-espresso-muted">
+                      · {METHOD_LABEL[payment.method]} ·{" "}
+                      {formatDate(payment.paidAt)}
+                      {payment.externalReference
+                        ? ` · ${payment.externalReference}`
+                        : ""}
+                    </span>
+                  </div>
+                  {canManageFinances && (
+                    <form action={deletePayment.bind(null, payment.id)}>
+                      <button type="submit" className="text-danger underline">
+                        Void
+                      </button>
+                    </form>
+                  )}
+                </div>
+              ))}
             </div>
+          )}
+
+          {canManageFinances && booking.status !== "CANCELLED" && (
+            <PaymentForm
+              action={recordPayment.bind(null, booking.id)}
+              currency={booking.currency}
+            />
           )}
         </div>
       )}
