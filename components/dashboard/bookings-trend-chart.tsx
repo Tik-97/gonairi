@@ -57,22 +57,22 @@ export function BookingsTrendChart({ data }: { data: DayPoint[] }) {
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" role="img" aria-label={`Bookings per day, last ${data.length} days`}>
         <defs>
           <linearGradient id="bookings-trend-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--color-terracotta)" stopOpacity={0.22} />
-            <stop offset="100%" stopColor="var(--color-terracotta)" stopOpacity={0} />
+            <stop offset="0%" stopColor="var(--color-navy)" stopOpacity={0.16} />
+            <stop offset="100%" stopColor="var(--color-navy)" stopOpacity={0} />
           </linearGradient>
         </defs>
         {gridLines.map((y, i) => (
-          <line key={i} x1={PAD_LEFT} x2={WIDTH - PAD_RIGHT} y1={y} y2={y} stroke="#ede4d6" strokeWidth={1} />
+          <line key={i} x1={PAD_LEFT} x2={WIDTH - PAD_RIGHT} y1={y} y2={y} stroke="#e4e7ec" strokeWidth={1} />
         ))}
 
         <path d={areaPath} fill="url(#bookings-trend-fill)" />
-        <path d={linePath} fill="none" stroke="var(--color-terracotta-700)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        <path d={linePath} fill="none" stroke="var(--color-navy)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
 
         {data.map((d, i) => {
           const showLabel =
             i === hoverIndex || i === 0 || i === data.length - 1 || i % labelEvery === 0;
           return (
-            <text key={i} x={xFor(i)} y={HEIGHT - 8} fontSize={10} textAnchor="middle" fill="#898781">
+            <text key={i} x={xFor(i)} y={HEIGHT - 8} fontSize={10} textAnchor="middle" fill="#8b93a3">
               {showLabel ? formatDayLabel(d.date) : ""}
             </text>
           );
@@ -80,7 +80,7 @@ export function BookingsTrendChart({ data }: { data: DayPoint[] }) {
 
         {last && (
           <>
-            <circle cx={xFor(data.length - 1)} cy={yFor(last.count)} r={4} fill="var(--color-terracotta-700)" stroke="var(--color-cream)" strokeWidth={2} />
+            <circle cx={xFor(data.length - 1)} cy={yFor(last.count)} r={4} fill="var(--color-terracotta)" stroke="var(--color-cream)" strokeWidth={2} />
             <text x={xFor(data.length - 1) - 6} y={yFor(last.count) - 10} fontSize={11} textAnchor="end" fontWeight={600} fill="var(--color-espresso)">
               {last.count}
             </text>
@@ -93,7 +93,7 @@ export function BookingsTrendChart({ data }: { data: DayPoint[] }) {
             x2={xFor(hoverIndex)}
             y1={PAD_TOP}
             y2={PAD_TOP + plotHeight}
-            stroke="#c3c2b7"
+            stroke="#c9ccd4"
             strokeWidth={1}
           />
         )}
@@ -102,7 +102,7 @@ export function BookingsTrendChart({ data }: { data: DayPoint[] }) {
             cx={xFor(hoverIndex)}
             cy={yFor(data[hoverIndex].count)}
             r={5}
-            fill="var(--color-terracotta-700)"
+            fill="var(--color-terracotta)"
             stroke="var(--color-cream)"
             strokeWidth={2}
           />

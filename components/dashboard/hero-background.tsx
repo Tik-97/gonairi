@@ -27,13 +27,13 @@ export function HeroBackground() {
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(100deg, rgba(248,243,234,0.97) 0%, rgba(248,243,234,0.85) 26%, rgba(248,243,234,0.28) 52%, rgba(248,243,234,0.05) 75%, rgba(248,243,234,0) 100%)",
+            "linear-gradient(100deg, rgba(251,250,247,0.97) 0%, rgba(251,250,247,0.85) 26%, rgba(251,250,247,0.28) 52%, rgba(251,250,247,0.05) 75%, rgba(251,250,247,0) 100%)",
         }}
       />
       <div
         className="absolute inset-x-0 bottom-0 h-2/3"
         style={{
-          background: "linear-gradient(to bottom, rgba(248,243,234,0) 0%, rgba(248,243,234,0.9) 75%, rgba(248,243,234,1) 100%)",
+          background: "linear-gradient(to bottom, rgba(251,250,247,0) 0%, rgba(251,250,247,0.9) 75%, rgba(251,250,247,1) 100%)",
         }}
       />
     </div>

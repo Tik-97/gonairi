@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Map, CalendarCheck, Users, CalendarClock, Plus, Compass } from "lucide-react";
+import { Map, CalendarCheck, Users, CalendarClock, Plus } from "lucide-react";
 import { requireSession } from "@/lib/auth/session";
 import { isBackOfficeRole, roleHasPermission, PERMISSIONS } from "@/lib/auth/permissions";
 import { prisma } from "@/lib/db";
@@ -9,6 +9,7 @@ import { BookingsTrendChart } from "@/components/dashboard/bookings-trend-chart"
 import { BookingStatusBar } from "@/components/dashboard/booking-status-bar";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { OrnamentDivider } from "@/components/ornaments/ornament-divider";
+import { InterlacePattern } from "@/components/ornaments/interlace-pattern";
 import { formatDate, formatMoney } from "@/lib/format";
 
 function initials(fullName: string): string {
@@ -16,8 +17,12 @@ function initials(fullName: string): string {
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
+function firstName(fullName: string | null | undefined): string {
+  return fullName?.trim().split(/\s+/)[0] || "there";
+}
+
 const STATUS_BADGE: Record<string, string> = {
-  PENDING: "bg-warning/15 text-[#8a5c00]",
+  PENDING: "bg-warning/15 text-warning",
   CONFIRMED: "bg-success/15 text-success",
   COMPLETED: "bg-success/15 text-success",
   CANCELLED: "bg-danger/15 text-danger",
@@ -44,10 +49,10 @@ export default async function DashboardOverviewPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2 pt-1 pb-14 duration-700 animate-in fade-in sm:gap-3 sm:pb-20 lg:pb-28">
         <h1 className="font-serif text-2xl leading-[1.1] font-bold text-espresso sm:text-4xl lg:text-[48px]">
-          {organization?.name ?? "Your agency"}
+          Welcome back, {firstName(session.user.name)}! 👋
         </h1>
         <p className="max-w-md font-sans text-sm text-espresso-muted sm:text-base lg:text-lg">
-          {organization?.description || "Your tours, your travelers, your Armenia."}
+          Here&apos;s what&apos;s happening with {organization?.name ?? "your agency"} today.
         </p>
         <OrnamentDivider className="mt-1 hidden h-4 w-64 text-terracotta opacity-20 sm:block" />
       </div>
@@ -166,13 +171,16 @@ export default async function DashboardOverviewPage() {
           </section>
 
           {canCreateTour && (
-            <div className="relative overflow-hidden rounded-[18px] bg-terracotta px-7 py-8 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
-              <Compass className="pointer-events-none absolute -bottom-8 -right-8 h-40 w-40 text-white opacity-15" strokeWidth={1} />
+            <div className="relative overflow-hidden rounded-[18px] bg-navy px-7 py-8 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+              <InterlacePattern
+                id="interlace-cta"
+                className="pointer-events-none absolute inset-0 h-full w-full text-terracotta opacity-[0.07]"
+              />
               <div className="relative flex flex-col gap-3">
-                <p className="text-sm text-white/80">Ready for your next departure?</p>
+                <p className="text-sm font-medium text-white">Ready for your next departure?</p>
                 <Link
                   href="/dashboard/tours/new"
-                  className="inline-flex w-fit items-center gap-2 rounded-[12px] bg-white px-5 py-2.5 text-sm font-medium text-terracotta-700 transition-colors hover:bg-cream"
+                  className="inline-flex w-fit items-center gap-2 rounded-[12px] bg-terracotta px-5 py-2.5 text-sm font-medium text-navy transition-colors hover:bg-terracotta-700"
                 >
                   <Plus className="h-4 w-4" strokeWidth={2} />
                   New tour

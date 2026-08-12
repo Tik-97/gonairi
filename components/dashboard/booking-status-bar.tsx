@@ -1,10 +1,13 @@
 import { Clock, CheckCircle2, XCircle, UserX } from "lucide-react";
 
+// CSS var references, not hardcoded hex — one source of truth in
+// globals.css (warm gold = pending, green = confirmed, red = cancelled,
+// neutral gray = no-show).
 const SEGMENTS = [
-  { key: "pending", label: "Pending", color: "#D8A33A", icon: Clock },
-  { key: "confirmed", label: "Confirmed", color: "#5E9E62", icon: CheckCircle2 },
-  { key: "cancelled", label: "Cancelled", color: "#C95C4D", icon: XCircle },
-  { key: "noShow", label: "No-show", color: "#6B7A4F", icon: UserX },
+  { key: "pending", label: "Pending", color: "var(--color-terracotta)", icon: Clock },
+  { key: "confirmed", label: "Confirmed", color: "var(--color-success)", icon: CheckCircle2 },
+  { key: "cancelled", label: "Cancelled", color: "var(--color-danger)", icon: XCircle },
+  { key: "noShow", label: "No-show", color: "var(--color-olive)", icon: UserX },
 ] as const;
 
 export function BookingStatusBar({

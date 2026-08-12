@@ -10,22 +10,36 @@
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
   --font-serif: var(--font-serif);
 
-  /* ToursOrganizer warm palette — premium travel-agency back office.
-     Apricot (Armenia's national fruit) and the pink-orange volcanic tuff
-     Yerevan is built from, rather than a generic blue SaaS palette. */
-  --color-cream: #f8f3ea;
-  --color-cream-100: #efe3d5;
+  /* GoNairi — premium Armenian travel-tech palette. Deep navy (Ararat sky
+     at dusk) as the primary brand color, warm Armenian gold as the accent,
+     clean warm white/cool-gray surfaces — fintech-grade contrast instead
+     of the old beige/orange back-office look. Token *names* are kept
+     (terracotta/brick/espresso/cream/olive) since they're referenced
+     across ~30 dashboard files — only the values changed — so "terracotta"
+     now means the gold accent and "espresso" means the dark ink text
+     color, not literally those hues anymore.
+     --color-apricot(-600) is intentionally untouched: it's only used on
+     the separate public marketing page, out of scope for this redesign. */
+  --color-cream: #fbfaf7; /* clean warm white — main content background */
+  --color-cream-100: #eef1f4; /* very light cool gray — secondary surfaces */
   --color-apricot: #f0a868;
   --color-apricot-600: #e08c46;
-  --color-terracotta: #c96a43;
-  --color-terracotta-700: #b85a36;
-  --color-brick: #8c3b2e;
-  --color-espresso: #3d2e28;
-  --color-espresso-muted: #7d6b62;
-  --color-olive: #6b7a4f;
-  --color-success: #5e9e62;
-  --color-warning: #d8a33a;
-  --color-danger: #c95c4d;
+  --color-terracotta: #c9a24c; /* warm Armenian gold — primary accent */
+  --color-terracotta-700: #a9822f; /* deeper gold — hover/emphasis */
+  --color-brick: #8a6423; /* deep bronze — secondary accent */
+  --color-espresso: #182233; /* near-navy ink — primary text */
+  --color-espresso-muted: #5c6478; /* muted slate — secondary text */
+  --color-olive: #8b93a3; /* neutral gray — no-show status */
+  --color-success: #4e9b6e; /* soft green — confirmed */
+  --color-warning: #c08a2e; /* muted amber — pending */
+  --color-danger: #c1594c; /* soft red — cancelled */
+
+  /* New: deep navy, the primary brand color — sidebar, dark panels,
+     chart line. No pre-existing token to repurpose (the old design had
+     no dark surfaces at all). */
+  --color-navy: #101a2e;
+  --color-navy-700: #1c2942; /* lighter navy — hover states on dark surfaces */
+  --color-navy-muted: #8b93a8; /* muted slate text on navy */
 
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -54,24 +68,24 @@
 }
 
 :root {
-  --background: #f8f3ea;
-  --foreground: #3d2e28;
-  --card: #fff8f2;
-  --card-foreground: #3d2e28;
-  --popover: #fff8f2;
-  --popover-foreground: #3d2e28;
-  --primary: #c96a43;
-  --primary-foreground: #fff8f2;
-  --secondary: #f8f3ea;
-  --secondary-foreground: #3d2e28;
-  --muted: #f1e7d9;
-  --muted-foreground: #7d6b62;
-  --accent: #efe3d5;
-  --accent-foreground: #3d2e28;
-  --destructive: #c95c4d;
-  --border: #efe3d5;
-  --input: #efe3d5;
-  --ring: #c96a43;
+  --background: #fbfaf7;
+  --foreground: #182233;
+  --card: #ffffff;
+  --card-foreground: #182233;
+  --popover: #ffffff;
+  --popover-foreground: #182233;
+  --primary: #c9a24c;
+  --primary-foreground: #182233;
+  --secondary: #eef1f4;
+  --secondary-foreground: #182233;
+  --muted: #eef1f4;
+  --muted-foreground: #5c6478;
+  --accent: #eef1f4;
+  --accent-foreground: #182233;
+  --destructive: #c1594c;
+  --border: #e4e7ec;
+  --input: #e4e7ec;
+  --ring: #c9a24c;
   --radius: 1.25rem;
   color-scheme: light;
 }
@@ -85,5 +99,11 @@
   }
   html {
     @apply font-sans;
+  }
+  /* Browsers default <button> to cursor: default, not pointer (only <a>
+     gets that automatically) — without this every action button (Delete,
+     Deactivate, Cancel, ...) shows no hover affordance at all. */
+  button:not(:disabled) {
+    cursor: pointer;
   }
 }

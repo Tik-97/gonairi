@@ -15,8 +15,8 @@ export function StatCard({
     <div className="rounded-[16px] bg-card p-4 shadow-[0_8px_30px_rgba(0,0,0,0.06)] duration-500 animate-in fade-in slide-in-from-bottom-3 hover:-translate-y-0.5 transition-transform sm:rounded-[18px] sm:p-6">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-espresso-muted sm:text-sm">{label}</p>
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-terracotta/10 sm:h-9 sm:w-9">
-          <Icon className="h-4 w-4 text-terracotta-700 sm:h-[18px] sm:w-[18px]" strokeWidth={1.75} />
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-navy sm:h-9 sm:w-9">
+          <Icon className="h-4 w-4 text-terracotta sm:h-[18px] sm:w-[18px]" strokeWidth={1.75} />
         </span>
       </div>
       <p className="mt-2 text-xl font-semibold text-espresso sm:mt-3 sm:text-3xl">

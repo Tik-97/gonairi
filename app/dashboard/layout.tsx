@@ -5,7 +5,9 @@ import { PERMISSIONS, roleHasPermission, getRolePermissions } from "@/lib/auth/p
 import { scopedPrisma } from "@/lib/db/scoped";
 import { LogoIcon } from "@/components/logo-icon";
 import { Wordmark } from "@/components/wordmark";
+import { InterlacePattern } from "@/components/ornaments/interlace-pattern";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
+import { SidebarPromoCard } from "@/components/dashboard/sidebar-promo-card";
 import { AmbientDecoration } from "@/components/dashboard/ambient-decoration";
 import { HeroBackground } from "@/components/dashboard/hero-background";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
@@ -43,17 +45,22 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className={`${playfair.variable} ${inter.variable} flex flex-1 bg-cream font-sans text-espresso`}>
       <MobileNav role={session.user.role} permissions={permissions} />
 
-      <aside className="relative hidden w-72 shrink-0 flex-col overflow-hidden border-r border-border px-7 py-9 lg:flex">
+      <aside className="relative hidden w-72 shrink-0 flex-col overflow-hidden bg-navy px-7 py-9 lg:flex">
+        <InterlacePattern
+          id="interlace-sidebar"
+          className="pointer-events-none absolute inset-0 h-full w-full text-terracotta opacity-[0.06]"
+        />
         <Link href="/dashboard" className="relative mb-12 flex items-center gap-3">
           <LogoIcon className="h-14 w-14" />
-          <Wordmark className="font-serif text-xl font-bold" />
+          <div className="flex flex-col">
+            <Wordmark className="font-serif text-xl leading-tight font-bold" />
+            <span className="text-[10px] font-medium tracking-[0.16em] text-navy-muted uppercase">Travel Agency</span>
+          </div>
         </Link>
         <div className="relative flex flex-1 flex-col">
           <SidebarNav role={session.user.role} permissions={permissions} />
         </div>
-        <p className="relative font-serif text-sm italic text-espresso-muted">
-          Boutique journeys through Armenia.
-        </p>
+        <SidebarPromoCard />
       </aside>
 
       <div className="relative min-w-0 flex-1 overflow-x-hidden px-4 pt-20 pb-8 sm:px-6 lg:px-12 lg:py-10">
