@@ -3,17 +3,39 @@ import { Bus, Car } from "lucide-react";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { toggleVehicleActive } from "@/lib/actions/vehicles";
+import { toggleVehicleActive, deleteVehicle } from "@/lib/actions/vehicles";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 
 export default async function VehiclesPage() {
   const session = await requirePermission(PERMISSIONS.vehiclesView);
-  const canManage = await roleHasPermission(session.user.role, PERMISSIONS.vehiclesManage);
+  const [canManage, canDelete] = await Promise.all([
+    roleHasPermission(session.user.role, PERMISSIONS.vehiclesManage),
+    roleHasPermission(session.user.role, PERMISSIONS.vehiclesDelete),
+  ]);
   const db = scopedPrisma(session.user.organizationId);
-  const vehicles = await db.vehicle.findMany({
+  const vehiclesRaw = await db.vehicle.findMany({
     orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
   });
+
+  const departureCountByVehicle = new Map<string, number>();
+  if (canDelete && vehiclesRaw.length > 0) {
+    const departures = await db.departure.findMany({
+      where: { assignedVehicleId: { in: vehiclesRaw.map((v) => v.id) } },
+      select: { assignedVehicleId: true },
+    });
+    for (const departure of departures) {
+      if (!departure.assignedVehicleId) continue;
+      departureCountByVehicle.set(
+        departure.assignedVehicleId,
+        (departureCountByVehicle.get(departure.assignedVehicleId) ?? 0) + 1,
+      );
+    }
+  }
+  const vehicles = vehiclesRaw.map((vehicle) => ({
+    ...vehicle,
+    departureCount: departureCountByVehicle.get(vehicle.id) ?? 0,
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,6 +97,13 @@ export default async function VehiclesPage() {
                       {vehicle.isActive ? "Deactivate" : "Activate"}
                     </button>
                   </form>
+                  {canDelete && vehicle.departureCount === 0 && (
+                    <form action={deleteVehicle.bind(null, vehicle.id)}>
+                      <button type="submit" className="text-danger underline">
+                        Delete
+                      </button>
+                    </form>
+                  )}
                 </div>
               )}
             </div>

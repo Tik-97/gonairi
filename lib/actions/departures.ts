@@ -157,3 +157,23 @@ export async function cancelDeparture(departureId: string): Promise<void> {
   await db.departure.update({ where: { id: departureId }, data: { status: "CANCELLED" } });
   redirect(`/dashboard/tours/${departure.tourId}/departures`);
 }
+
+export async function deleteDeparture(departureId: string): Promise<void> {
+  const session = await requirePermission(PERMISSIONS.departuresDelete);
+  const db = scopedPrisma(session.user.organizationId);
+
+  const existing = await db.departure.findFirst({ where: { id: departureId } });
+  if (!existing) {
+    return;
+  }
+
+  // The delete button is only shown when there are zero bookings; this is a
+  // defense-in-depth check in case one slipped in between page load and click.
+  const bookingCount = await db.booking.count({ where: { departureId } });
+  if (bookingCount > 0) {
+    return;
+  }
+
+  await db.departure.delete({ where: { id: departureId } });
+  redirect(`/dashboard/tours/${existing.tourId}/departures`);
+}

@@ -2,14 +2,27 @@ import "server-only";
 import { cache } from "react";
 import { prisma } from "@/lib/db";
 import type { UserRole } from "@/generated/prisma/enums";
-import { PERMISSIONS, ALL_PERMISSIONS, type Permission } from "@/lib/auth/permission-keys";
+import {
+  PERMISSIONS,
+  ALL_PERMISSIONS,
+  type Permission,
+} from "@/lib/auth/permission-keys";
 
 export { PERMISSIONS, ALL_PERMISSIONS, type Permission };
 
-export const ROLES: UserRole[] = ["OWNER", "ADMIN", "OPERATOR", "DRIVER", "GUIDE"];
+export const ROLES: UserRole[] = [
+  "OWNER",
+  "ADMIN",
+  "OPERATOR",
+  "DRIVER",
+  "GUIDE",
+];
 
 /** Grouped for the Super Admin permission-matrix UI. */
-export const PERMISSION_GROUPS: { label: string; permissions: { key: Permission; label: string }[] }[] = [
+export const PERMISSION_GROUPS: {
+  label: string;
+  permissions: { key: Permission; label: string }[];
+}[] = [
   {
     label: "Tours",
     permissions: [
@@ -20,7 +33,13 @@ export const PERMISSION_GROUPS: { label: string; permissions: { key: Permission;
   },
   {
     label: "Departures",
-    permissions: [{ key: PERMISSIONS.departuresManage, label: "Create, cancel & assign departures" }],
+    permissions: [
+      {
+        key: PERMISSIONS.departuresManage,
+        label: "Create, cancel & assign departures",
+      },
+      { key: PERMISSIONS.departuresDelete, label: "Delete departures" },
+    ],
   },
   {
     label: "Bookings",
@@ -42,6 +61,7 @@ export const PERMISSION_GROUPS: { label: string; permissions: { key: Permission;
     permissions: [
       { key: PERMISSIONS.vehiclesView, label: "View vehicles" },
       { key: PERMISSIONS.vehiclesManage, label: "Create & edit vehicles" },
+      { key: PERMISSIONS.vehiclesDelete, label: "Delete vehicles" },
     ],
   },
   {
@@ -53,12 +73,23 @@ export const PERMISSION_GROUPS: { label: string; permissions: { key: Permission;
     ],
   },
   {
+    label: "Finances",
+    permissions: [
+      { key: PERMISSIONS.financesView, label: "View finances" },
+      { key: PERMISSIONS.financesManage, label: "Record & void payments" },
+    ],
+  },
+  {
     label: "Schedule",
-    permissions: [{ key: PERMISSIONS.scheduleViewOwn, label: "View own schedule" }],
+    permissions: [
+      { key: PERMISSIONS.scheduleViewOwn, label: "View own schedule" },
+    ],
   },
   {
     label: "Agency settings",
-    permissions: [{ key: PERMISSIONS.orgSettingsManage, label: "Manage agency settings" }],
+    permissions: [
+      { key: PERMISSIONS.orgSettingsManage, label: "Manage agency settings" },
+    ],
   },
 ];
 
@@ -67,38 +98,56 @@ export const PERMISSION_GROUPS: { label: string; permissions: { key: Permission;
  * dashboard could lock every account in an agency out of fixing its own
  * settings/staff. Enforced in lib/actions/platform-admin.ts on save.
  */
-export const OWNER_PERMISSION_FLOOR: Permission[] = [PERMISSIONS.orgSettingsManage, PERMISSIONS.staffManage];
+export const OWNER_PERMISSION_FLOOR: Permission[] = [
+  PERMISSIONS.orgSettingsManage,
+  PERMISSIONS.staffManage,
+];
 
 function emptyRoleMap(): Record<UserRole, Set<Permission>> {
-  return { OWNER: new Set(), ADMIN: new Set(), OPERATOR: new Set(), DRIVER: new Set(), GUIDE: new Set() };
+  return {
+    OWNER: new Set(),
+    ADMIN: new Set(),
+    OPERATOR: new Set(),
+    DRIVER: new Set(),
+    GUIDE: new Set(),
+  };
 }
 
 // Memoized per server-render/request (React's cache()) so N calls to
 // roleHasPermission()/getRolePermissions() in the same request cost one query.
-const loadRolePermissionMap = cache(async (): Promise<Record<UserRole, Set<Permission>>> => {
-  const rows = await prisma.rolePermission.findMany();
-  const map = emptyRoleMap();
-  const validPermissions = new Set<string>(ALL_PERMISSIONS);
-  for (const row of rows) {
-    if (validPermissions.has(row.permission)) {
-      map[row.role].add(row.permission as Permission);
+const loadRolePermissionMap = cache(
+  async (): Promise<Record<UserRole, Set<Permission>>> => {
+    const rows = await prisma.rolePermission.findMany();
+    const map = emptyRoleMap();
+    const validPermissions = new Set<string>(ALL_PERMISSIONS);
+    for (const row of rows) {
+      if (validPermissions.has(row.permission)) {
+        map[row.role].add(row.permission as Permission);
+      }
     }
-  }
-  return map;
-});
+    return map;
+  },
+);
 
-export async function roleHasPermission(role: UserRole, permission: Permission): Promise<boolean> {
+export async function roleHasPermission(
+  role: UserRole,
+  permission: Permission,
+): Promise<boolean> {
   const map = await loadRolePermissionMap();
   return map[role]?.has(permission) ?? false;
 }
 
-export async function getRolePermissions(role: UserRole): Promise<Permission[]> {
+export async function getRolePermissions(
+  role: UserRole,
+): Promise<Permission[]> {
   const map = await loadRolePermissionMap();
   return Array.from(map[role] ?? []);
 }
 
 /** For the Super Admin roles page — every role's grants in one query. */
-export async function getAllRolePermissions(): Promise<Record<UserRole, Permission[]>> {
+export async function getAllRolePermissions(): Promise<
+  Record<UserRole, Permission[]>
+> {
   const map = await loadRolePermissionMap();
   return {
     OWNER: Array.from(map.OWNER),

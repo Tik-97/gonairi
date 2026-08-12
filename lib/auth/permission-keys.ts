@@ -12,6 +12,7 @@ export const PERMISSIONS = {
 
   // Departures (schedule instances of a tour)
   departuresManage: "departures:manage", // create, cancel, assign vehicle/driver/guide
+  departuresDelete: "departures:delete",
 
   // Bookings
   bookingsView: "bookings:view",
@@ -25,11 +26,16 @@ export const PERMISSIONS = {
   // Fleet
   vehiclesView: "vehicles:view",
   vehiclesManage: "vehicles:manage",
+  vehiclesDelete: "vehicles:delete",
 
   // Team
   staffView: "staff:view",
   staffManage: "staff:manage", // create/edit/disable other staff
   attendanceManage: "attendance:manage", // mark other staff's attendance
+
+  // Finances
+  financesView: "finances:view",
+  financesManage: "finances:manage", // record & void payments
 
   // Own schedule — every assignable role (driver/guide) can see their own
   // upcoming departures regardless of anything else they can't access.

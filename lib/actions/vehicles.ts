@@ -93,3 +93,26 @@ export async function toggleVehicleActive(vehicleId: string): Promise<void> {
   await db.vehicle.update({ where: { id: vehicleId }, data: { isActive: !vehicle.isActive } });
   redirect("/dashboard/vehicles");
 }
+
+export async function deleteVehicle(vehicleId: string): Promise<void> {
+  const session = await requirePermission(PERMISSIONS.vehiclesDelete);
+  const db = scopedPrisma(session.user.organizationId);
+
+  const existing = await db.vehicle.findFirst({ where: { id: vehicleId } });
+  if (!existing) {
+    return;
+  }
+
+  // The delete button is only shown when the vehicle isn't assigned to any
+  // departure; this is a defense-in-depth check in case one slipped in
+  // between page load and click. Deleting would otherwise silently clear
+  // assignedVehicleId (SetNull) on every departure that used it, including
+  // past ones — losing which vehicle actually ran a completed trip.
+  const departureCount = await db.departure.count({ where: { assignedVehicleId: vehicleId } });
+  if (departureCount > 0) {
+    return;
+  }
+
+  await db.vehicle.delete({ where: { id: vehicleId } });
+  redirect("/dashboard/vehicles");
+}

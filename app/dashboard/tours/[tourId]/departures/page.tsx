@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { createDeparture, cancelDeparture } from "@/lib/actions/departures";
+import { createDeparture, cancelDeparture, deleteDeparture } from "@/lib/actions/departures";
 import { DepartureForm } from "@/components/departure-form";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -27,10 +27,11 @@ export default async function TourDeparturesPage({
   const when = whenParam === "past" || whenParam === "all" ? whenParam : "upcoming";
 
   const session = await requirePermission(PERMISSIONS.toursView);
-  const [canViewBookings, canManageBookings, canManageDepartures] = await Promise.all([
+  const [canViewBookings, canManageBookings, canManageDepartures, canDeleteDepartures] = await Promise.all([
     roleHasPermission(session.user.role, PERMISSIONS.bookingsView),
     roleHasPermission(session.user.role, PERMISSIONS.bookingsManage),
     roleHasPermission(session.user.role, PERMISSIONS.departuresManage),
+    roleHasPermission(session.user.role, PERMISSIONS.departuresDelete),
   ]);
   const db = scopedPrisma(session.user.organizationId);
 
@@ -40,7 +41,7 @@ export default async function TourDeparturesPage({
   }
 
   const now = new Date();
-  const [departures, vehicles, drivers, guides] = await Promise.all([
+  const [departuresRaw, vehicles, drivers, guides] = await Promise.all([
     db.departure.findMany({
       where: {
         tourId,
@@ -54,6 +55,21 @@ export default async function TourDeparturesPage({
     db.user.findMany({ where: { role: "DRIVER", status: "ACTIVE" }, orderBy: { name: "asc" } }),
     db.user.findMany({ where: { role: "GUIDE", status: "ACTIVE" }, orderBy: { name: "asc" } }),
   ]);
+
+  const bookingCountByDeparture = new Map<string, number>();
+  if (canDeleteDepartures && departuresRaw.length > 0) {
+    const bookings = await db.booking.findMany({
+      where: { departureId: { in: departuresRaw.map((d) => d.id) } },
+      select: { departureId: true },
+    });
+    for (const booking of bookings) {
+      bookingCountByDeparture.set(booking.departureId, (bookingCountByDeparture.get(booking.departureId) ?? 0) + 1);
+    }
+  }
+  const departures = departuresRaw.map((departure) => ({
+    ...departure,
+    bookingCount: bookingCountByDeparture.get(departure.id) ?? 0,
+  }));
 
   const createDepartureForTour = createDeparture.bind(null, tourId);
 
@@ -121,17 +137,25 @@ export default async function TourDeparturesPage({
                 {departure.assignedGuide && ` · Guide: ${departure.assignedGuide.name}`}
               </p>
             </Link>
-            {departure.status !== "CANCELLED" && (canManageBookings || canManageDepartures) && (
+            {((departure.status !== "CANCELLED" && (canManageBookings || canManageDepartures)) ||
+              (canDeleteDepartures && departure.bookingCount === 0)) && (
               <div className="flex items-center gap-3">
-                {canManageBookings && departure.bookedCount < departure.capacity && (
+                {departure.status !== "CANCELLED" && canManageBookings && departure.bookedCount < departure.capacity && (
                   <Link href={`/dashboard/bookings/new?departureId=${departure.id}`} className="text-sm text-terracotta-700 underline">
                     Book
                   </Link>
                 )}
-                {canManageDepartures && (
+                {departure.status !== "CANCELLED" && canManageDepartures && (
                   <form action={cancelDeparture.bind(null, departure.id)}>
                     <button type="submit" className="text-sm text-danger underline">
                       Cancel
+                    </button>
+                  </form>
+                )}
+                {canDeleteDepartures && departure.bookingCount === 0 && (
+                  <form action={deleteDeparture.bind(null, departure.id)}>
+                    <button type="submit" className="text-sm text-danger underline">
+                      Delete
                     </button>
                   </form>
                 )}
