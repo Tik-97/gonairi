@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import type { FormState } from "@/lib/form-state";
 import { PhoneInput } from "@/components/phone-input";
+import { COUNTRY_NAMES } from "@/lib/countries";
 
 type CustomerFormValues = {
   fullName: string;
@@ -49,11 +50,18 @@ export function CustomerForm({
       </label>
       <label className="flex flex-col gap-1 text-sm">
         Nationality
-        <input
+        <select
           name="nationality"
-          defaultValue={defaultValues?.nationality}
+          defaultValue={defaultValues?.nationality ?? ""}
           className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
-        />
+        >
+          <option value="">Select nationality…</option>
+          {COUNTRY_NAMES.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="flex flex-col gap-1 text-sm">
         Notes
