@@ -14,7 +14,6 @@ import {
   CalendarClock,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permission-keys";
-import type { UserRole } from "@/generated/prisma/enums";
 
 const NAV_ITEMS: {
   href: string;
@@ -74,19 +73,22 @@ const SCHEDULE_ITEM = {
 };
 
 export function SidebarNav({
-  role,
+  scheduleOnly,
   permissions,
 }: {
-  role: UserRole;
+  /** True for roles that only see "My schedule" (drivers, guides, driver-guides)
+   *  — computed server-side via `!isBackOfficeRole(role)` so this component
+   *  doesn't need its own copy of that role list (it's a client component and
+   *  can't import the server-only lib/auth/permissions.ts directly). */
+  scheduleOnly: boolean;
   permissions: Permission[];
 }) {
   const pathname = usePathname();
-  const items =
-    role === "DRIVER" || role === "GUIDE"
-      ? [SCHEDULE_ITEM]
-      : NAV_ITEMS.filter(
-          (item) => !item.permission || permissions.includes(item.permission),
-        );
+  const items = scheduleOnly
+    ? [SCHEDULE_ITEM]
+    : NAV_ITEMS.filter(
+        (item) => !item.permission || permissions.includes(item.permission),
+      );
 
   return (
     <nav className="flex flex-1 flex-col gap-1.5 text-sm">

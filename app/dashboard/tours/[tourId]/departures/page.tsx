@@ -3,9 +3,14 @@ import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { createDeparture, cancelDeparture, deleteDeparture } from "@/lib/actions/departures";
+import {
+  createDeparture,
+  cancelDeparture,
+  deleteDeparture,
+} from "@/lib/actions/departures";
 import { DepartureForm } from "@/components/departure-form";
 import { formatDate, formatMoney } from "@/lib/format";
+import { formatDepartureCrew } from "@/lib/departures/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 
@@ -24,10 +29,16 @@ export default async function TourDeparturesPage({
 }) {
   const { tourId } = await params;
   const { when: whenParam } = await searchParams;
-  const when = whenParam === "past" || whenParam === "all" ? whenParam : "upcoming";
+  const when =
+    whenParam === "past" || whenParam === "all" ? whenParam : "upcoming";
 
   const session = await requirePermission(PERMISSIONS.toursView);
-  const [canViewBookings, canManageBookings, canManageDepartures, canDeleteDepartures] = await Promise.all([
+  const [
+    canViewBookings,
+    canManageBookings,
+    canManageDepartures,
+    canDeleteDepartures,
+  ] = await Promise.all([
     roleHasPermission(session.user.role, PERMISSIONS.bookingsView),
     roleHasPermission(session.user.role, PERMISSIONS.bookingsManage),
     roleHasPermission(session.user.role, PERMISSIONS.departuresManage),
@@ -48,12 +59,23 @@ export default async function TourDeparturesPage({
         ...(when === "upcoming" ? { date: { gte: now } } : {}),
         ...(when === "past" ? { date: { lt: now } } : {}),
       },
-      include: { assignedVehicle: true, assignedDriver: true, assignedGuide: true },
+      include: {
+        vehicles: { include: { vehicle: true, driver: true, guide: true } },
+      },
       orderBy: { date: when === "past" ? "desc" : "asc" },
     }),
-    db.vehicle.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
-    db.user.findMany({ where: { role: "DRIVER", status: "ACTIVE" }, orderBy: { name: "asc" } }),
-    db.user.findMany({ where: { role: "GUIDE", status: "ACTIVE" }, orderBy: { name: "asc" } }),
+    db.vehicle.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+    }),
+    db.user.findMany({
+      where: { role: { in: ["DRIVER", "DRIVER_GUIDE"] }, status: "ACTIVE" },
+      orderBy: { name: "asc" },
+    }),
+    db.user.findMany({
+      where: { role: { in: ["GUIDE", "DRIVER_GUIDE"] }, status: "ACTIVE" },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   const bookingCountByDeparture = new Map<string, number>();
@@ -63,7 +85,10 @@ export default async function TourDeparturesPage({
       select: { departureId: true },
     });
     for (const booking of bookings) {
-      bookingCountByDeparture.set(booking.departureId, (bookingCountByDeparture.get(booking.departureId) ?? 0) + 1);
+      bookingCountByDeparture.set(
+        booking.departureId,
+        (bookingCountByDeparture.get(booking.departureId) ?? 0) + 1,
+      );
     }
   }
   const departures = departuresRaw.map((departure) => ({
@@ -109,7 +134,13 @@ export default async function TourDeparturesPage({
 
       {departures.length === 0 ? (
         <EmptyState
-          title={when === "upcoming" ? "No upcoming departures" : when === "past" ? "No past departures" : "No departures on the calendar"}
+          title={
+            when === "upcoming"
+              ? "No upcoming departures"
+              : when === "past"
+                ? "No past departures"
+                : "No departures on the calendar"
+          }
           message={
             when === "upcoming"
               ? "Schedule a date and this tour becomes bookable — by you and by travelers."
@@ -117,59 +148,92 @@ export default async function TourDeparturesPage({
           }
         />
       ) : (
-      <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
-        {departures.map((departure) => (
-          <div key={departure.id} className="flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
-            <Link
-              href={`/dashboard/bookings?departureId=${departure.id}`}
-              className="-m-1 rounded-md p-1 transition-colors hover:bg-cream-100/70"
+        <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+          {departures.map((departure) => (
+            <div
+              key={departure.id}
+              className="flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4"
             >
-              <p className="font-medium text-espresso">{formatDate(departure.date)}</p>
-              <p className="text-sm text-espresso-muted">
-                {departure.bookedCount}/{departure.capacity} booked ·{" "}
-                {formatMoney(
-                  (departure.priceOverride ?? tour.basePrice).toString(),
-                  tour.currency,
-                )}{" "}
-                · {departure.status}
-                {departure.assignedVehicle && ` · ${departure.assignedVehicle.name}`}
-                {departure.assignedDriver && ` · Driver: ${departure.assignedDriver.name}`}
-                {departure.assignedGuide && ` · Guide: ${departure.assignedGuide.name}`}
-              </p>
-            </Link>
-            {((departure.status !== "CANCELLED" && (canManageBookings || canManageDepartures)) ||
-              (canDeleteDepartures && departure.bookingCount === 0)) && (
-              <div className="flex items-center gap-3">
-                {departure.status !== "CANCELLED" && canManageBookings && departure.bookedCount < departure.capacity && (
-                  <Link href={`/dashboard/bookings/new?departureId=${departure.id}`} className="text-sm text-terracotta-700 underline">
-                    Book
-                  </Link>
-                )}
-                {departure.status !== "CANCELLED" && canManageDepartures && (
-                  <form action={cancelDeparture.bind(null, departure.id)}>
-                    <button type="submit" className="text-sm text-danger underline">
-                      Cancel
-                    </button>
-                  </form>
-                )}
-                {canDeleteDepartures && departure.bookingCount === 0 && (
-                  <form action={deleteDeparture.bind(null, departure.id)}>
-                    <button type="submit" className="text-sm text-danger underline">
-                      Delete
-                    </button>
-                  </form>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+              <Link
+                href={`/dashboard/bookings?departureId=${departure.id}`}
+                className="-m-1 rounded-md p-1 transition-colors hover:bg-cream-100/70"
+              >
+                <p className="font-medium text-espresso">
+                  {formatDate(departure.date)}
+                </p>
+                <p className="text-sm text-espresso-muted">
+                  {departure.bookedCount}/{departure.capacity} booked ·{" "}
+                  {formatMoney(
+                    (departure.priceOverride ?? tour.basePrice).toString(),
+                    tour.currency,
+                  )}{" "}
+                  · {departure.status}
+                  {departure.returnAt &&
+                    ` (back ${formatDate(departure.returnAt)})`}
+                  {departure.vehicles.length > 0 &&
+                    ` · ${formatDepartureCrew(departure.vehicles)}`}
+                </p>
+              </Link>
+              {(canManageDepartures ||
+                (departure.status !== "CANCELLED" && canManageBookings) ||
+                (canDeleteDepartures && departure.bookingCount === 0)) && (
+                <div className="flex items-center gap-3">
+                  {departure.status !== "CANCELLED" &&
+                    canManageBookings &&
+                    departure.bookedCount < departure.capacity && (
+                      <Link
+                        href={`/dashboard/bookings/new?departureId=${departure.id}`}
+                        className="text-sm text-terracotta-700 underline"
+                      >
+                        Book
+                      </Link>
+                    )}
+                  {canManageDepartures && (
+                    <Link
+                      href={`/dashboard/tours/${tourId}/departures/${departure.id}/edit`}
+                      className="text-sm text-terracotta-700 underline"
+                    >
+                      Edit
+                    </Link>
+                  )}
+                  {departure.status !== "CANCELLED" && canManageDepartures && (
+                    <form action={cancelDeparture.bind(null, departure.id)}>
+                      <button
+                        type="submit"
+                        className="text-sm text-danger underline"
+                      >
+                        Cancel
+                      </button>
+                    </form>
+                  )}
+                  {canDeleteDepartures && departure.bookingCount === 0 && (
+                    <form action={deleteDeparture.bind(null, departure.id)}>
+                      <button
+                        type="submit"
+                        className="text-sm text-danger underline"
+                      >
+                        Delete
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
       {canManageDepartures && (
         <div>
-          <h2 className="mb-4 font-serif text-lg font-medium text-espresso">Add a departure</h2>
-          <DepartureForm action={createDepartureForTour} vehicles={vehicles} drivers={drivers} guides={guides} />
+          <h2 className="mb-4 font-serif text-lg font-medium text-espresso">
+            Add a departure
+          </h2>
+          <DepartureForm
+            action={createDepartureForTour}
+            vehicles={vehicles}
+            drivers={drivers}
+            guides={guides}
+          />
         </div>
       )}
     </div>

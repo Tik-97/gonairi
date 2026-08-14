@@ -21,8 +21,6 @@ type TourFormValues = {
   category: string;
   durationDays: number;
   basePrice: number;
-  minPax: number;
-  maxPax: number;
   isPublished: boolean;
   images: string[];
   regions: string[];
@@ -104,41 +102,17 @@ export function TourForm({
         Region
         <RegionPicker name="regions" defaultValue={defaultValues?.regions} />
       </label>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <label className="flex flex-col gap-1 text-sm">
-          Duration (days)
-          <input
-            name="durationDays"
-            type="number"
-            min={1}
-            defaultValue={defaultValues?.durationDays ?? 1}
-            required
-            className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Min pax
-          <input
-            name="minPax"
-            type="number"
-            min={1}
-            defaultValue={defaultValues?.minPax ?? 1}
-            required
-            className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Max pax
-          <input
-            name="maxPax"
-            type="number"
-            min={1}
-            defaultValue={defaultValues?.maxPax ?? 20}
-            required
-            className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
-          />
-        </label>
-      </div>
+      <label className="flex flex-col gap-1 text-sm">
+        Duration (days)
+        <input
+          name="durationDays"
+          type="number"
+          min={1}
+          defaultValue={defaultValues?.durationDays ?? 1}
+          required
+          className="max-w-[10rem] rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
+        />
+      </label>
       <label className="flex flex-col gap-1 text-sm">
         Base price (AMD)
         <input

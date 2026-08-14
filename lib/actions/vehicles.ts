@@ -106,10 +106,10 @@ export async function deleteVehicle(vehicleId: string): Promise<void> {
   // The delete button is only shown when the vehicle isn't assigned to any
   // departure; this is a defense-in-depth check in case one slipped in
   // between page load and click. Deleting would otherwise silently clear
-  // assignedVehicleId (SetNull) on every departure that used it, including
+  // vehicleId (SetNull) on every DepartureVehicle row that used it, including
   // past ones — losing which vehicle actually ran a completed trip.
-  const departureCount = await db.departure.count({ where: { assignedVehicleId: vehicleId } });
-  if (departureCount > 0) {
+  const assignmentCount = await db.departureVehicle.count({ where: { vehicleId } });
+  if (assignmentCount > 0) {
     return;
   }
 

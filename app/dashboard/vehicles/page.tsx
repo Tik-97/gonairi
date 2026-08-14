@@ -20,16 +20,13 @@ export default async function VehiclesPage() {
 
   const departureCountByVehicle = new Map<string, number>();
   if (canDelete && vehiclesRaw.length > 0) {
-    const departures = await db.departure.findMany({
-      where: { assignedVehicleId: { in: vehiclesRaw.map((v) => v.id) } },
-      select: { assignedVehicleId: true },
+    const assignments = await db.departureVehicle.findMany({
+      where: { vehicleId: { in: vehiclesRaw.map((v) => v.id) } },
+      select: { vehicleId: true },
     });
-    for (const departure of departures) {
-      if (!departure.assignedVehicleId) continue;
-      departureCountByVehicle.set(
-        departure.assignedVehicleId,
-        (departureCountByVehicle.get(departure.assignedVehicleId) ?? 0) + 1,
-      );
+    for (const assignment of assignments) {
+      if (!assignment.vehicleId) continue;
+      departureCountByVehicle.set(assignment.vehicleId, (departureCountByVehicle.get(assignment.vehicleId) ?? 0) + 1);
     }
   }
   const vehicles = vehiclesRaw.map((vehicle) => ({
@@ -69,7 +66,7 @@ export default async function VehiclesPage() {
                 vehicle.isActive ? "" : "opacity-50"
               }`}
             >
-              <div className="flex items-center gap-3">
+              <Link href={`/dashboard/vehicles/${vehicle.id}`} className="-m-1 flex items-center gap-3 rounded-md p-1 transition-colors hover:bg-cream-100/70">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-terracotta/10">
                   {vehicle.type === "Bus" ? (
                     <Bus className="h-5 w-5 text-terracotta-700" strokeWidth={1.75} />
@@ -86,7 +83,7 @@ export default async function VehiclesPage() {
                     {[vehicle.type, `${vehicle.capacity} seats`, vehicle.licensePlate].filter(Boolean).join(" · ")}
                   </p>
                 </div>
-              </div>
+              </Link>
               {canManage && (
                 <div className="flex items-center gap-4 text-sm">
                   <Link href={`/dashboard/vehicles/${vehicle.id}/edit`} className="text-terracotta-700 underline">

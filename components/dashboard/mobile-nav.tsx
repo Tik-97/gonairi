@@ -10,7 +10,6 @@ import { InterlacePattern } from "@/components/ornaments/interlace-pattern";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
 import { SidebarPromoCard } from "@/components/dashboard/sidebar-promo-card";
 import type { Permission } from "@/lib/auth/permission-keys";
-import type { UserRole } from "@/generated/prisma/enums";
 
 /**
  * Mobile-only navigation: a fixed top bar with a hamburger trigger, plus an
@@ -18,7 +17,7 @@ import type { UserRole } from "@/generated/prisma/enums";
  * here is `lg:hidden` — the desktop <aside> in the layout handles large
  * screens and is untouched by this component.
  */
-export function MobileNav({ role, permissions }: { role: UserRole; permissions: Permission[] }) {
+export function MobileNav({ scheduleOnly, permissions }: { scheduleOnly: boolean; permissions: Permission[] }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const [lastPathname, setLastPathname] = useState(pathname);
@@ -87,7 +86,7 @@ export function MobileNav({ role, permissions }: { role: UserRole; permissions: 
           </button>
         </div>
         <div className="flex flex-1 flex-col">
-          <SidebarNav role={role} permissions={permissions} />
+          <SidebarNav scheduleOnly={scheduleOnly} permissions={permissions} />
         </div>
         <SidebarPromoCard />
       </aside>

@@ -1,13 +1,15 @@
 import { ROLES, PERMISSION_GROUPS, OWNER_PERMISSION_FLOOR, getAllRolePermissions } from "@/lib/auth/permissions";
 import { updateRolePermissions } from "@/lib/actions/platform-admin";
 import { PageHeader } from "@/components/dashboard/page-header";
+import type { UserRole } from "@/generated/prisma/enums";
 
-const ROLE_LABEL: Record<string, string> = {
+const ROLE_LABEL: Record<UserRole, string> = {
   OWNER: "Owner",
   ADMIN: "Admin",
   OPERATOR: "Operator",
   DRIVER: "Driver",
   GUIDE: "Guide",
+  DRIVER_GUIDE: "Driver-Guide",
 };
 
 export default async function PlatformAdminRolesPage() {

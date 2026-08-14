@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { formatDate } from "@/lib/format";
+import { formatDepartureCrew } from "@/lib/departures/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 
@@ -25,16 +26,25 @@ export default async function MySchedulePage({
   const db = scopedPrisma(session.user.organizationId);
 
   const now = new Date();
-  const departures = await db.departure.findMany({
+  const departuresRaw = await db.departure.findMany({
     where: {
       status: { not: "CANCELLED" },
-      OR: [{ assignedDriverId: session.user.id }, { assignedGuideId: session.user.id }],
+      vehicles: { some: { OR: [{ driverId: session.user.id }, { guideId: session.user.id }] } },
       ...(when === "upcoming" ? { date: { gte: now } } : {}),
       ...(when === "past" ? { date: { lt: now } } : {}),
     },
-    include: { tour: true, assignedVehicle: true },
+    include: { tour: true, vehicles: { include: { vehicle: true, driver: true, guide: true } } },
     orderBy: { date: when === "past" ? "desc" : "asc" },
   });
+
+  // Only the rows *this viewer* is crewed on — a driver on jeep 2 of 5
+  // shouldn't see jeeps 1/3/4/5 mixed into their own personal schedule.
+  const departures = departuresRaw.map((departure) => ({
+    ...departure,
+    myVehicles: departure.vehicles.filter(
+      (v) => v.driverId === session.user.id || v.guideId === session.user.id,
+    ),
+  }));
 
   return (
     <div className="flex flex-col gap-8">
@@ -77,7 +87,7 @@ export default async function MySchedulePage({
                   <p className="font-medium text-espresso">{departure.tour.title}</p>
                   <p className="text-sm text-espresso-muted">
                     {formatDate(departure.date)} · {departure.bookedCount}/{departure.capacity} pax · {departure.status}
-                    {departure.assignedVehicle && ` · ${departure.assignedVehicle.name}`}
+                    {departure.myVehicles.length > 0 && ` · ${formatDepartureCrew(departure.myVehicles)}`}
                   </p>
                 </div>
               </div>

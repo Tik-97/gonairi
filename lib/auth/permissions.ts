@@ -16,6 +16,7 @@ export const ROLES: UserRole[] = [
   "OPERATOR",
   "DRIVER",
   "GUIDE",
+  "DRIVER_GUIDE",
 ];
 
 /** Grouped for the Super Admin permission-matrix UI. */
@@ -110,6 +111,7 @@ function emptyRoleMap(): Record<UserRole, Set<Permission>> {
     OPERATOR: new Set(),
     DRIVER: new Set(),
     GUIDE: new Set(),
+    DRIVER_GUIDE: new Set(),
   };
 }
 
@@ -155,10 +157,11 @@ export async function getAllRolePermissions(): Promise<
     OPERATOR: Array.from(map.OPERATOR),
     DRIVER: Array.from(map.DRIVER),
     GUIDE: Array.from(map.GUIDE),
+    DRIVER_GUIDE: Array.from(map.DRIVER_GUIDE),
   };
 }
 
 /** Roles that can see the full back office (as opposed to just "my schedule"). */
 export function isBackOfficeRole(role: UserRole): boolean {
-  return role !== "DRIVER" && role !== "GUIDE";
+  return role !== "DRIVER" && role !== "GUIDE" && role !== "DRIVER_GUIDE";
 }

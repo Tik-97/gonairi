@@ -16,6 +16,10 @@ enum UserRole {
   OPERATOR
   DRIVER
   GUIDE
+  /// Can be assigned to a departure's vehicle as either the driver or the
+  /// guide (or both, on the same DepartureVehicle row) — for tours (e.g.
+  /// jeeping tours) where one person routinely does both jobs.
+  DRIVER_GUIDE
 }
 
 enum AttendanceStatus {
@@ -124,6 +128,7 @@ model Organization {
   customers         Customer[]
   tours             Tour[]
   departures        Departure[]
+  departureVehicles DepartureVehicle[]
   vehicles          Vehicle[]
   bookings          Booking[]
   payments          Payment[]
@@ -133,7 +138,9 @@ model Organization {
 
 /// Staff account — owner/admin/operator, plus drivers and guides who can be
 /// assigned to departures. Role governs both permissions and, for
-/// DRIVER/GUIDE, eligibility to show up in departure assignment pickers.
+/// DRIVER/GUIDE/DRIVER_GUIDE, eligibility to show up in departure vehicle
+/// assignment pickers (DRIVER_GUIDE is eligible for both the driver and
+/// guide slot on a DepartureVehicle row).
 model User {
   id             String       @id @default(cuid())
   organizationId String
@@ -149,10 +156,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  createdBookings   Booking[]    @relation("BookingCreatedByUser")
-  guidedDepartures  Departure[]  @relation("DepartureGuide")
-  drivenDepartures  Departure[]  @relation("DepartureDriver")
-  attendanceRecords Attendance[]
+  createdBookings         Booking[]          @relation("BookingCreatedByUser")
+  guidedDepartureVehicles DepartureVehicle[] @relation("DepartureVehicleGuide")
+  drivenDepartureVehicles DepartureVehicle[] @relation("DepartureVehicleDriver")
+  attendanceRecords       Attendance[]
 
   @@index([organizationId])
 }
@@ -217,8 +224,6 @@ model Tour {
   excluded         String?
   basePrice        Decimal  @db.Decimal(10, 2)
   currency         String   @default("AMD")
-  minPax           Int      @default(1)
-  maxPax           Int      @default(20)
   isPublished      Boolean  @default(false)
 
   createdAt DateTime @default(now())
@@ -240,25 +245,54 @@ model Departure {
   tour           Tour         @relation(fields: [tourId], references: [id], onDelete: Cascade)
 
   date              DateTime
-  capacity          Int
-  bookedCount       Int             @default(0)
-  priceOverride     Decimal?        @db.Decimal(10, 2)
-  assignedGuideId   String?
-  assignedGuide     User?           @relation("DepartureGuide", fields: [assignedGuideId], references: [id], onDelete: SetNull)
-  assignedDriverId  String?
-  assignedDriver    User?           @relation("DepartureDriver", fields: [assignedDriverId], references: [id], onDelete: SetNull)
-  assignedVehicleId String?
-  assignedVehicle   Vehicle?        @relation(fields: [assignedVehicleId], references: [id], onDelete: SetNull)
-  status            DepartureStatus @default(SCHEDULED)
-  notes             String?
+  /// Estimated return time — when the assigned vehicle is expected back and
+  /// free to be booked on another departure. Null means unknown; conflict
+  /// checks then assume the vehicle is tied up for a full 24h from `date`.
+  returnAt          DateTime?
+  capacity      Int
+  bookedCount   Int             @default(0)
+  priceOverride Decimal?        @db.Decimal(10, 2)
+  status        DepartureStatus @default(SCHEDULED)
+  notes         String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   bookings Booking[]
+  vehicles DepartureVehicle[]
 
   @@index([organizationId, tourId, date])
   @@index([organizationId, date])
+}
+
+/// One vehicle (and its own optional driver/guide) assigned to a Departure —
+/// a Departure can have zero, one, or many of these, so a single departure
+/// can run several vehicles in parallel (e.g. a jeeping tour split across
+/// 4-5 jeeps), each independently crewed. `vehicleId` is nullable to
+/// preserve the pre-existing "guide/driver, no vehicle" case (confirmed
+/// still in live use — a walking-tour-style departure) — every row is
+/// fundamentally a driver/guide (+ optional vehicle) assignment slot.
+model DepartureVehicle {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  departureId    String
+  departure      Departure    @relation(fields: [departureId], references: [id], onDelete: Cascade)
+
+  vehicleId String?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driverId  String?
+  driver    User?    @relation("DepartureVehicleDriver", fields: [driverId], references: [id], onDelete: SetNull)
+  guideId   String?
+  guide     User?    @relation("DepartureVehicleGuide", fields: [guideId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@unique([departureId, vehicleId])
+  @@index([organizationId])
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([guideId])
 }
 
 /// A customer's reservation on a Departure.
@@ -332,7 +366,7 @@ model Vehicle {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  departures Departure[]
+  departureVehicles DepartureVehicle[]
 
   @@index([organizationId])
 }

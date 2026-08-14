@@ -34,8 +34,6 @@ export default async function EditTourPage({
           category: tour.category ?? "",
           durationDays: tour.durationDays,
           basePrice: Number(tour.basePrice),
-          minPax: tour.minPax,
-          maxPax: tour.maxPax,
           isPublished: tour.isPublished,
           images: tour.images,
           regions: tour.regions,

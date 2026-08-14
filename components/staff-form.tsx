@@ -9,6 +9,11 @@ const ROLE_OPTIONS = [
   { value: "OPERATOR", label: "Operator", hint: "Day-to-day bookings, customers, tours — can't delete." },
   { value: "DRIVER", label: "Driver", hint: "Can be assigned to departures as the driver." },
   { value: "GUIDE", label: "Guide", hint: "Can be assigned to departures as the guide." },
+  {
+    value: "DRIVER_GUIDE",
+    label: "Driver-Guide",
+    hint: "Can be assigned to departures as the driver, the guide, or both — for tours where one person does both jobs.",
+  },
 ] as const;
 
 type StaffFormValues = {

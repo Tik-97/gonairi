@@ -11,7 +11,7 @@ import { optionalPhoneField } from "@/lib/phone";
 import { formStateFromZodError, type FormState } from "@/lib/form-state";
 import type { UserRole } from "@/generated/prisma/enums";
 
-const ASSIGNABLE_ROLES = ["ADMIN", "OPERATOR", "DRIVER", "GUIDE"] as const;
+const ASSIGNABLE_ROLES = ["ADMIN", "OPERATOR", "DRIVER", "GUIDE", "DRIVER_GUIDE"] as const;
 
 const CreateStaffSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters."),

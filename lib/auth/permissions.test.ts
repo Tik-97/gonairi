@@ -8,22 +8,23 @@ import {
 } from "@/lib/auth/permissions";
 
 describe("isBackOfficeRole", () => {
-  it("is true for every role except DRIVER and GUIDE", () => {
+  it("is true for every role except DRIVER, GUIDE, and DRIVER_GUIDE", () => {
     expect(isBackOfficeRole("OWNER")).toBe(true);
     expect(isBackOfficeRole("ADMIN")).toBe(true);
     expect(isBackOfficeRole("OPERATOR")).toBe(true);
   });
 
-  it("is false for DRIVER and GUIDE — they only ever see their own schedule", () => {
+  it("is false for DRIVER, GUIDE, and DRIVER_GUIDE — they only ever see their own schedule", () => {
     expect(isBackOfficeRole("DRIVER")).toBe(false);
     expect(isBackOfficeRole("GUIDE")).toBe(false);
+    expect(isBackOfficeRole("DRIVER_GUIDE")).toBe(false);
   });
 });
 
 describe("ROLES", () => {
-  it("lists exactly the 5 roles the schema defines, once each", () => {
+  it("lists exactly the 6 roles the schema defines, once each", () => {
     expect(new Set(ROLES).size).toBe(ROLES.length);
-    expect(ROLES.sort()).toEqual(["ADMIN", "DRIVER", "GUIDE", "OPERATOR", "OWNER"]);
+    expect(ROLES.sort()).toEqual(["ADMIN", "DRIVER", "DRIVER_GUIDE", "GUIDE", "OPERATOR", "OWNER"]);
   });
 });
 

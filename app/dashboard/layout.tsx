@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Playfair_Display, Inter } from "next/font/google";
 import { requireSession } from "@/lib/auth/session";
-import { PERMISSIONS, roleHasPermission, getRolePermissions } from "@/lib/auth/permissions";
+import { PERMISSIONS, roleHasPermission, getRolePermissions, isBackOfficeRole } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { LogoIcon } from "@/components/logo-icon";
 import { Wordmark } from "@/components/wordmark";
@@ -40,10 +40,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   ]);
   const db = scopedPrisma(session.user.organizationId);
   const pendingBookingsCount = canViewBookings ? await db.booking.count({ where: { status: "PENDING" } }) : 0;
+  const scheduleOnly = !isBackOfficeRole(session.user.role);
 
   return (
     <div className={`${playfair.variable} ${inter.variable} flex flex-1 bg-cream font-sans text-espresso`}>
-      <MobileNav role={session.user.role} permissions={permissions} />
+      <MobileNav scheduleOnly={scheduleOnly} permissions={permissions} />
 
       <aside className="relative hidden w-72 shrink-0 flex-col overflow-hidden bg-navy px-7 py-9 lg:flex">
         <InterlacePattern
@@ -58,7 +59,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
         </Link>
         <div className="relative flex flex-1 flex-col">
-          <SidebarNav role={session.user.role} permissions={permissions} />
+          <SidebarNav scheduleOnly={scheduleOnly} permissions={permissions} />
         </div>
         <SidebarPromoCard />
       </aside>

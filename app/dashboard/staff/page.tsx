@@ -6,13 +6,15 @@ import { toggleStaffStatus } from "@/lib/actions/staff";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { SearchInput } from "@/components/dashboard/search-input";
+import type { UserRole } from "@/generated/prisma/enums";
 
-const ROLE_BADGE: Record<string, string> = {
+const ROLE_BADGE: Record<UserRole, string> = {
   OWNER: "bg-terracotta/15 text-terracotta-700",
   ADMIN: "bg-terracotta/15 text-terracotta-700",
   OPERATOR: "bg-olive/12 text-olive",
   DRIVER: "bg-warning/15 text-[#8a5c00]",
   GUIDE: "bg-success/15 text-success",
+  DRIVER_GUIDE: "bg-success/15 text-success",
 };
 
 export default async function StaffPage({
