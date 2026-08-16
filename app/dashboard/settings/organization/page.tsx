@@ -1,11 +1,10 @@
-import { requirePermission } from "@/lib/auth/session";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requireOwner } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { OrganizationSettingsForm } from "@/components/organization-settings-form";
 import { PageHeader } from "@/components/dashboard/page-header";
 
 export default async function OrganizationSettingsPage() {
-  const session = await requirePermission(PERMISSIONS.orgSettingsManage);
+  const session = await requireOwner();
   const organization = await prisma.organization.findUniqueOrThrow({
     where: { id: session.user.organizationId },
   });

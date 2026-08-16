@@ -5,6 +5,7 @@ declare module "next-auth" {
   interface User {
     organizationId?: string;
     role?: UserRole;
+    availableRoles?: UserRole[];
     isPlatformAdmin?: boolean;
   }
 
@@ -13,8 +14,9 @@ declare module "next-auth" {
       id: string;
       organizationId: string;
       role: UserRole;
+      availableRoles: UserRole[];
     } & DefaultSession["user"];
-    /** Set only for a platform-admin session (see auth.ts's "platform-admin" provider) —
+    /** Set only when the shared credentials provider authenticates a PlatformAdmin —
      *  never populated alongside a tenant session, and vice versa. */
     platformAdmin?: {
       id: string;
@@ -28,6 +30,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     organizationId?: string;
     role?: UserRole;
+    availableRoles?: UserRole[];
     isPlatformAdmin?: boolean;
   }
 }

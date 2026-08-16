@@ -1,72 +1,15 @@
 "use server";
 
-import * as z from "zod";
-import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { auth, signIn, signOut, unstable_update } from "@/auth";
 import { prisma } from "@/lib/db";
-import { signIn, signOut } from "@/auth";
-import { slugify, uniqueSlug } from "@/lib/slug";
-import { formStateFromZodError, type FormState } from "@/lib/form-state";
+import { OWNER_AGENCY_COOKIE } from "@/lib/auth/session";
+import { isBackOfficeRole } from "@/lib/auth/permissions";
+import type { FormState } from "@/lib/form-state";
 import { clientIp, isRateLimited } from "@/lib/rate-limit";
-
-const RegisterSchema = z.object({
-  organizationName: z.string().trim().min(2, "Agency name must be at least 2 characters."),
-  ownerName: z.string().trim().min(2, "Your name must be at least 2 characters."),
-  email: z.email("Please enter a valid email."),
-  password: z.string().min(8, "Password must be at least 8 characters."),
-});
-
-async function uniqueOrganizationSlug(name: string): Promise<string> {
-  const base = slugify(name) || "agency";
-  return uniqueSlug(base, async (candidate) => Boolean(await prisma.organization.findUnique({ where: { slug: candidate } })));
-}
-
-export async function registerOrganization(
-  _prevState: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const parsed = RegisterSchema.safeParse({
-    organizationName: formData.get("organizationName"),
-    ownerName: formData.get("ownerName"),
-    email: formData.get("email"),
-    password: formData.get("password"),
-  });
-
-  if (!parsed.success) {
-    return formStateFromZodError(parsed.error);
-  }
-
-  if (isRateLimited(`register:${await clientIp()}`, { limit: 5, windowMs: 60_000 })) {
-    return { error: "Too many attempts. Please wait a minute and try again." };
-  }
-
-  const { organizationName, ownerName, email, password } = parsed.data;
-
-  const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) {
-    return { error: "This email is already registered." };
-  }
-
-  const slug = await uniqueOrganizationSlug(organizationName);
-  const passwordHash = await bcrypt.hash(password, 10);
-
-  await prisma.organization.create({
-    data: {
-      name: organizationName,
-      slug,
-      users: {
-        create: {
-          name: ownerName,
-          email,
-          passwordHash,
-          role: "OWNER",
-        },
-      },
-    },
-  });
-
-  return login(undefined, formData);
-}
+import type { UserRole } from "@/generated/prisma/enums";
 
 export async function login(_prevState: FormState, formData: FormData): Promise<FormState> {
   if (isRateLimited(`login:${await clientIp()}`, { limit: 10, windowMs: 60_000 })) {
@@ -77,7 +20,7 @@ export async function login(_prevState: FormState, formData: FormData): Promise<
     await signIn("credentials", {
       email: formData.get("email"),
       password: formData.get("password"),
-      redirectTo: "/dashboard",
+      redirectTo: "/select-role",
     });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -87,6 +30,59 @@ export async function login(_prevState: FormState, formData: FormData): Promise<
   }
 }
 
+export async function selectActiveRole(role: UserRole): Promise<void> {
+  const session = await auth();
+  if (!session?.user || session.platformAdmin) {
+    redirect("/login");
+  }
+
+  const account = await prisma.user.findFirst({
+    where: { id: session.user.id, status: "ACTIVE", roles: { has: role } },
+    select: { id: true },
+  });
+  if (!account) {
+    redirect("/select-role");
+  }
+
+  await unstable_update({ user: { role } });
+  redirect(isBackOfficeRole(role) ? "/dashboard" : "/dashboard/schedule");
+}
+
+export async function switchOwnedOrganization(formData: FormData): Promise<void> {
+  const session = await auth();
+  const organizationId = formData.get("organizationId")?.toString();
+  if (
+    !session?.user ||
+    session.platformAdmin ||
+    session.user.role !== "OWNER" ||
+    !organizationId
+  ) {
+    redirect("/login");
+  }
+
+  const owner = await prisma.user.findFirst({
+    where: {
+      id: session.user.id,
+      status: "ACTIVE",
+      roles: { has: "OWNER" },
+      ownedOrganizations: { some: { id: organizationId } },
+    },
+    select: { id: true },
+  });
+  if (!owner) {
+    redirect("/dashboard");
+  }
+
+  (await cookies()).set(OWNER_AGENCY_COOKIE, organizationId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  });
+  redirect("/dashboard");
+}
+
 export async function logout() {
+  (await cookies()).delete(OWNER_AGENCY_COOKIE);
   await signOut({ redirectTo: "/" });
 }

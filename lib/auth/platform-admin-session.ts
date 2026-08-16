@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { auth } from "@/auth";
 
 /**
- * Redirects to /admin/login if there is no authenticated platform-admin session.
+ * Redirects to the shared /login page if there is no authenticated platform-admin session.
  * Deliberately separate from requireSession() — a tenant staff session must never
  * satisfy this, and vice versa.
  *
@@ -16,7 +16,7 @@ export async function requirePlatformAdmin() {
   await connection();
   const session = await auth();
   if (!session?.platformAdmin) {
-    redirect("/admin/login");
+    redirect("/login");
   }
   return session;
 }

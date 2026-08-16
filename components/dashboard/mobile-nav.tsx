@@ -17,7 +17,17 @@ import type { Permission } from "@/lib/auth/permission-keys";
  * here is `lg:hidden` — the desktop <aside> in the layout handles large
  * screens and is untouched by this component.
  */
-export function MobileNav({ scheduleOnly, permissions }: { scheduleOnly: boolean; permissions: Permission[] }) {
+export function MobileNav({
+  scheduleOnly,
+  permissions,
+  isPlatformAdmin = false,
+  platformOnly = false,
+}: {
+  scheduleOnly: boolean;
+  permissions: Permission[];
+  isPlatformAdmin?: boolean;
+  platformOnly?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const [lastPathname, setLastPathname] = useState(pathname);
@@ -37,7 +47,7 @@ export function MobileNav({ scheduleOnly, permissions }: { scheduleOnly: boolean
   return (
     <>
       <div className="fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b border-border bg-cream px-4 py-3 lg:hidden">
-        <Link href="/dashboard" className="flex items-center gap-2">
+        <Link href={platformOnly ? "/admin/agencies" : "/dashboard"} className="flex items-center gap-2">
           <LogoIcon className="h-10 w-10" />
           <Wordmark className="font-serif text-lg font-bold" />
         </Link>
@@ -69,11 +79,13 @@ export function MobileNav({ scheduleOnly, permissions }: { scheduleOnly: boolean
           className="pointer-events-none absolute inset-0 h-full w-full text-terracotta opacity-[0.06]"
         />
         <div className="relative mb-10 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
+          <Link href={platformOnly ? "/admin/agencies" : "/dashboard"} className="flex items-center gap-2.5">
             <LogoIcon className="h-10 w-10" />
             <div className="flex flex-col">
               <Wordmark className="font-serif text-lg leading-tight font-bold" />
-              <span className="text-[10px] font-medium tracking-[0.16em] text-navy-muted uppercase">Travel Agency</span>
+              <span className="text-[10px] font-medium tracking-[0.16em] text-navy-muted uppercase">
+                {isPlatformAdmin ? "Super Admin" : "Travel Agency"}
+              </span>
             </div>
           </Link>
           <button
@@ -86,9 +98,13 @@ export function MobileNav({ scheduleOnly, permissions }: { scheduleOnly: boolean
           </button>
         </div>
         <div className="flex flex-1 flex-col">
-          <SidebarNav scheduleOnly={scheduleOnly} permissions={permissions} />
+          <SidebarNav
+            scheduleOnly={scheduleOnly}
+            permissions={permissions}
+            isPlatformAdmin={isPlatformAdmin}
+          />
         </div>
-        <SidebarPromoCard />
+        {!platformOnly && <SidebarPromoCard />}
       </aside>
     </>
   );

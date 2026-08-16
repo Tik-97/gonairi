@@ -8,5 +8,5 @@ export default async function AdminRootPage() {
   // this call is needed directly here instead.
   await connection();
   const session = await auth();
-  redirect(session?.platformAdmin ? "/admin/roles" : "/admin/login");
+  redirect(session?.platformAdmin ? "/admin/agencies" : "/login");
 }

@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Check, X as XIcon } from "lucide-react";
-import { requirePermission } from "@/lib/auth/session";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requireOwner } from "@/lib/auth/session";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { setAttendance, clearAttendance } from "@/lib/actions/attendance";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -40,7 +39,7 @@ export default async function StaffAttendancePage({
 }) {
   const { userId } = await params;
   const { month: monthParam } = await searchParams;
-  const session = await requirePermission(PERMISSIONS.attendanceManage);
+  const session = await requireOwner();
   const db = scopedPrisma(session.user.organizationId);
 
   const member = await db.user.findFirst({ where: { id: userId } });

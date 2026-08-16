@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ALL_PERMISSIONS,
   OWNER_PERMISSION_FLOOR,
+  OWNER_ONLY_PERMISSIONS,
   PERMISSION_GROUPS,
   ROLES,
   isBackOfficeRole,
@@ -10,7 +11,6 @@ import {
 describe("isBackOfficeRole", () => {
   it("is true for every role except DRIVER, GUIDE, and DRIVER_GUIDE", () => {
     expect(isBackOfficeRole("OWNER")).toBe(true);
-    expect(isBackOfficeRole("ADMIN")).toBe(true);
     expect(isBackOfficeRole("OPERATOR")).toBe(true);
   });
 
@@ -22,9 +22,9 @@ describe("isBackOfficeRole", () => {
 });
 
 describe("ROLES", () => {
-  it("lists exactly the 6 roles the schema defines, once each", () => {
+  it("lists exactly the 5 agency roles the schema defines, once each", () => {
     expect(new Set(ROLES).size).toBe(ROLES.length);
-    expect(ROLES.sort()).toEqual(["ADMIN", "DRIVER", "DRIVER_GUIDE", "GUIDE", "OPERATOR", "OWNER"]);
+    expect(ROLES.sort()).toEqual(["DRIVER", "DRIVER_GUIDE", "GUIDE", "OPERATOR", "OWNER"]);
   });
 });
 
@@ -45,13 +45,17 @@ describe("PERMISSION_GROUPS", () => {
 });
 
 describe("OWNER_PERMISSION_FLOOR", () => {
-  it("is a subset of the real permission set — a typo here would silently no-op the lockout guard", () => {
-    for (const permission of OWNER_PERMISSION_FLOOR) {
-      expect(ALL_PERMISSIONS).toContain(permission);
-    }
+  it("contains every permission so an Owner always controls their whole agency", () => {
+    expect([...OWNER_PERMISSION_FLOOR].sort()).toEqual([...ALL_PERMISSIONS].sort());
   });
+});
 
-  it("is non-empty — an empty floor would defeat the purpose of having one", () => {
-    expect(OWNER_PERMISSION_FLOOR.length).toBeGreaterThan(0);
+describe("OWNER_ONLY_PERMISSIONS", () => {
+  it("keeps agency and staff administration exclusive to the Owner", () => {
+    expect(OWNER_ONLY_PERMISSIONS).toEqual(new Set([
+      "staff:manage",
+      "attendance:manage",
+      "org:settings-manage",
+    ]));
   });
 });

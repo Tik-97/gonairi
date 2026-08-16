@@ -46,7 +46,7 @@ export default async function TourDeparturesPage({
   ]);
   const db = scopedPrisma(session.user.organizationId);
 
-  const tour = await db.tour.findFirst({ where: { id: tourId } });
+  const tour = await db.tour.findFirst({ where: { id: tourId, deletedAt: null } });
   if (!tour) {
     notFound();
   }
@@ -69,11 +69,11 @@ export default async function TourDeparturesPage({
       orderBy: { name: "asc" },
     }),
     db.user.findMany({
-      where: { role: { in: ["DRIVER", "DRIVER_GUIDE"] }, status: "ACTIVE" },
+      where: { roles: { hasSome: ["DRIVER", "DRIVER_GUIDE"] }, status: "ACTIVE" },
       orderBy: { name: "asc" },
     }),
     db.user.findMany({
-      where: { role: { in: ["GUIDE", "DRIVER_GUIDE"] }, status: "ACTIVE" },
+      where: { roles: { hasSome: ["GUIDE", "DRIVER_GUIDE"] }, status: "ACTIVE" },
       orderBy: { name: "asc" },
     }),
   ]);

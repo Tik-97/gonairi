@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import Link from "next/link";
 import { login } from "@/lib/actions/auth";
 
 const inputClass =
@@ -13,6 +12,7 @@ export default function LoginPage() {
   return (
     <>
       <h1 className="mb-6 font-serif text-2xl font-semibold text-espresso">Log in</h1>
+      <p className="mb-5 text-sm text-espresso-muted">Use your agency or Super Admin credentials.</p>
       <form action={action} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm text-espresso-muted">
           Email
@@ -31,12 +31,7 @@ export default function LoginPage() {
           {pending ? "Logging in…" : "Log in"}
         </button>
       </form>
-      <p className="mt-6 text-sm text-espresso-muted">
-        No agency account yet?{" "}
-        <Link href="/register" className="font-medium text-terracotta-700 underline">
-          Register your agency
-        </Link>
-      </p>
+      <p className="mt-6 text-sm text-espresso-muted">Agency accounts are created by the platform administrator.</p>
     </>
   );
 }

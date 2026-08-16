@@ -2,36 +2,128 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { AuthError } from "next-auth";
-import { signIn, signOut } from "@/auth";
+import { cookies } from "next/headers";
+import * as z from "zod";
+import { signOut } from "@/auth";
 import { prisma } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/auth/platform-admin-session";
-import { ALL_PERMISSIONS, OWNER_PERMISSION_FLOOR, ROLES, type Permission } from "@/lib/auth/permissions";
+import { PLATFORM_AGENCY_COOKIE } from "@/lib/auth/session";
+import { ALL_PERMISSIONS, OWNER_ONLY_PERMISSIONS, OWNER_PERMISSION_FLOOR, ROLES, type Permission } from "@/lib/auth/permissions";
 import type { UserRole } from "@/generated/prisma/enums";
 import type { FormState } from "@/lib/form-state";
-import { clientIp, isRateLimited } from "@/lib/rate-limit";
-
-export async function loginPlatformAdmin(_prevState: FormState, formData: FormData): Promise<FormState> {
-  if (isRateLimited(`platform-admin-login:${await clientIp()}`, { limit: 10, windowMs: 60_000 })) {
-    return { error: "Too many attempts. Please wait a minute and try again." };
-  }
-
-  try {
-    await signIn("platform-admin", {
-      email: formData.get("email"),
-      password: formData.get("password"),
-      redirectTo: "/admin/roles",
-    });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return { error: "Invalid email or password." };
-    }
-    throw error;
-  }
-}
+import { formStateFromZodError } from "@/lib/form-state";
+import { slugify, uniqueSlug } from "@/lib/slug";
 
 export async function logoutPlatformAdmin() {
-  await signOut({ redirectTo: "/admin/login" });
+  (await cookies()).delete(PLATFORM_AGENCY_COOKIE);
+  await signOut({ redirectTo: "/login" });
+}
+
+const CreateOrganizationSchema = z.object({
+  organizationName: z.string().trim().min(2, "Agency name must be at least 2 characters."),
+  ownerId: z.string().min(1, "Select an existing Owner user."),
+});
+
+export async function createOrganization(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requirePlatformAdmin();
+  const parsed = CreateOrganizationSchema.safeParse({
+    organizationName: formData.get("organizationName"),
+    ownerId: formData.get("ownerId"),
+  });
+  if (!parsed.success) {
+    return formStateFromZodError(parsed.error);
+  }
+
+  const owner = await prisma.user.findFirst({
+    where: {
+      id: parsed.data.ownerId,
+      status: "ACTIVE",
+      roles: { has: "OWNER" },
+    },
+    select: { id: true, organizationId: true },
+  });
+  if (!owner) {
+    return { error: "Select an active user who has the Owner role." };
+  }
+
+  const base = slugify(parsed.data.organizationName) || "agency";
+  const slug = await uniqueSlug(base, async (candidate) =>
+    Boolean(await prisma.organization.findUnique({ where: { slug: candidate }, select: { id: true } })),
+  );
+  await prisma.$transaction(async (tx) => {
+    const organization = await tx.organization.create({
+      data: {
+        name: parsed.data.organizationName,
+        slug,
+        ownerId: owner.id,
+      },
+      select: { id: true },
+    });
+
+    // An Owner candidate can be created before the platform's first agency.
+    // Once their first agency exists, make it their primary staff organization;
+    // later agencies are linked through Organization.ownerId without moving them.
+    if (!owner.organizationId) {
+      await tx.user.update({
+        where: { id: owner.id },
+        data: { organizationId: organization.id },
+      });
+    }
+  });
+
+  revalidatePath("/admin/agencies");
+  redirect("/admin/agencies");
+}
+
+export async function openOrganizationCrm(
+  organizationId: string,
+  destination: "dashboard" | "staff",
+): Promise<void> {
+  await requirePlatformAdmin();
+  const organization = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { id: true },
+  });
+  if (!organization) {
+    return;
+  }
+
+  (await cookies()).set(PLATFORM_AGENCY_COOKIE, organization.id, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  });
+  redirect(destination === "staff" ? "/dashboard/staff" : "/dashboard");
+}
+
+export async function switchOrganizationCrm(formData: FormData): Promise<void> {
+  await requirePlatformAdmin();
+  const organizationId = formData.get("organizationId")?.toString();
+  if (!organizationId) {
+    redirect("/admin/agencies");
+  }
+
+  const organization = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { id: true },
+  });
+  if (!organization) {
+    redirect("/admin/agencies");
+  }
+
+  (await cookies()).set(PLATFORM_AGENCY_COOKIE, organization.id, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  });
+  // Always return to the overview: the previous URL may contain a tour,
+  // booking, or customer id belonging to the agency we just switched away from.
+  redirect("/dashboard");
 }
 
 const VALID_ROLES = new Set<string>(ROLES);
@@ -52,7 +144,11 @@ export async function updateRolePermissions(role: string, formData: FormData): P
     .map((v) => v.toString())
     .filter((p) => VALID_PERMISSIONS.has(p)) as Permission[];
 
-  const permissions = new Set(submitted);
+  const permissions = new Set(
+    role === "OWNER"
+      ? submitted
+      : submitted.filter((permission) => !OWNER_ONLY_PERMISSIONS.has(permission)),
+  );
   if (role === "OWNER") {
     for (const floor of OWNER_PERMISSION_FLOOR) {
       permissions.add(floor);

@@ -81,4 +81,24 @@ describe("tenant isolation (scopedPrisma)", () => {
     const orgBVehicles = await scopedPrisma(orgB.id).vehicle.findMany();
     expect(orgBVehicles.map((v) => v.id)).not.toContain(vehicleA.id);
   });
+
+  it("stores multiple roles and supports role eligibility queries within the tenant", async () => {
+    const db = scopedPrisma(orgA.id);
+    const staff = await db.user.create({
+      data: {
+        organizationId: orgA.id,
+        name: "Operator Driver",
+        email: `multi-role-${Date.now()}@example.test`,
+        passwordHash: "test-only",
+        roles: ["OPERATOR", "DRIVER"],
+      },
+    });
+
+    expect(staff.roles).toEqual(["OPERATOR", "DRIVER"]);
+    const drivers = await db.user.findMany({
+      where: { roles: { hasSome: ["DRIVER", "DRIVER_GUIDE"] } },
+      select: { id: true },
+    });
+    expect(drivers.map((driver) => driver.id)).toContain(staff.id);
+  });
 });

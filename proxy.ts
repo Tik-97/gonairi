@@ -16,18 +16,15 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isDashboardRoute = pathname.startsWith("/dashboard");
-  const isAuthRoute = pathname === "/login" || pathname === "/register";
-  // A platform-admin session still carries a truthy session.user (email/name via
-  // NextAuth defaults) but no organizationId — must not count as a tenant session,
-  // or a Super Admin visiting /dashboard would bounce forever between it and /login.
+  const isLoginRoute = pathname === "/login";
+  const isRoleRoute = pathname === "/select-role";
   const isTenantSession = Boolean(session?.user?.organizationId);
 
-  const isAdminLoginRoute = pathname === "/admin/login";
-  const isAdminRoute = pathname.startsWith("/admin") && !isAdminLoginRoute;
+  const isAdminRoute = pathname.startsWith("/admin");
   const isPlatformAdminSession = Boolean(session?.platformAdmin);
 
   // The public marketplace (marketing homepage, tour browsing, guest booking) is
-  // temporarily closed — only the back-office and its login/register are live.
+  // temporarily closed — only the back-office and authentication routes are live.
   const isMarketplaceRoute =
     pathname === "/" ||
     pathname.startsWith("/tours") ||
@@ -40,22 +37,22 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (isDashboardRoute && !isTenantSession) {
+  if (isDashboardRoute && !isTenantSession && !isPlatformAdminSession) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("from", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAuthRoute && isTenantSession) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+  if (isLoginRoute && (isTenantSession || isPlatformAdminSession)) {
+    return NextResponse.redirect(new URL(isPlatformAdminSession ? "/admin/agencies" : "/select-role", request.url));
+  }
+
+  if (isRoleRoute && isPlatformAdminSession) {
+    return NextResponse.redirect(new URL("/admin/agencies", request.url));
   }
 
   if (isAdminRoute && !isPlatformAdminSession) {
-    return NextResponse.redirect(new URL("/admin/login", request.url));
-  }
-
-  if (isAdminLoginRoute && isPlatformAdminSession) {
-    return NextResponse.redirect(new URL("/admin/roles", request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   return NextResponse.next();

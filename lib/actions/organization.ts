@@ -1,8 +1,7 @@
 "use server";
 
 import * as z from "zod";
-import { requirePermission } from "@/lib/auth/session";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requireOwner } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { optionalPhoneField } from "@/lib/phone";
 import { formStateFromZodError } from "@/lib/form-state";
@@ -22,7 +21,7 @@ export type FormState = { error?: string; success?: boolean } | undefined;
 // Organization is the tenant itself (not a tenant-scoped model), so this uses the
 // raw client directly, filtered explicitly to the caller's own organization id.
 export async function updateOrganization(_prevState: FormState, formData: FormData): Promise<FormState> {
-  const session = await requirePermission(PERMISSIONS.orgSettingsManage);
+  const session = await requireOwner();
   const parsed = OrganizationSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description"),

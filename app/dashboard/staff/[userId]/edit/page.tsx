@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { requirePermission } from "@/lib/auth/session";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requireOwner } from "@/lib/auth/session";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { updateStaffMember } from "@/lib/actions/staff";
 import { StaffForm } from "@/components/staff-form";
@@ -12,11 +11,11 @@ export default async function EditStaffPage({
   params: Promise<{ userId: string }>;
 }) {
   const { userId } = await params;
-  const session = await requirePermission(PERMISSIONS.staffManage);
+  const session = await requireOwner();
   const db = scopedPrisma(session.user.organizationId);
   const member = await db.user.findFirst({ where: { id: userId } });
 
-  if (!member || member.role === "OWNER") {
+  if (!member || member.roles.includes("OWNER")) {
     notFound();
   }
 
@@ -32,7 +31,7 @@ export default async function EditStaffPage({
         defaultValues={{
           name: member.name,
           phone: member.phone ?? "",
-          role: member.role,
+          roles: member.roles,
         }}
       />
     </div>

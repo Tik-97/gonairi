@@ -12,7 +12,12 @@ export default async function AgencyProfilePage({
 
   const organization = await prisma.organization.findFirst({
     where: { slug: orgSlug, isPublished: true },
-    include: { tours: { where: { isPublished: true }, orderBy: { createdAt: "desc" } } },
+    include: {
+      tours: {
+        where: { isPublished: true, deletedAt: null },
+        orderBy: { createdAt: "desc" },
+      },
+    },
   });
   if (!organization) {
     notFound();

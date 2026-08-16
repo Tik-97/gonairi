@@ -1,8 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requirePermission } from "@/lib/auth/session";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requireOwner } from "@/lib/auth/session";
 import { scopedPrisma } from "@/lib/db/scoped";
 import type { AttendanceStatus } from "@/generated/prisma/enums";
 
@@ -16,7 +15,7 @@ function redirectToMonth(userId: string, date: string): never {
 }
 
 export async function setAttendance(userId: string, date: string, status: AttendanceStatus): Promise<void> {
-  const session = await requirePermission(PERMISSIONS.attendanceManage);
+  const session = await requireOwner();
   const db = scopedPrisma(session.user.organizationId);
 
   const member = await db.user.findFirst({ where: { id: userId } });
@@ -32,7 +31,7 @@ export async function setAttendance(userId: string, date: string, status: Attend
 }
 
 export async function clearAttendance(userId: string, date: string): Promise<void> {
-  const session = await requirePermission(PERMISSIONS.attendanceManage);
+  const session = await requireOwner();
   const db = scopedPrisma(session.user.organizationId);
 
   await db.attendance.deleteMany({ where: { userId, date: parseDateOnly(date) } });

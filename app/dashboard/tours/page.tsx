@@ -3,7 +3,7 @@ import { Map as MapIcon } from "lucide-react";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { deleteTour } from "@/lib/actions/tours";
+import { deleteTour, restoreTour } from "@/lib/actions/tours";
 import { sortByNextDeparture } from "@/lib/tours/sort";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -13,9 +13,10 @@ import { SearchInput } from "@/components/dashboard/search-input";
 export default async function ToursPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; view?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, view } = await searchParams;
+  const showDeleted = view === "deleted";
   const session = await requirePermission(PERMISSIONS.toursView);
   const [canManage, canDelete] = await Promise.all([
     roleHasPermission(session.user.role, PERMISSIONS.toursManage),
@@ -23,14 +24,17 @@ export default async function ToursPage({
   ]);
   const db = scopedPrisma(session.user.organizationId);
   const toursRaw = await db.tour.findMany({
-    where: q
-      ? {
-          OR: [
-            { title: { contains: q, mode: "insensitive" } },
-            { description: { contains: q, mode: "insensitive" } },
-          ],
-        }
-      : undefined,
+    where: {
+      deletedAt: showDeleted ? { not: null } : null,
+      ...(q
+        ? {
+            OR: [
+              { title: { contains: q, mode: "insensitive" } },
+              { description: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    },
     orderBy: { createdAt: "desc" },
     include: {
       departures: {
@@ -41,26 +45,7 @@ export default async function ToursPage({
     },
   });
 
-  const toursSorted = sortByNextDeparture(toursRaw);
-
-  const bookingCountByTour = new Map<string, number>();
-  if (canDelete && toursSorted.length > 0) {
-    const bookings = await db.booking.findMany({
-      where: {
-        departure: { tourId: { in: toursSorted.map((tour) => tour.id) } },
-      },
-      select: { departure: { select: { tourId: true } } },
-    });
-    for (const booking of bookings) {
-      const tourId = booking.departure.tourId;
-      bookingCountByTour.set(tourId, (bookingCountByTour.get(tourId) ?? 0) + 1);
-    }
-  }
-
-  const tours = toursSorted.map((tour) => ({
-    ...tour,
-    bookingCount: bookingCountByTour.get(tour.id) ?? 0,
-  }));
+  const tours = sortByNextDeparture(toursRaw);
 
   return (
     <div className="flex flex-col gap-6">
@@ -80,15 +65,33 @@ export default async function ToursPage({
         }
       />
 
-      <SearchInput placeholder="Search tours by title or description…" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-2 text-sm">
+          <Link
+            href="/dashboard/tours"
+            className={`rounded-full px-4 py-2 ${!showDeleted ? "bg-terracotta text-white" : "bg-card text-espresso-muted"}`}
+          >
+            Active
+          </Link>
+          <Link
+            href="/dashboard/tours?view=deleted"
+            className={`rounded-full px-4 py-2 ${showDeleted ? "bg-terracotta text-white" : "bg-card text-espresso-muted"}`}
+          >
+            Deleted
+          </Link>
+        </div>
+        <SearchInput placeholder="Search tours by title or description…" />
+      </div>
 
       {tours.length === 0 ? (
         <EmptyState
-          title={q ? "No tours match your search" : "Your catalogue is waiting"}
+          title={q ? "No tours match your search" : showDeleted ? "No deleted tours" : "Your catalogue is waiting"}
           message={
             q
               ? "Try a different title or keyword."
-              : "Add your first tour — an itinerary, a price, a story worth telling."
+              : showDeleted
+                ? "Deleted tours will appear here and can be restored."
+                : "Add your first tour — an itinerary, a price, a story worth telling."
           }
         />
       ) : (
@@ -121,7 +124,7 @@ export default async function ToursPage({
                     <p className="text-sm text-espresso-muted">
                       {formatMoney(tour.basePrice.toString(), tour.currency)} ·{" "}
                       {tour.durationDays}d ·{" "}
-                      {tour.isPublished ? "Published" : "Draft"}
+                      {showDeleted ? "Deleted" : tour.isPublished ? "Published" : "Draft"}
                     </p>
                     <p className="mt-1 text-sm font-medium text-terracotta-700">
                       {nextDeparture
@@ -131,13 +134,15 @@ export default async function ToursPage({
                   </div>
                 </div>
                 <div className="flex gap-4 text-sm">
-                  <Link
-                    href={`/dashboard/tours/${tour.id}/departures`}
-                    className="text-terracotta-700 underline"
-                  >
-                    Departures
-                  </Link>
-                  {canManage && (
+                  {!showDeleted && (
+                    <Link
+                      href={`/dashboard/tours/${tour.id}/departures`}
+                      className="text-terracotta-700 underline"
+                    >
+                      Departures
+                    </Link>
+                  )}
+                  {!showDeleted && canManage && (
                     <Link
                       href={`/dashboard/tours/${tour.id}/edit`}
                       className="text-terracotta-700 underline"
@@ -145,10 +150,17 @@ export default async function ToursPage({
                       Edit
                     </Link>
                   )}
-                  {canDelete && tour.bookingCount === 0 && (
+                  {!showDeleted && canDelete && (
                     <form action={deleteTour.bind(null, tour.id)}>
                       <button type="submit" className="text-danger underline">
                         Delete
+                      </button>
+                    </form>
+                  )}
+                  {showDeleted && canDelete && (
+                    <form action={restoreTour.bind(null, tour.id)}>
+                      <button type="submit" className="text-terracotta-700 underline">
+                        Restore
                       </button>
                     </form>
                   )}

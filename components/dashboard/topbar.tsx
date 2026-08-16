@@ -1,16 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, ChevronDown, Settings, LogOut } from "lucide-react";
+import { Bell, Check, ChevronDown, Settings, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogoIcon } from "@/components/logo-icon";
-import { logout } from "@/lib/actions/auth";
+import { logout, selectActiveRole, switchOwnedOrganization } from "@/lib/actions/auth";
+import { logoutPlatformAdmin, switchOrganizationCrm } from "@/lib/actions/platform-admin";
+import { ROLE_LABELS } from "@/lib/auth/role-labels";
+import type { UserRole } from "@/generated/prisma/enums";
 
 export function Topbar({
   userName,
@@ -18,15 +22,43 @@ export function Topbar({
   pendingBookingsCount,
   showBookingsBell,
   showSettingsLink,
+  isPlatformAdmin = false,
+  availableRoles = [],
+  agencies = [],
+  activeAgencyId,
 }: {
   userName: string;
   userRole: string;
   pendingBookingsCount: number;
   showBookingsBell: boolean;
   showSettingsLink: boolean;
+  isPlatformAdmin?: boolean;
+  availableRoles?: UserRole[];
+  agencies?: { id: string; name: string }[];
+  activeAgencyId?: string;
 }) {
   return (
     <div className="mb-6 flex items-center justify-end gap-3 lg:mb-8 lg:gap-4">
+      {agencies.length > 0 && (isPlatformAdmin || agencies.length > 1) && (
+        <form action={isPlatformAdmin ? switchOrganizationCrm : switchOwnedOrganization} className="flex items-center gap-2 rounded-[12px] border border-terracotta/25 bg-card px-3 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+          <label htmlFor="platform-agency" className="hidden text-xs font-medium text-espresso-muted sm:block">
+            {isPlatformAdmin ? "Required agency" : "My agency"}
+          </label>
+          <select
+            id="platform-agency"
+            name="organizationId"
+            required
+            value={activeAgencyId ?? ""}
+            onChange={(event) => event.currentTarget.form?.requestSubmit()}
+            className="max-w-44 bg-transparent text-sm font-medium text-espresso outline-none"
+          >
+            <option value="" disabled>Select agency…</option>
+            {agencies.map((agency) => (
+              <option key={agency.id} value={agency.id}>{agency.name}</option>
+            ))}
+          </select>
+        </form>
+      )}
       {showBookingsBell && (
         <Link
           href="/dashboard/bookings"
@@ -56,6 +88,22 @@ export function Topbar({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
+          {!isPlatformAdmin && availableRoles.length > 1 && (
+            <>
+              <DropdownMenuLabel>Switch role</DropdownMenuLabel>
+              {availableRoles.map((role) => (
+                <DropdownMenuItem key={role} asChild>
+                  <form action={selectActiveRole.bind(null, role)} className="w-full">
+                    <button type="submit" className="flex w-full items-center gap-2">
+                      <Check className={role === userRole ? "opacity-100" : "opacity-0"} />
+                      {ROLE_LABELS[role]}
+                    </button>
+                  </form>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+            </>
+          )}
           {showSettingsLink && (
             <>
               <DropdownMenuItem asChild>
@@ -68,7 +116,7 @@ export function Topbar({
             </>
           )}
           <DropdownMenuItem asChild variant="destructive">
-            <form action={logout} className="w-full">
+            <form action={isPlatformAdmin ? logoutPlatformAdmin : logout} className="w-full">
               <button type="submit" className="flex w-full cursor-pointer items-center gap-2">
                 <LogOut className="h-4 w-4" strokeWidth={1.75} />
                 Log out

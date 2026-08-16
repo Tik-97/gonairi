@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "seed:admin": "node scripts/create-platform-admin.cjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

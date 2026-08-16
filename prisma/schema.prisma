@@ -12,7 +12,6 @@ datasource db {
 
 enum UserRole {
   OWNER
-  ADMIN
   OPERATOR
   DRIVER
   GUIDE
@@ -81,7 +80,7 @@ enum TravelerPriceType {
 }
 
 /// A platform-level operator account — not tied to any tenant Organization.
-/// Logs in at /admin/login to manage the RolePermission matrix below.
+/// Logs in through the shared /login page and manages the whole platform.
 model PlatformAdmin {
   id           String @id @default(cuid())
   email        String @unique
@@ -109,6 +108,8 @@ model RolePermission {
 /// A tenant: one tour agency using the platform.
 model Organization {
   id           String  @id @default(cuid())
+  ownerId      String
+  owner        User    @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   name         String
   slug         String  @unique
   description  String?
@@ -124,7 +125,7 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users             User[]
+  users             User[]             @relation("OrganizationMembers")
   customers         Customer[]
   tours             Tour[]
   departures        Departure[]
@@ -134,23 +135,25 @@ model Organization {
   payments          Payment[]
   bookingTravelers  BookingTraveler[]
   attendanceRecords Attendance[]
+
+  @@index([ownerId])
 }
 
-/// Staff account — owner/admin/operator, plus drivers and guides who can be
-/// assigned to departures. Role governs both permissions and, for
+/// Agency account — owner/operator, plus drivers and guides who can be
+/// assigned to departures. Assigned roles govern both permissions and, for
 /// DRIVER/GUIDE/DRIVER_GUIDE, eligibility to show up in departure vehicle
 /// assignment pickers (DRIVER_GUIDE is eligible for both the driver and
 /// guide slot on a DepartureVehicle row).
 model User {
-  id             String       @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id             String        @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation("OrganizationMembers", fields: [organizationId], references: [id], onDelete: SetNull)
 
   email        String     @unique
   passwordHash String
   name         String
   phone        String?
-  role         UserRole   @default(OPERATOR)
+  roles        UserRole[] @default([OPERATOR])
   status       UserStatus @default(ACTIVE)
 
   createdAt DateTime @default(now())
@@ -160,8 +163,10 @@ model User {
   guidedDepartureVehicles DepartureVehicle[] @relation("DepartureVehicleGuide")
   drivenDepartureVehicles DepartureVehicle[] @relation("DepartureVehicleDriver")
   attendanceRecords       Attendance[]
+  ownedOrganizations      Organization[]     @relation("OrganizationOwner")
 
   @@index([organizationId])
+  @@index([roles], type: Gin)
 }
 
 /// A day marked as worked or absent for a staff member — the basic HR/attendance ledger.
@@ -226,14 +231,16 @@ model Tour {
   currency         String   @default("AMD")
   isPublished      Boolean  @default(false)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   departures Departure[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
   @@index([organizationId, isPublished])
+  @@index([organizationId, deletedAt])
 }
 
 /// A scheduled, dated, bookable instance of a Tour.
@@ -244,11 +251,11 @@ model Departure {
   tourId         String
   tour           Tour         @relation(fields: [tourId], references: [id], onDelete: Cascade)
 
-  date              DateTime
+  date          DateTime
   /// Estimated return time — when the assigned vehicle is expected back and
   /// free to be booked on another departure. Null means unknown; conflict
   /// checks then assume the vehicle is tied up for a full 24h from `date`.
-  returnAt          DateTime?
+  returnAt      DateTime?
   capacity      Int
   bookedCount   Int             @default(0)
   priceOverride Decimal?        @db.Decimal(10, 2)

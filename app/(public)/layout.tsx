@@ -16,12 +16,6 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <Link href="/login" className="text-espresso/70 hover:text-espresso">
               Agency login
             </Link>
-            <Link
-              href="/register"
-              className="rounded-full bg-terracotta px-4 py-2 font-medium text-white shadow-sm transition-colors hover:bg-terracotta-700"
-            >
-              List your agency
-            </Link>
           </nav>
         </div>
       </header>

@@ -17,8 +17,8 @@ practical getting-started guide; those two are the deeper reference.
   changes from stock Next.js; see `AGENTS.md`.
 - React 19, TypeScript (strict)
 - Prisma 7 (`@prisma/adapter-pg`) against Neon serverless Postgres
-- NextAuth v5 (Auth.js) — two Credentials providers: tenant staff and platform
-  Super Admin
+- NextAuth v5 (Auth.js) — one shared credentials login for agency users and
+  the platform Super Admin, with active-role selection for multi-role users
 - Tailwind v4, hand-rolled components (a handful of shadcn/ui primitives are
   used where they earn their keep — e.g. `components/ui/dropdown-menu.tsx`)
 - Vercel Blob for tour photo uploads, with a local-filesystem fallback in dev
@@ -51,7 +51,10 @@ practical getting-started guide; those two are the deeper reference.
    - `MARKETPLACE_ENABLED` — optional, defaults to closed. See `proxy.ts`.
 2. `npm install` (this also runs `prisma generate` via `postinstall`).
 3. Apply migrations: `npx prisma migrate deploy`.
-4. `npm run dev`, then visit `/register` to create the first agency.
+4. Create the one platform Super Admin with
+   `npm run seed:admin -- <email> <password> <name>`, then run `npm run dev`.
+5. Sign in at `/login` and create each travel agency and its Owner from
+   `/admin/agencies`. Public agency registration is intentionally disabled.
 
 ### Applying a schema change
 
@@ -73,7 +76,7 @@ npx prisma generate
 - `npm test` / `npm run test:watch` — Vitest (unit + DB integration tests,
   runs against the real dev database — there is no separate test DB)
 - `node scripts/create-platform-admin.cjs` — bootstrap the first Super Admin
-  account (`/admin/login`)
+  account (signs in through `/login`)
 
 ## Multi-tenancy & authorization, in one paragraph
 

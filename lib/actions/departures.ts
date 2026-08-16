@@ -153,14 +153,14 @@ async function checkVehicleRow(
   }
 
   if (row.driverId) {
-    const driver = await db.user.findFirst({ where: { id: row.driverId, role: { in: ["DRIVER", "DRIVER_GUIDE"] } } });
+    const driver = await db.user.findFirst({ where: { id: row.driverId, roles: { hasSome: ["DRIVER", "DRIVER_GUIDE"] } } });
     if (!driver) return `${label}: selected driver not found.`;
     const conflict = await findStaffConflict(db, row.driverId, date, excludeDepartureId);
     if (conflict) return `${label}: ${driver.name} is already crewing "${conflict.departure.tour.title}" that same day.`;
   }
 
   if (row.guideId) {
-    const guide = await db.user.findFirst({ where: { id: row.guideId, role: { in: ["GUIDE", "DRIVER_GUIDE"] } } });
+    const guide = await db.user.findFirst({ where: { id: row.guideId, roles: { hasSome: ["GUIDE", "DRIVER_GUIDE"] } } });
     if (!guide) return `${label}: selected guide not found.`;
     const conflict = await findStaffConflict(db, row.guideId, date, excludeDepartureId);
     if (conflict) return `${label}: ${guide.name} is already crewing "${conflict.departure.tour.title}" that same day.`;
@@ -272,7 +272,7 @@ export async function createDeparture(
   // save into a silent no-op instead of a redirect.
   let redirectTo: string;
   try {
-    const tour = await db.tour.findFirst({ where: { id: tourId } });
+    const tour = await db.tour.findFirst({ where: { id: tourId, deletedAt: null } });
     if (!tour) {
       return { error: "Tour not found." };
     }
@@ -354,7 +354,9 @@ export async function updateDeparture(
   // outside this try/catch.
   let redirectTo: string;
   try {
-    const existing = await db.departure.findFirst({ where: { id: departureId } });
+    const existing = await db.departure.findFirst({
+      where: { id: departureId, tour: { deletedAt: null } },
+    });
     if (!existing) {
       return { error: "Departure not found." };
     }

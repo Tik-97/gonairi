@@ -90,7 +90,9 @@ export default async function BookingsPage({
       include: { departure: { include: { tour: true } }, customer: true },
       orderBy: { createdAt: "desc" },
     }),
-    tourId ? db.tour.findFirst({ where: { id: tourId } }) : Promise.resolve(null),
+    tourId
+      ? db.tour.findFirst({ where: { id: tourId, deletedAt: null } })
+      : Promise.resolve(null),
     departureId ? db.departure.findFirst({ where: { id: departureId }, include: { tour: true } }) : Promise.resolve(null),
   ]);
 

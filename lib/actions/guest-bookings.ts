@@ -39,7 +39,7 @@ export async function createGuestBooking(
     where: {
       id: departureId,
       organization: { isPublished: true },
-      tour: { isPublished: true },
+      tour: { isPublished: true, deletedAt: null },
     },
     include: { tour: true },
   });

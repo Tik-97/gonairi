@@ -11,7 +11,7 @@ export default async function TourDetailPage({
   const { tourId } = await params;
 
   const tour = await prisma.tour.findFirst({
-    where: { id: tourId, isPublished: true, organization: { isPublished: true } },
+    where: { id: tourId, isPublished: true, deletedAt: null, organization: { isPublished: true } },
     include: {
       organization: true,
       departures: {

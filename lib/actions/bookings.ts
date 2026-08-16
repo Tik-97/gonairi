@@ -65,7 +65,7 @@ export async function createManualBooking(
 
   const db = scopedPrisma(session.user.organizationId);
   const departure = await db.departure.findFirst({
-    where: { id: departureId },
+    where: { id: departureId, tour: { deletedAt: null } },
     include: { tour: true },
   });
   if (!departure) {

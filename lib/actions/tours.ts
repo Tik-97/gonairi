@@ -2,6 +2,7 @@
 
 import * as z from "zod";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
@@ -100,7 +101,7 @@ export async function updateTour(
   }
 
   const db = scopedPrisma(session.user.organizationId);
-  const existing = await db.tour.findFirst({ where: { id: tourId } });
+  const existing = await db.tour.findFirst({ where: { id: tourId, deletedAt: null } });
   if (!existing) {
     return { error: "Tour not found." };
   }
@@ -132,18 +133,32 @@ export async function deleteTour(tourId: string): Promise<void> {
   const session = await requirePermission(PERMISSIONS.toursDelete);
   const db = scopedPrisma(session.user.organizationId);
 
-  const existing = await db.tour.findFirst({ where: { id: tourId } });
+  const existing = await db.tour.findFirst({ where: { id: tourId, deletedAt: null } });
   if (!existing) {
     return;
   }
 
-  // The delete button is only shown when there are zero bookings; this is a
-  // defense-in-depth check in case one slipped in between page load and click.
-  const bookingCount = await db.booking.count({ where: { departure: { tourId } } });
-  if (bookingCount > 0) {
+  await db.tour.update({
+    where: { id: tourId },
+    data: { deletedAt: new Date(), isPublished: false },
+  });
+  revalidatePath("/dashboard/tours");
+}
+
+export async function restoreTour(tourId: string): Promise<void> {
+  const session = await requirePermission(PERMISSIONS.toursDelete);
+  const db = scopedPrisma(session.user.organizationId);
+
+  const existing = await db.tour.findFirst({
+    where: { id: tourId, deletedAt: { not: null } },
+  });
+  if (!existing) {
     return;
   }
 
-  await db.tour.delete({ where: { id: tourId } });
-  redirect("/dashboard/tours");
+  await db.tour.update({
+    where: { id: tourId },
+    data: { deletedAt: null },
+  });
+  revalidatePath("/dashboard/tours");
 }

@@ -3,38 +3,37 @@
 import * as z from "zod";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
-import { requirePermission } from "@/lib/auth/session";
-import { PERMISSIONS } from "@/lib/auth/permissions";
+import { requireOwner } from "@/lib/auth/session";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { prisma } from "@/lib/db";
 import { optionalPhoneField } from "@/lib/phone";
 import { formStateFromZodError, type FormState } from "@/lib/form-state";
 import type { UserRole } from "@/generated/prisma/enums";
 
-const ASSIGNABLE_ROLES = ["ADMIN", "OPERATOR", "DRIVER", "GUIDE", "DRIVER_GUIDE"] as const;
+const ASSIGNABLE_ROLES = ["OPERATOR", "DRIVER", "GUIDE", "DRIVER_GUIDE"] as const;
 
 const CreateStaffSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters."),
   email: z.email("Enter a valid email."),
   password: z.string().min(8, "Password must be at least 8 characters."),
   phone: optionalPhoneField,
-  role: z.enum(ASSIGNABLE_ROLES),
+  roles: z.array(z.enum(ASSIGNABLE_ROLES)).min(1, "Select at least one role."),
 });
 
 const UpdateStaffSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters."),
   phone: optionalPhoneField,
-  role: z.enum(ASSIGNABLE_ROLES),
+  roles: z.array(z.enum(ASSIGNABLE_ROLES)).min(1, "Select at least one role."),
 });
 
 export async function createStaffMember(_prevState: FormState, formData: FormData): Promise<FormState> {
-  const session = await requirePermission(PERMISSIONS.staffManage);
+  const session = await requireOwner();
   const parsed = CreateStaffSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
     phone: formData.get("phone"),
-    role: formData.get("role"),
+    roles: formData.getAll("roles"),
   });
   if (!parsed.success) {
     return formStateFromZodError(parsed.error);
@@ -56,7 +55,7 @@ export async function createStaffMember(_prevState: FormState, formData: FormDat
       email: parsed.data.email,
       passwordHash,
       phone: parsed.data.phone || null,
-      role: parsed.data.role as UserRole,
+      roles: parsed.data.roles as UserRole[],
     },
   });
 
@@ -68,11 +67,11 @@ export async function updateStaffMember(
   _prevState: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const session = await requirePermission(PERMISSIONS.staffManage);
+  const session = await requireOwner();
   const parsed = UpdateStaffSchema.safeParse({
     name: formData.get("name"),
     phone: formData.get("phone"),
-    role: formData.get("role"),
+    roles: formData.getAll("roles"),
   });
   if (!parsed.success) {
     return formStateFromZodError(parsed.error);
@@ -83,8 +82,8 @@ export async function updateStaffMember(
   if (!existing) {
     return { error: "Staff member not found." };
   }
-  if (existing.role === "OWNER") {
-    return { error: "The agency owner's role can't be changed here." };
+  if (existing.roles.includes("OWNER")) {
+    return { error: "The agency owner's roles can't be changed here." };
   }
 
   await db.user.update({
@@ -92,7 +91,7 @@ export async function updateStaffMember(
     data: {
       name: parsed.data.name,
       phone: parsed.data.phone || null,
-      role: parsed.data.role as UserRole,
+      roles: parsed.data.roles as UserRole[],
     },
   });
 
@@ -100,13 +99,13 @@ export async function updateStaffMember(
 }
 
 export async function toggleStaffStatus(userId: string): Promise<void> {
-  const session = await requirePermission(PERMISSIONS.staffManage);
+  const session = await requireOwner();
   const db = scopedPrisma(session.user.organizationId);
   const user = await db.user.findFirst({ where: { id: userId } });
   if (!user) {
     return;
   }
-  if (user.role === "OWNER") {
+  if (user.roles.includes("OWNER")) {
     return;
   }
   if (user.id === session.user.id) {

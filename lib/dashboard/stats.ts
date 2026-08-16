@@ -32,8 +32,8 @@ export async function getDashboardStats(organizationId: string) {
     recentBookingsRaw,
     recentBookingsForWindow,
   ] = await Promise.all([
-    db.tour.count(),
-    db.tour.count({ where: { isPublished: true } }),
+    db.tour.count({ where: { deletedAt: null } }),
+    db.tour.count({ where: { isPublished: true, deletedAt: null } }),
     db.departure.count({ where: { date: { gte: now }, status: { not: "CANCELLED" } } }),
     db.customer.count(),
     db.customer.count({ where: { createdAt: { gte: thisMonthStart } } }),

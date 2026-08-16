@@ -14,7 +14,7 @@ export default async function EditTourPage({
   const { tourId } = await params;
   const session = await requirePermission(PERMISSIONS.toursManage);
   const db = scopedPrisma(session.user.organizationId);
-  const tour = await db.tour.findFirst({ where: { id: tourId } });
+  const tour = await db.tour.findFirst({ where: { id: tourId, deletedAt: null } });
 
   if (!tour) {
     notFound();

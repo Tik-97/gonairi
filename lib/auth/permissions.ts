@@ -12,7 +12,6 @@ export { PERMISSIONS, ALL_PERMISSIONS, type Permission };
 
 export const ROLES: UserRole[] = [
   "OWNER",
-  "ADMIN",
   "OPERATOR",
   "DRIVER",
   "GUIDE",
@@ -99,15 +98,17 @@ export const PERMISSION_GROUPS: {
  * dashboard could lock every account in an agency out of fixing its own
  * settings/staff. Enforced in lib/actions/platform-admin.ts on save.
  */
-export const OWNER_PERMISSION_FLOOR: Permission[] = [
-  PERMISSIONS.orgSettingsManage,
+export const OWNER_PERMISSION_FLOOR: Permission[] = [...ALL_PERMISSIONS];
+
+export const OWNER_ONLY_PERMISSIONS = new Set<Permission>([
   PERMISSIONS.staffManage,
-];
+  PERMISSIONS.attendanceManage,
+  PERMISSIONS.orgSettingsManage,
+]);
 
 function emptyRoleMap(): Record<UserRole, Set<Permission>> {
   return {
     OWNER: new Set(),
-    ADMIN: new Set(),
     OPERATOR: new Set(),
     DRIVER: new Set(),
     GUIDE: new Set(),
@@ -127,6 +128,10 @@ const loadRolePermissionMap = cache(
         map[row.role].add(row.permission as Permission);
       }
     }
+    // An agency owner is always able to administer the whole agency. The
+    // database matrix remains useful for every staff role, but can never
+    // accidentally lock an owner out of their own CRM.
+    map.OWNER = new Set(ALL_PERMISSIONS);
     return map;
   },
 );
@@ -135,6 +140,9 @@ export async function roleHasPermission(
   role: UserRole,
   permission: Permission,
 ): Promise<boolean> {
+  if (role !== "OWNER" && OWNER_ONLY_PERMISSIONS.has(permission)) {
+    return false;
+  }
   const map = await loadRolePermissionMap();
   return map[role]?.has(permission) ?? false;
 }
@@ -143,7 +151,9 @@ export async function getRolePermissions(
   role: UserRole,
 ): Promise<Permission[]> {
   const map = await loadRolePermissionMap();
-  return Array.from(map[role] ?? []);
+  return Array.from(map[role] ?? []).filter(
+    (permission) => role === "OWNER" || !OWNER_ONLY_PERMISSIONS.has(permission),
+  );
 }
 
 /** For the Super Admin roles page — every role's grants in one query. */
@@ -153,11 +163,10 @@ export async function getAllRolePermissions(): Promise<
   const map = await loadRolePermissionMap();
   return {
     OWNER: Array.from(map.OWNER),
-    ADMIN: Array.from(map.ADMIN),
-    OPERATOR: Array.from(map.OPERATOR),
-    DRIVER: Array.from(map.DRIVER),
-    GUIDE: Array.from(map.GUIDE),
-    DRIVER_GUIDE: Array.from(map.DRIVER_GUIDE),
+    OPERATOR: Array.from(map.OPERATOR).filter((permission) => !OWNER_ONLY_PERMISSIONS.has(permission)),
+    DRIVER: Array.from(map.DRIVER).filter((permission) => !OWNER_ONLY_PERMISSIONS.has(permission)),
+    GUIDE: Array.from(map.GUIDE).filter((permission) => !OWNER_ONLY_PERMISSIONS.has(permission)),
+    DRIVER_GUIDE: Array.from(map.DRIVER_GUIDE).filter((permission) => !OWNER_ONLY_PERMISSIONS.has(permission)),
   };
 }
 

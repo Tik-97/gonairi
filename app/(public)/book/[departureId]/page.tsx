@@ -15,7 +15,7 @@ export default async function BookDeparturePage({
     where: {
       id: departureId,
       organization: { isPublished: true },
-      tour: { isPublished: true },
+      tour: { isPublished: true, deletedAt: null },
     },
     include: { tour: { include: { organization: true } } },
   });

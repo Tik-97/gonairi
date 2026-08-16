@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const featuredTours = await prisma.tour.findMany({
-    where: { isPublished: true, organization: { isPublished: true } },
+    where: { isPublished: true, deletedAt: null, organization: { isPublished: true } },
     include: { organization: true },
     orderBy: { createdAt: "desc" },
     take: 4,
@@ -59,12 +59,6 @@ export default async function HomePage() {
                 className="rounded-full bg-terracotta px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-terracotta-700"
               >
                 Browse tours
-              </Link>
-              <Link
-                href="/register"
-                className="rounded-full border border-terracotta/30 bg-white/70 px-6 py-3 text-sm font-medium text-espresso hover:bg-white"
-              >
-                Register your agency
               </Link>
             </div>
           </div>

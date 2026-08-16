@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Playfair_Display, Inter } from "next/font/google";
 import { requireSession } from "@/lib/auth/session";
-import { PERMISSIONS, roleHasPermission, getRolePermissions, isBackOfficeRole } from "@/lib/auth/permissions";
+import { ALL_PERMISSIONS, PERMISSIONS, roleHasPermission, getRolePermissions, isBackOfficeRole } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
+import { prisma } from "@/lib/db";
 import { LogoIcon } from "@/components/logo-icon";
 import { Wordmark } from "@/components/wordmark";
 import { InterlacePattern } from "@/components/ornaments/interlace-pattern";
@@ -33,18 +34,41 @@ const inter = Inter({
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
-  const [permissions, canViewBookings, canManageOrgSettings] = await Promise.all([
-    getRolePermissions(session.user.role),
-    roleHasPermission(session.user.role, PERMISSIONS.bookingsView),
-    roleHasPermission(session.user.role, PERMISSIONS.orgSettingsManage),
-  ]);
+  const [permissions, canViewBookings, canManageOrgSettings] = session.platformAdmin
+    ? [ALL_PERMISSIONS, true, true] as const
+    : await Promise.all([
+        getRolePermissions(session.user.role),
+        roleHasPermission(session.user.role, PERMISSIONS.bookingsView),
+        Promise.resolve(session.user.role === "OWNER"),
+      ]);
   const db = scopedPrisma(session.user.organizationId);
-  const pendingBookingsCount = canViewBookings ? await db.booking.count({ where: { status: "PENDING" } }) : 0;
+  const [pendingBookingsCount, availableAgencies] = await Promise.all([
+    canViewBookings ? db.booking.count({ where: { status: "PENDING" } }) : Promise.resolve(0),
+    session.platformAdmin
+      ? prisma.organization.findMany({
+          orderBy: { name: "asc" },
+          select: { id: true, name: true },
+        })
+      : session.user.role === "OWNER"
+        ? prisma.organization.findMany({
+            where: { ownerId: session.user.id },
+            orderBy: { name: "asc" },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([]),
+  ]);
+  const activeOrganization = availableAgencies.find(
+    (organization) => organization.id === session.user.organizationId,
+  );
   const scheduleOnly = !isBackOfficeRole(session.user.role);
 
   return (
     <div className={`${playfair.variable} ${inter.variable} flex flex-1 bg-cream font-sans text-espresso`}>
-      <MobileNav scheduleOnly={scheduleOnly} permissions={permissions} />
+      <MobileNav
+        scheduleOnly={scheduleOnly}
+        permissions={permissions}
+        isPlatformAdmin={Boolean(session.platformAdmin)}
+      />
 
       <aside className="relative hidden w-72 shrink-0 flex-col overflow-hidden bg-navy px-7 py-9 lg:flex">
         <InterlacePattern
@@ -55,11 +79,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <LogoIcon className="h-14 w-14" />
           <div className="flex flex-col">
             <Wordmark className="font-serif text-xl leading-tight font-bold" />
-            <span className="text-[10px] font-medium tracking-[0.16em] text-navy-muted uppercase">Travel Agency</span>
+            <span className="text-[10px] font-medium tracking-[0.16em] text-navy-muted uppercase">
+              {session.platformAdmin ? "Super Admin" : "Travel Agency"}
+            </span>
           </div>
         </Link>
         <div className="relative flex flex-1 flex-col">
-          <SidebarNav scheduleOnly={scheduleOnly} permissions={permissions} />
+          <SidebarNav
+            scheduleOnly={scheduleOnly}
+            permissions={permissions}
+            isPlatformAdmin={Boolean(session.platformAdmin)}
+          />
         </div>
         <SidebarPromoCard />
       </aside>
@@ -68,12 +98,26 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <AmbientDecoration />
         <HeroBackground />
         <div className="relative z-10">
+          {session.platformAdmin && (
+            <div className="mb-4 flex items-center justify-between rounded-[12px] border border-terracotta/25 bg-terracotta/10 px-4 py-2 text-sm">
+              <span>
+                Managing <strong>{activeOrganization?.name ?? "this agency"}</strong> as Super Admin.
+              </span>
+              <Link href="/admin/agencies" className="font-medium text-terracotta-700 underline">
+                Back to agencies
+              </Link>
+            </div>
+          )}
           <Topbar
             userName={session.user.name ?? "there"}
             userRole={session.user.role}
             pendingBookingsCount={pendingBookingsCount}
             showBookingsBell={canViewBookings}
             showSettingsLink={canManageOrgSettings}
+            isPlatformAdmin={Boolean(session.platformAdmin)}
+            availableRoles={session.user.availableRoles}
+            agencies={availableAgencies}
+            activeAgencyId={session.user.organizationId}
           />
           {children}
         </div>

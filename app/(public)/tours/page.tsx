@@ -12,6 +12,7 @@ export default async function ToursSearchPage({
   const tours = await prisma.tour.findMany({
     where: {
       isPublished: true,
+      deletedAt: null,
       organization: { isPublished: true },
       ...(category ? { category: { equals: category, mode: "insensitive" } } : {}),
       ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),

@@ -5,7 +5,6 @@ import type { FormState } from "@/lib/form-state";
 import { PhoneInput } from "@/components/phone-input";
 
 const ROLE_OPTIONS = [
-  { value: "ADMIN", label: "Admin", hint: "Full access, including deleting tours and customers." },
   { value: "OPERATOR", label: "Operator", hint: "Day-to-day bookings, customers, tours — can't delete." },
   { value: "DRIVER", label: "Driver", hint: "Can be assigned to departures as the driver." },
   { value: "GUIDE", label: "Guide", hint: "Can be assigned to departures as the guide." },
@@ -20,7 +19,7 @@ type StaffFormValues = {
   name: string;
   email: string;
   phone: string;
-  role: string;
+  roles: string[];
 };
 
 export function StaffForm({
@@ -79,7 +78,8 @@ export function StaffForm({
       </label>
 
       <div className="flex flex-col gap-1.5 text-sm">
-        <span>Role</span>
+        <span>Roles</span>
+        <span className="text-xs text-espresso-muted">Select one or more roles. The user chooses an active role after login.</span>
         <div className="flex flex-col gap-2">
           {ROLE_OPTIONS.map((opt) => (
             <label
@@ -87,11 +87,10 @@ export function StaffForm({
               className="flex cursor-pointer items-start gap-2.5 rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5 has-[:checked]:border-terracotta has-[:checked]:bg-terracotta/5"
             >
               <input
-                type="radio"
-                name="role"
+                type="checkbox"
+                name="roles"
                 value={opt.value}
-                defaultChecked={defaultValues?.role ? defaultValues.role === opt.value : opt.value === "OPERATOR"}
-                required
+                defaultChecked={defaultValues?.roles ? defaultValues.roles.includes(opt.value) : opt.value === "OPERATOR"}
                 className="mt-0.5 h-4 w-4"
               />
               <span>

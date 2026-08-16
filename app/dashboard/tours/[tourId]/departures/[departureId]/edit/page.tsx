@@ -28,15 +28,15 @@ export default async function EditDeparturePage({
 
   const [departure, activeVehicles, activeDrivers, activeGuides] = await Promise.all([
     db.departure.findFirst({
-      where: { id: departureId, tourId },
+      where: { id: departureId, tourId, tour: { deletedAt: null } },
       include: {
         tour: true,
         vehicles: { include: { vehicle: true, driver: true, guide: true } },
       },
     }),
     db.vehicle.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
-    db.user.findMany({ where: { role: { in: ["DRIVER", "DRIVER_GUIDE"] }, status: "ACTIVE" }, orderBy: { name: "asc" } }),
-    db.user.findMany({ where: { role: { in: ["GUIDE", "DRIVER_GUIDE"] }, status: "ACTIVE" }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: { roles: { hasSome: ["DRIVER", "DRIVER_GUIDE"] }, status: "ACTIVE" }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: { roles: { hasSome: ["GUIDE", "DRIVER_GUIDE"] }, status: "ACTIVE" }, orderBy: { name: "asc" } }),
   ]);
   if (!departure) {
     notFound();
