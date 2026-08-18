@@ -6,7 +6,7 @@ import { ROLE_LABELS } from "@/lib/auth/role-labels";
 import type { UserRole } from "@/generated/prisma/enums";
 
 const inputClass =
-  "rounded-[10px] border border-terracotta/25 bg-white px-3.5 py-2.5 text-espresso focus:border-terracotta focus:outline-none";
+  "mt-auto rounded-[10px] border border-terracotta/25 bg-white px-3.5 py-2.5 text-espresso focus:border-terracotta focus:outline-none";
 
 const ROLE_OPTIONS = Object.entries(ROLE_LABELS) as [UserRole, string][];
 
