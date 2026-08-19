@@ -104,7 +104,8 @@ export async function switchOrganizationCrm(formData: FormData): Promise<void> {
   await requirePlatformAdmin();
   const organizationId = formData.get("organizationId")?.toString();
   if (!organizationId) {
-    redirect("/admin/agencies");
+    (await cookies()).delete(PLATFORM_AGENCY_COOKIE);
+    redirect("/admin/overview");
   }
 
   const organization = await prisma.organization.findUnique({

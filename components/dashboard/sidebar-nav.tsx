@@ -76,15 +76,26 @@ const SCHEDULE_ITEM = {
 };
 
 const PLATFORM_ITEMS = [
+  { href: "/admin/overview", label: "Platform overview", icon: LayoutDashboard },
   { href: "/admin/agencies", label: "Agencies", icon: Building2 },
   { href: "/admin/users", label: "All users", icon: UserCog },
   { href: "/admin/roles", label: "Role permissions", icon: ShieldCheck },
+];
+
+const PLATFORM_DATA_ITEMS = [
+  { href: "/admin/overview", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/tours", label: "All tours", icon: Map },
+  { href: "/admin/bookings", label: "All bookings", icon: CalendarCheck },
+  { href: "/admin/customers", label: "All customers", icon: Users },
+  { href: "/admin/vehicles", label: "All vehicles", icon: Bus },
+  { href: "/admin/finances", label: "All finances", icon: Wallet },
 ];
 
 export function SidebarNav({
   scheduleOnly,
   permissions,
   isPlatformAdmin = false,
+  platformOnly = false,
 }: {
   /** True for roles that only see "My schedule" (drivers, guides, driver-guides)
    *  — computed server-side via `!isBackOfficeRole(role)` so this component
@@ -93,11 +104,12 @@ export function SidebarNav({
   scheduleOnly: boolean;
   permissions: Permission[];
   isPlatformAdmin?: boolean;
+  platformOnly?: boolean;
 }) {
   const pathname = usePathname();
   // Platform admins are not governed by an agency role's permission matrix.
-  // Keep every CRM destination visible in both /admin and /dashboard layouts;
-  // requireSession() still validates the selected agency before opening CRM data.
+  // The platform layout gets read-only global destinations; after selecting an
+  // agency, the dashboard layout gets the normal CRM destinations for that scope.
   const agencyItems = isPlatformAdmin
     ? NAV_ITEMS
     : scheduleOnly
@@ -106,10 +118,15 @@ export function SidebarNav({
           (item) => !item.permission || permissions.includes(item.permission),
         );
   const sections = isPlatformAdmin
-    ? [
-        { label: "Agency CRM", items: agencyItems },
-        { label: "Platform", items: PLATFORM_ITEMS },
-      ]
+    ? platformOnly
+      ? [
+          { label: "Platform data", items: PLATFORM_DATA_ITEMS },
+          { label: "Administration", items: PLATFORM_ITEMS.filter((item) => item.href !== "/admin/overview") },
+        ]
+      : [
+          { label: "Agency CRM", items: agencyItems },
+          { label: "Platform", items: PLATFORM_ITEMS },
+        ]
     : [{ label: null, items: agencyItems }];
 
   return (
@@ -123,7 +140,7 @@ export function SidebarNav({
           )}
           {section.items.map((item) => {
             const isActive =
-              item.href === "/dashboard"
+              item.href === "/dashboard" || item.href === "/admin/overview"
                 ? pathname === item.href
                 : pathname.startsWith(item.href);
             const Icon = item.icon;

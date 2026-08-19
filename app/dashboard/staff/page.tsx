@@ -7,6 +7,8 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { SearchInput } from "@/components/dashboard/search-input";
 import type { UserRole } from "@/generated/prisma/enums";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
 const ROLE_BADGE: Record<UserRole, string> = {
   OWNER: "bg-terracotta/15 text-terracotta-700",
@@ -19,25 +21,28 @@ const ROLE_BADGE: Record<UserRole, string> = {
 export default async function StaffPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string } & PaginationParams>;
 }) {
-  const { q } = await searchParams;
+  const params = await searchParams;
+  const { q } = params;
+  const pagination = parsePagination(params);
   const session = await requirePermission(PERMISSIONS.staffView);
   const canManage = Boolean(session.platformAdmin) || session.user.role === "OWNER";
 
   const db = scopedPrisma(session.user.organizationId);
-  const staff = await db.user.findMany({
-    where: q
+  const where = q
       ? {
           OR: [
-            { name: { contains: q, mode: "insensitive" } },
-            { email: { contains: q, mode: "insensitive" } },
-            { phone: { contains: q, mode: "insensitive" } },
+            { name: { contains: q, mode: "insensitive" as const } },
+            { email: { contains: q, mode: "insensitive" as const } },
+            { phone: { contains: q, mode: "insensitive" as const } },
           ],
         }
-      : undefined,
-    orderBy: [{ status: "asc" }, { createdAt: "asc" }],
-  });
+      : undefined;
+  const [staff, totalItems] = await Promise.all([
+    db.user.findMany({ where, orderBy: [{ status: "asc" }, { createdAt: "asc" }], skip: pagination.skip, take: pagination.take }),
+    db.user.count({ where }),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -138,6 +143,7 @@ export default async function StaffPage({
           ))}
         </div>
       )}
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }

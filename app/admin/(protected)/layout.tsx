@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { Playfair_Display, Inter } from "next/font/google";
 import { requirePlatformAdmin } from "@/lib/auth/platform-admin-session";
-import { PLATFORM_AGENCY_COOKIE } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
-import { cookies } from "next/headers";
 import { LogoIcon } from "@/components/logo-icon";
 import { Wordmark } from "@/components/wordmark";
 import { InterlacePattern } from "@/components/ornaments/interlace-pattern";
@@ -26,14 +24,10 @@ const inter = Inter({
 
 export default async function PlatformAdminLayout({ children }: { children: React.ReactNode }) {
   const session = await requirePlatformAdmin();
-  const [agencies, cookieStore] = await Promise.all([
-    prisma.organization.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    cookies(),
-  ]);
-  const activeAgencyId = cookieStore.get(PLATFORM_AGENCY_COOKIE)?.value;
+  const agencies = await prisma.organization.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
 
   return (
     <div className={`${playfair.variable} ${inter.variable} flex flex-1 bg-cream font-sans text-espresso`}>
@@ -49,7 +43,7 @@ export default async function PlatformAdminLayout({ children }: { children: Reac
           id="interlace-admin-sidebar"
           className="pointer-events-none absolute inset-0 h-full w-full text-terracotta opacity-[0.06]"
         />
-        <Link href="/admin/agencies" className="relative mb-12 flex items-center gap-3">
+        <Link href="/admin/overview" className="relative mb-12 flex items-center gap-3">
           <LogoIcon className="h-14 w-14" />
           <div className="flex flex-col">
             <Wordmark className="font-serif text-xl leading-tight font-bold" />
@@ -61,6 +55,7 @@ export default async function PlatformAdminLayout({ children }: { children: Reac
             scheduleOnly={false}
             permissions={[]}
             isPlatformAdmin
+            platformOnly
           />
         </div>
       </aside>
@@ -77,7 +72,6 @@ export default async function PlatformAdminLayout({ children }: { children: Reac
             showSettingsLink={false}
             isPlatformAdmin
             agencies={agencies}
-            activeAgencyId={activeAgencyId}
           />
           {children}
         </div>

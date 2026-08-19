@@ -11,7 +11,7 @@ export default async function SelectRolePage() {
     redirect("/login");
   }
   if (session.platformAdmin) {
-    redirect("/admin/agencies");
+    redirect("/admin/overview");
   }
 
   const account = await prisma.user.findFirst({

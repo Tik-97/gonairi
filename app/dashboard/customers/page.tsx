@@ -5,31 +5,36 @@ import { scopedPrisma } from "@/lib/db/scoped";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { SearchInput } from "@/components/dashboard/search-input";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
 export default async function CustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string } & PaginationParams>;
 }) {
-  const { q } = await searchParams;
+  const params = await searchParams;
+  const { q } = params;
+  const pagination = parsePagination(params);
   const session = await requirePermission(PERMISSIONS.customersView);
   const canManage = await roleHasPermission(
     session.user.role,
     PERMISSIONS.customersManage,
   );
   const db = scopedPrisma(session.user.organizationId);
-  const customers = await db.customer.findMany({
-    where: q
+  const where = q
       ? {
           OR: [
-            { fullName: { contains: q, mode: "insensitive" } },
-            { email: { contains: q, mode: "insensitive" } },
-            { phone: { contains: q, mode: "insensitive" } },
+            { fullName: { contains: q, mode: "insensitive" as const } },
+            { email: { contains: q, mode: "insensitive" as const } },
+            { phone: { contains: q, mode: "insensitive" as const } },
           ],
         }
-      : undefined,
-    orderBy: { createdAt: "desc" },
-  });
+      : undefined;
+  const [customers, totalItems] = await Promise.all([
+    db.customer.findMany({ where, orderBy: { createdAt: "desc" }, skip: pagination.skip, take: pagination.take }),
+    db.customer.count({ where }),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -80,6 +85,7 @@ export default async function CustomersPage({
           ))}
         </div>
       )}
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }

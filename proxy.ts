@@ -44,11 +44,11 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isLoginRoute && (isTenantSession || isPlatformAdminSession)) {
-    return NextResponse.redirect(new URL(isPlatformAdminSession ? "/admin/agencies" : "/select-role", request.url));
+    return NextResponse.redirect(new URL(isPlatformAdminSession ? "/admin/overview" : "/select-role", request.url));
   }
 
   if (isRoleRoute && isPlatformAdminSession) {
-    return NextResponse.redirect(new URL("/admin/agencies", request.url));
+    return NextResponse.redirect(new URL("/admin/overview", request.url));
   }
 
   if (isAdminRoute && !isPlatformAdminSession) {

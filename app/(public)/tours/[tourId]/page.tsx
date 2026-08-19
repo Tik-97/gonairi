@@ -2,27 +2,33 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { formatDate, formatMoney } from "@/lib/format";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
 export default async function TourDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ tourId: string }>;
+  searchParams: Promise<PaginationParams>;
 }) {
   const { tourId } = await params;
+  const pagination = parsePagination(await searchParams);
 
   const tour = await prisma.tour.findFirst({
     where: { id: tourId, isPublished: true, deletedAt: null, organization: { isPublished: true } },
     include: {
       organization: true,
-      departures: {
-        where: { status: { not: "CANCELLED" }, date: { gte: new Date() } },
-        orderBy: { date: "asc" },
-      },
     },
   });
   if (!tour) {
     notFound();
   }
+  const departureWhere = { tourId: tour.id, status: { not: "CANCELLED" as const }, date: { gte: new Date() } };
+  const [departures, totalItems] = await Promise.all([
+    prisma.departure.findMany({ where: departureWhere, orderBy: { date: "asc" }, skip: pagination.skip, take: pagination.take }),
+    prisma.departure.count({ where: departureWhere }),
+  ]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -50,11 +56,11 @@ export default async function TourDetailPage({
 
       <div>
         <h2 className="mb-4 font-serif text-xl font-semibold text-espresso">Upcoming departures</h2>
-        {tour.departures.length === 0 ? (
+        {departures.length === 0 ? (
           <p className="text-sm text-espresso/60">No upcoming departures scheduled.</p>
         ) : (
           <div className="flex flex-col divide-y divide-terracotta/10 rounded-2xl border border-terracotta/15 bg-white/70">
-            {tour.departures.map((departure) => {
+            {departures.map((departure) => {
               const remaining = departure.capacity - departure.bookedCount;
               return (
                 <div key={departure.id} className="flex items-center justify-between px-5 py-4">
@@ -79,6 +85,7 @@ export default async function TourDetailPage({
           </div>
         )}
       </div>
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }

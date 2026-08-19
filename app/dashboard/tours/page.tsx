@@ -9,13 +9,17 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { SearchInput } from "@/components/dashboard/search-input";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
 export default async function ToursPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; view?: string }>;
+  searchParams: Promise<{ q?: string; view?: string } & PaginationParams>;
 }) {
-  const { q, view } = await searchParams;
+  const params = await searchParams;
+  const { q, view } = params;
+  const pagination = parsePagination(params);
   const showDeleted = view === "deleted";
   const session = await requirePermission(PERMISSIONS.toursView);
   const [canManage, canDelete] = await Promise.all([
@@ -23,19 +27,23 @@ export default async function ToursPage({
     roleHasPermission(session.user.role, PERMISSIONS.toursDelete),
   ]);
   const db = scopedPrisma(session.user.organizationId);
-  const toursRaw = await db.tour.findMany({
-    where: {
+  const where = {
       deletedAt: showDeleted ? { not: null } : null,
       ...(q
         ? {
             OR: [
-              { title: { contains: q, mode: "insensitive" } },
-              { description: { contains: q, mode: "insensitive" } },
+              { title: { contains: q, mode: "insensitive" as const } },
+              { description: { contains: q, mode: "insensitive" as const } },
             ],
           }
         : {}),
-    },
+  };
+  const [toursRaw, totalItems] = await Promise.all([
+    db.tour.findMany({
+    where,
     orderBy: { createdAt: "desc" },
+    skip: pagination.skip,
+    take: pagination.take,
     include: {
       departures: {
         where: { status: { not: "CANCELLED" }, date: { gte: new Date() } },
@@ -43,7 +51,9 @@ export default async function ToursPage({
         take: 1,
       },
     },
-  });
+    }),
+    db.tour.count({ where }),
+  ]);
 
   const tours = sortByNextDeparture(toursRaw);
 
@@ -170,6 +180,7 @@ export default async function ToursPage({
           })}
         </div>
       )}
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }

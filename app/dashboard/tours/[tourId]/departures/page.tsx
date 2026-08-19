@@ -13,6 +13,8 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { formatDepartureCrew } from "@/lib/departures/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
 const WHEN_OPTIONS = [
   { value: "upcoming", label: "Upcoming" },
@@ -25,10 +27,12 @@ export default async function TourDeparturesPage({
   searchParams,
 }: {
   params: Promise<{ tourId: string }>;
-  searchParams: Promise<{ when?: string }>;
+  searchParams: Promise<{ when?: string } & PaginationParams>;
 }) {
   const { tourId } = await params;
-  const { when: whenParam } = await searchParams;
+  const query = await searchParams;
+  const { when: whenParam } = query;
+  const pagination = parsePagination(query);
   const when =
     whenParam === "past" || whenParam === "all" ? whenParam : "upcoming";
 
@@ -52,18 +56,22 @@ export default async function TourDeparturesPage({
   }
 
   const now = new Date();
-  const [departuresRaw, vehicles, drivers, guides] = await Promise.all([
+  const departureWhere = {
+    tourId,
+    ...(when === "upcoming" ? { date: { gte: now } } : {}),
+    ...(when === "past" ? { date: { lt: now } } : {}),
+  };
+  const [departuresRaw, totalItems, vehicles, drivers, guides] = await Promise.all([
     db.departure.findMany({
-      where: {
-        tourId,
-        ...(when === "upcoming" ? { date: { gte: now } } : {}),
-        ...(when === "past" ? { date: { lt: now } } : {}),
-      },
+      where: departureWhere,
       include: {
         vehicles: { include: { vehicle: true, driver: true, guide: true } },
       },
       orderBy: { date: when === "past" ? "desc" : "asc" },
+      skip: pagination.skip,
+      take: pagination.take,
     }),
+    db.departure.count({ where: departureWhere }),
     db.vehicle.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
@@ -222,6 +230,8 @@ export default async function TourDeparturesPage({
           ))}
         </div>
       )}
+
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
 
       {canManageDepartures && (
         <div>

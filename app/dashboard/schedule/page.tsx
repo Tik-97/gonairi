@@ -7,6 +7,8 @@ import { formatDate } from "@/lib/format";
 import { formatDepartureCrew } from "@/lib/departures/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
 const WHEN_OPTIONS = [
   { value: "upcoming", label: "Upcoming" },
@@ -17,25 +19,33 @@ const WHEN_OPTIONS = [
 export default async function MySchedulePage({
   searchParams,
 }: {
-  searchParams: Promise<{ when?: string }>;
+  searchParams: Promise<{ when?: string } & PaginationParams>;
 }) {
-  const { when: whenParam } = await searchParams;
+  const params = await searchParams;
+  const { when: whenParam } = params;
+  const pagination = parsePagination(params);
   const when = whenParam === "past" || whenParam === "all" ? whenParam : "upcoming";
 
   const session = await requirePermission(PERMISSIONS.scheduleViewOwn);
   const db = scopedPrisma(session.user.organizationId);
 
   const now = new Date();
-  const departuresRaw = await db.departure.findMany({
-    where: {
-      status: { not: "CANCELLED" },
+  const where = {
+      status: { not: "CANCELLED" as const },
       vehicles: { some: { OR: [{ driverId: session.user.id }, { guideId: session.user.id }] } },
       ...(when === "upcoming" ? { date: { gte: now } } : {}),
       ...(when === "past" ? { date: { lt: now } } : {}),
-    },
+  };
+  const [departuresRaw, totalItems] = await Promise.all([
+    db.departure.findMany({
+    where,
     include: { tour: true, vehicles: { include: { vehicle: true, driver: true, guide: true } } },
     orderBy: { date: when === "past" ? "desc" : "asc" },
-  });
+    skip: pagination.skip,
+    take: pagination.take,
+    }),
+    db.departure.count({ where }),
+  ]);
 
   // Only the rows *this viewer* is crewed on — a driver on jeep 2 of 5
   // shouldn't see jeeps 1/3/4/5 mixed into their own personal schedule.
@@ -95,6 +105,7 @@ export default async function MySchedulePage({
           ))}
         </div>
       )}
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }

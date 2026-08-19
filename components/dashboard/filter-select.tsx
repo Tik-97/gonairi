@@ -18,6 +18,7 @@ export function FilterSelect({
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
     if (e.target.value === "ALL") {
       params.delete(paramName);
     } else {
@@ -65,6 +66,7 @@ export function DateRangeFilterInput({
 
   function navigate(nextFrom: string, nextTo: string) {
     const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
     if (nextFrom) params.set(fromParam, nextFrom);
     else params.delete(fromParam);
     if (nextTo) params.set(toParam, nextTo);

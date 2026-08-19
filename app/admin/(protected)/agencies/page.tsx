@@ -4,12 +4,17 @@ import { openOrganizationCrm } from "@/lib/actions/platform-admin";
 import { PLATFORM_AGENCY_COOKIE } from "@/lib/auth/session";
 import { AgencyForm } from "@/components/admin/agency-form";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
-export default async function PlatformAdminAgenciesPage() {
+export default async function PlatformAdminAgenciesPage({ searchParams }: { searchParams: Promise<PaginationParams> }) {
+  const pagination = parsePagination(await searchParams);
   const connectedOrganizationId = (await cookies()).get(PLATFORM_AGENCY_COOKIE)?.value;
-  const [organizations, ownerUsers] = await Promise.all([
+  const [organizations, ownerUsers, totalItems] = await Promise.all([
     prisma.organization.findMany({
       orderBy: { createdAt: "desc" },
+      skip: pagination.skip,
+      take: pagination.take,
       include: {
         owner: { select: { name: true, email: true } },
         _count: { select: { users: true, tours: true, bookings: true } },
@@ -25,6 +30,7 @@ export default async function PlatformAdminAgenciesPage() {
         _count: { select: { ownedOrganizations: true } },
       },
     }),
+    prisma.organization.count(),
   ]);
   const ownerOptions = ownerUsers.map((owner) => ({
     id: owner.id,
@@ -75,6 +81,7 @@ export default async function PlatformAdminAgenciesPage() {
           );
         })}
       </div>
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }

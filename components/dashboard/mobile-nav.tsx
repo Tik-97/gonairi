@@ -47,7 +47,7 @@ export function MobileNav({
   return (
     <>
       <div className="fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b border-border bg-cream px-4 py-3 lg:hidden">
-        <Link href={platformOnly ? "/admin/agencies" : "/dashboard"} className="flex items-center gap-2">
+        <Link href={platformOnly ? "/admin/overview" : "/dashboard"} className="flex items-center gap-2">
           <LogoIcon className="h-10 w-10" />
           <Wordmark className="font-serif text-lg font-bold" />
         </Link>
@@ -79,7 +79,7 @@ export function MobileNav({
           className="pointer-events-none absolute inset-0 h-full w-full text-terracotta opacity-[0.06]"
         />
         <div className="relative mb-10 flex items-center justify-between">
-          <Link href={platformOnly ? "/admin/agencies" : "/dashboard"} className="flex items-center gap-2.5">
+          <Link href={platformOnly ? "/admin/overview" : "/dashboard"} className="flex items-center gap-2.5">
             <LogoIcon className="h-10 w-10" />
             <div className="flex flex-col">
               <Wordmark className="font-serif text-lg leading-tight font-bold" />
@@ -102,6 +102,7 @@ export function MobileNav({
             scheduleOnly={scheduleOnly}
             permissions={permissions}
             isPlatformAdmin={isPlatformAdmin}
+            platformOnly={platformOnly}
           />
         </div>
         {!platformOnly && <SidebarPromoCard />}

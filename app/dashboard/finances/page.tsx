@@ -8,6 +8,8 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
 const METHOD_LABEL: Record<string, string> = {
   CASH: "Cash",
@@ -19,7 +21,8 @@ const METHOD_LABEL: Record<string, string> = {
 const PANEL =
   "rounded-[16px] sm:rounded-[18px] bg-card p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)]";
 
-export default async function FinancesPage() {
+export default async function FinancesPage({ searchParams }: { searchParams: Promise<PaginationParams> }) {
+  const pagination = parsePagination(await searchParams);
   const session = await requirePermission(PERMISSIONS.financesView);
   const canManage = await roleHasPermission(
     session.user.role,
@@ -56,7 +59,8 @@ export default async function FinancesPage() {
     db.payment.findMany({
       where: { status: "COMPLETED" },
       orderBy: { paidAt: "desc" },
-      take: 20,
+      skip: pagination.skip,
+      take: pagination.take,
       include: {
         booking: {
           include: { customer: true, departure: { include: { tour: true } } },
@@ -246,6 +250,7 @@ export default async function FinancesPage() {
           )}
         </section>
       </div>
+      <PaginationControls totalItems={paymentCount} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }

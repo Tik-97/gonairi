@@ -6,17 +6,21 @@ import { scopedPrisma } from "@/lib/db/scoped";
 import { toggleVehicleActive, deleteVehicle } from "@/lib/actions/vehicles";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
-export default async function VehiclesPage() {
+export default async function VehiclesPage({ searchParams }: { searchParams: Promise<PaginationParams> }) {
+  const pagination = parsePagination(await searchParams);
   const session = await requirePermission(PERMISSIONS.vehiclesView);
   const [canManage, canDelete] = await Promise.all([
     roleHasPermission(session.user.role, PERMISSIONS.vehiclesManage),
     roleHasPermission(session.user.role, PERMISSIONS.vehiclesDelete),
   ]);
   const db = scopedPrisma(session.user.organizationId);
-  const vehiclesRaw = await db.vehicle.findMany({
-    orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
-  });
+  const [vehiclesRaw, totalItems] = await Promise.all([
+    db.vehicle.findMany({ orderBy: [{ isActive: "desc" }, { createdAt: "desc" }], skip: pagination.skip, take: pagination.take }),
+    db.vehicle.count(),
+  ]);
 
   const departureCountByVehicle = new Map<string, number>();
   if (canDelete && vehiclesRaw.length > 0) {
@@ -107,6 +111,7 @@ export default async function VehiclesPage() {
           ))}
         </div>
       )}
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }

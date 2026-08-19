@@ -4,6 +4,8 @@ import { ROLE_LABELS } from "@/lib/auth/role-labels";
 import { PlatformUserForm } from "@/components/admin/platform-user-form";
 import { PageHeader } from "@/components/dashboard/page-header";
 import type { UserRole } from "@/generated/prisma/enums";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
 const ROLE_OPTIONS = Object.entries(ROLE_LABELS) as [UserRole, string][];
 
@@ -15,16 +17,20 @@ const ERROR_MESSAGES: Record<string, string> = {
 export default async function PlatformAdminUsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string } & PaginationParams>;
 }) {
-  const { error } = await searchParams;
-  const [organizations, users] = await Promise.all([
+  const params = await searchParams;
+  const { error } = params;
+  const pagination = parsePagination(params);
+  const [organizations, users, totalItems] = await Promise.all([
     prisma.organization.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
     prisma.user.findMany({
       orderBy: [{ organization: { name: "asc" } }, { name: "asc" }],
+      skip: pagination.skip,
+      take: pagination.take,
       include: {
         organization: { select: { name: true } },
         ownedOrganizations: {
@@ -33,6 +39,7 @@ export default async function PlatformAdminUsersPage({
         },
       },
     }),
+    prisma.user.count(),
   ]);
 
   return (
@@ -79,6 +86,7 @@ export default async function PlatformAdminUsersPage({
           </div>
         ))}
       </div>
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }

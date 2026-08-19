@@ -42,17 +42,17 @@ export function Topbar({
       {agencies.length > 0 && (isPlatformAdmin || agencies.length > 1) && (
         <form action={isPlatformAdmin ? switchOrganizationCrm : switchOwnedOrganization} className="flex items-center gap-2 rounded-[12px] border border-terracotta/25 bg-card px-3 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
           <label htmlFor="platform-agency" className="hidden text-xs font-medium text-espresso-muted sm:block">
-            {isPlatformAdmin ? "Required agency" : "My agency"}
+            {isPlatformAdmin ? "CRM agency" : "My agency"}
           </label>
           <select
             id="platform-agency"
             name="organizationId"
-            required
+            required={!isPlatformAdmin}
             value={activeAgencyId ?? ""}
             onChange={(event) => event.currentTarget.form?.requestSubmit()}
             className="max-w-44 bg-transparent text-sm font-medium text-espresso outline-none"
           >
-            <option value="" disabled>Select agency…</option>
+            <option value="" disabled={!isPlatformAdmin}>{isPlatformAdmin ? "All agencies" : "Select agency…"}</option>
             {agencies.map((agency) => (
               <option key={agency.id} value={agency.id}>{agency.name}</option>
             ))}

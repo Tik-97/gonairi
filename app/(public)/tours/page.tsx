@@ -1,25 +1,35 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
 export default async function ToursSearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string }>;
+  searchParams: Promise<{ q?: string; category?: string } & PaginationParams>;
 }) {
-  const { q, category } = await searchParams;
+  const params = await searchParams;
+  const { q, category } = params;
+  const pagination = parsePagination(params);
 
-  const tours = await prisma.tour.findMany({
-    where: {
+  const where = {
       isPublished: true,
       deletedAt: null,
       organization: { isPublished: true },
-      ...(category ? { category: { equals: category, mode: "insensitive" } } : {}),
-      ...(q ? { title: { contains: q, mode: "insensitive" } } : {}),
-    },
+      ...(category ? { category: { equals: category, mode: "insensitive" as const } } : {}),
+      ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
+  } as const;
+  const [tours, totalItems] = await Promise.all([
+    prisma.tour.findMany({
+    where,
     include: { organization: true },
     orderBy: { createdAt: "desc" },
-  });
+    skip: pagination.skip,
+    take: pagination.take,
+    }),
+    prisma.tour.count({ where }),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -62,6 +72,7 @@ export default async function ToursSearchPage({
           ))}
         </div>
       )}
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }

@@ -7,6 +7,8 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { FilterSelect, DateRangeFilterInput } from "@/components/dashboard/filter-select";
 import type { BookingStatus, PaymentStatus } from "@/generated/prisma/enums";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
 const STATUS_OPTIONS: { value: BookingStatus | "ALL"; label: string }[] = [
   { value: "ALL", label: "All statuses" },
@@ -57,9 +59,11 @@ export default async function BookingsPage({
     departureId?: string;
     dateFrom?: string;
     dateTo?: string;
-  }>;
+  } & PaginationParams>;
 }) {
-  const { status: statusParam, payment: paymentParam, tourId, departureId, dateFrom, dateTo } = await searchParams;
+  const params = await searchParams;
+  const { status: statusParam, payment: paymentParam, tourId, departureId, dateFrom, dateTo } = params;
+  const pagination = parsePagination(params);
   const status = statusParam ?? "ALL";
   const payment = paymentParam ?? "ALL";
 
@@ -77,19 +81,23 @@ export default async function BookingsPage({
     dayRange = { gte: start, lt: end };
   }
 
-  const [bookings, tour, departure] = await Promise.all([
+  const bookingWhere = {
+    ...(status !== "ALL" ? { status: status as BookingStatus } : {}),
+    ...(payment !== "ALL" ? { paymentStatus: payment as PaymentStatus } : {}),
+    ...(departureId ? { departureId } : {}),
+    ...(tourId || dayRange
+      ? { departure: { ...(tourId ? { tourId } : {}), ...(dayRange ? { date: dayRange } : {}) } }
+      : {}),
+  };
+  const [bookings, totalItems, tour, departure] = await Promise.all([
     db.booking.findMany({
-      where: {
-        ...(status !== "ALL" ? { status: status as BookingStatus } : {}),
-        ...(payment !== "ALL" ? { paymentStatus: payment as PaymentStatus } : {}),
-        ...(departureId ? { departureId } : {}),
-        ...(tourId || dayRange
-          ? { departure: { ...(tourId ? { tourId } : {}), ...(dayRange ? { date: dayRange } : {}) } }
-          : {}),
-      },
+      where: bookingWhere,
       include: { departure: { include: { tour: true } }, customer: true },
       orderBy: { createdAt: "desc" },
+      skip: pagination.skip,
+      take: pagination.take,
     }),
+    db.booking.count({ where: bookingWhere }),
     tourId
       ? db.tour.findFirst({ where: { id: tourId, deletedAt: null } })
       : Promise.resolve(null),
@@ -163,6 +171,7 @@ export default async function BookingsPage({
           ))}
         </div>
       )}
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }

@@ -2,26 +2,30 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
 export default async function AgencyProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ orgSlug: string }>;
+  searchParams: Promise<PaginationParams>;
 }) {
   const { orgSlug } = await params;
+  const pagination = parsePagination(await searchParams);
 
   const organization = await prisma.organization.findFirst({
     where: { slug: orgSlug, isPublished: true },
-    include: {
-      tours: {
-        where: { isPublished: true, deletedAt: null },
-        orderBy: { createdAt: "desc" },
-      },
-    },
   });
   if (!organization) {
     notFound();
   }
+  const tourWhere = { organizationId: organization.id, isPublished: true, deletedAt: null };
+  const [tours, totalItems] = await Promise.all([
+    prisma.tour.findMany({ where: tourWhere, orderBy: { createdAt: "desc" }, skip: pagination.skip, take: pagination.take }),
+    prisma.tour.count({ where: tourWhere }),
+  ]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -39,11 +43,11 @@ export default async function AgencyProfilePage({
 
       <div>
         <h2 className="mb-4 font-serif text-xl font-semibold text-espresso">Tours</h2>
-        {organization.tours.length === 0 ? (
+        {tours.length === 0 ? (
           <p className="text-sm text-espresso/60">No published tours yet.</p>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            {organization.tours.map((tour) => (
+            {tours.map((tour) => (
               <Link
                 key={tour.id}
                 href={`/tours/${tour.id}`}
@@ -59,6 +63,7 @@ export default async function AgencyProfilePage({
           </div>
         )}
       </div>
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }

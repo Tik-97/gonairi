@@ -12,7 +12,8 @@ export const OWNER_AGENCY_COOKIE = "gonairi-owner-agency";
 /**
  * Redirects to /login if there is no authenticated agency session. A platform
  * Super Admin may enter the CRM only after choosing a validated agency from
- * /admin/agencies; that agency id then becomes the scope for every CRM query.
+ * the platform area; that agency id then becomes the scope for every CRM query.
+ * Without one, they return to the read-only platform-wide overview.
  *
  * `connection()` opts every caller into per-request dynamic rendering. It's here —
  * not sprinkled as `export const dynamic = "force-dynamic"` on individual page/layout
@@ -27,14 +28,14 @@ export async function requireSession() {
   if (session?.platformAdmin) {
     const organizationId = (await cookies()).get(PLATFORM_AGENCY_COOKIE)?.value;
     if (!organizationId) {
-      redirect("/admin/agencies");
+      redirect("/admin/overview");
     }
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },
       select: { id: true },
     });
     if (!organization) {
-      redirect("/admin/agencies");
+      redirect("/admin/overview");
     }
     return {
       ...session,

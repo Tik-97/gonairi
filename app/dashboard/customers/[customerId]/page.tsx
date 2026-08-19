@@ -9,13 +9,18 @@ import { calculateCustomerBookingStats } from "@/lib/customers/stats";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
 export default async function CustomerDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ customerId: string }>;
+  searchParams: Promise<PaginationParams>;
 }) {
   const { customerId } = await params;
+  const pagination = parsePagination(await searchParams);
   const session = await requirePermission(PERMISSIONS.customersView);
   const [canManage, canDelete] = await Promise.all([
     roleHasPermission(session.user.role, PERMISSIONS.customersManage),
@@ -28,15 +33,24 @@ export default async function CustomerDetailPage({
     notFound();
   }
 
-  const bookings = await db.booking.findMany({
-    where: { customerId },
-    include: { departure: { include: { tour: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+  const [bookings, bookingStatsRows, totalItems] = await Promise.all([
+    db.booking.findMany({
+      where: { customerId },
+      include: { departure: { include: { tour: true } } },
+      orderBy: { createdAt: "desc" },
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    db.booking.findMany({
+      where: { customerId },
+      select: { status: true, totalPrice: true, currency: true },
+    }),
+    db.booking.count({ where: { customerId } }),
+  ]);
 
   const { totalBookings, confirmedCount, cancelledCount, noShowCount, totalSpent, currency, cancellationRate } =
     calculateCustomerBookingStats(
-      bookings.map((b) => ({ status: b.status, totalPrice: Number(b.totalPrice), currency: b.currency })),
+      bookingStatsRows.map((b) => ({ status: b.status, totalPrice: Number(b.totalPrice), currency: b.currency })),
     );
 
   return (
@@ -52,7 +66,7 @@ export default async function CustomerDetailPage({
                 Edit
               </Link>
             )}
-            {canDelete && bookings.length === 0 && (
+            {canDelete && totalItems === 0 && (
               <form action={deleteCustomer.bind(null, customer.id)}>
                 <button type="submit" className="text-sm text-danger underline">
                   Delete
@@ -115,6 +129,7 @@ export default async function CustomerDetailPage({
           </div>
         )}
       </div>
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }

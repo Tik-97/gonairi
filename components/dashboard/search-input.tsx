@@ -36,6 +36,7 @@ export function SearchInput({
     if (value === urlValue) return;
     const timeout = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
+      params.delete("page");
       if (value) params.set(paramName, value);
       else params.delete(paramName);
       const qs = params.toString();

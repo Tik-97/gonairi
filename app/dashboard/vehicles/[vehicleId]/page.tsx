@@ -7,13 +7,18 @@ import { scopedPrisma } from "@/lib/db/scoped";
 import { formatDate } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { PaginationControls } from "@/components/pagination-controls";
+import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
 export default async function VehicleDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ vehicleId: string }>;
+  searchParams: Promise<PaginationParams>;
 }) {
   const { vehicleId } = await params;
+  const pagination = parsePagination(await searchParams);
   const session = await requirePermission(PERMISSIONS.vehiclesView);
   const canManage = await roleHasPermission(session.user.role, PERMISSIONS.vehiclesManage);
   const db = scopedPrisma(session.user.organizationId);
@@ -23,11 +28,17 @@ export default async function VehicleDetailPage({
     notFound();
   }
 
-  const upcomingAssignments = await db.departureVehicle.findMany({
-    where: { vehicleId, departure: { date: { gte: new Date() }, status: { not: "CANCELLED" } } },
-    include: { departure: { include: { tour: true } }, driver: true, guide: true },
-    orderBy: { departure: { date: "asc" } },
-  });
+  const assignmentWhere = { vehicleId, departure: { date: { gte: new Date() }, status: { not: "CANCELLED" as const } } };
+  const [upcomingAssignments, totalItems] = await Promise.all([
+    db.departureVehicle.findMany({
+      where: assignmentWhere,
+      include: { departure: { include: { tour: true } }, driver: true, guide: true },
+      orderBy: { departure: { date: "asc" } },
+      skip: pagination.skip,
+      take: pagination.take,
+    }),
+    db.departureVehicle.count({ where: assignmentWhere }),
+  ]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -87,6 +98,7 @@ export default async function VehicleDetailPage({
           </div>
         )}
       </div>
+      <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
 }
