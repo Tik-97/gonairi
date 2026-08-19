@@ -77,6 +77,11 @@ npx prisma generate
   runs against the real dev database — there is no separate test DB)
 - `node scripts/create-platform-admin.cjs` — bootstrap the first Super Admin
   account (signs in through `/login`)
+- `npm run seed:demo` — create a repeatable, full-feature demo dataset. It
+  resets only deterministic demo records (`@demo.gonairi.test`) and preserves
+  existing application data and never reads or changes `PlatformAdmin`. The
+  command prints the generated agency-user credentials when it finishes; set
+  `DEMO_SEED_PASSWORD` to override only those demo users' shared password.
 
 ## Multi-tenancy & authorization, in one paragraph
 
