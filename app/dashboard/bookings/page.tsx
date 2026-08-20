@@ -6,24 +6,8 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { FilterSelect, DateRangeFilterInput } from "@/components/dashboard/filter-select";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 import type { BookingStatus, PaymentStatus } from "@/generated/prisma/enums";
-
-const STATUS_OPTIONS: { value: BookingStatus | "ALL"; label: string }[] = [
-  { value: "ALL", label: "All statuses" },
-  { value: "PENDING", label: "Pending" },
-  { value: "CONFIRMED", label: "Confirmed" },
-  { value: "COMPLETED", label: "Completed" },
-  { value: "CANCELLED", label: "Cancelled" },
-  { value: "NO_SHOW", label: "No-show" },
-];
-
-const PAYMENT_OPTIONS: { value: PaymentStatus | "ALL"; label: string }[] = [
-  { value: "ALL", label: "All payments" },
-  { value: "UNPAID", label: "Unpaid" },
-  { value: "PARTIAL", label: "Partial" },
-  { value: "PAID", label: "Paid" },
-  { value: "REFUNDED", label: "Refunded" },
-];
 
 const STATUS_BAR_COLOR: Record<string, string> = {
   PENDING: "var(--color-warning)",
@@ -59,9 +43,29 @@ export default async function BookingsPage({
     dateTo?: string;
   }>;
 }) {
-  const { status: statusParam, payment: paymentParam, tourId, departureId, dateFrom, dateTo } = await searchParams;
+  const [{ status: statusParam, payment: paymentParam, tourId, departureId, dateFrom, dateTo }, { dict }] = await Promise.all([
+    searchParams,
+    getDictionary(),
+  ]);
   const status = statusParam ?? "ALL";
   const payment = paymentParam ?? "ALL";
+
+  const STATUS_OPTIONS: { value: BookingStatus | "ALL"; label: string }[] = [
+    { value: "ALL", label: dict.bookingsPage.statusAll },
+    { value: "PENDING", label: dict.bookingStatus.PENDING },
+    { value: "CONFIRMED", label: dict.bookingStatus.CONFIRMED },
+    { value: "COMPLETED", label: dict.bookingStatus.COMPLETED },
+    { value: "CANCELLED", label: dict.bookingStatus.CANCELLED },
+    { value: "NO_SHOW", label: dict.bookingStatus.NO_SHOW },
+  ];
+
+  const PAYMENT_OPTIONS: { value: PaymentStatus | "ALL"; label: string }[] = [
+    { value: "ALL", label: dict.bookingsPage.paymentAll },
+    { value: "UNPAID", label: dict.paymentStatus.UNPAID },
+    { value: "PARTIAL", label: dict.paymentStatus.PARTIAL },
+    { value: "PAID", label: dict.paymentStatus.PAID },
+    { value: "REFUNDED", label: dict.paymentStatus.REFUNDED },
+  ];
 
   const session = await requirePermission(PERMISSIONS.bookingsView);
   const db = scopedPrisma(session.user.organizationId);
@@ -97,39 +101,39 @@ export default async function BookingsPage({
   ]);
 
   const scopeLabel = departure
-    ? `Everyone who booked "${departure.tour.title}" · ${formatDate(departure.date)}.`
+    ? `${dict.bookingsPage.scopeDepartureTemplate} "${departure.tour.title}" · ${formatDate(departure.date)}.`
     : tour
-      ? `Everyone who has booked "${tour.title}".`
+      ? `${dict.bookingsPage.scopeTourTemplate} "${tour.title}".`
       : null;
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Your ledger"
-        title="Bookings"
-        subtitle={scopeLabel ?? "Every traveler who has reserved a place on one of your tours."}
+        eyebrow={dict.bookingsPage.eyebrow}
+        title={dict.bookingsPage.title}
+        subtitle={scopeLabel ?? dict.bookingsPage.subtitle}
         action={
           (tour || departure) && (
             <Link href={filterHref(status, payment)} className="text-sm text-terracotta-700 underline">
-              Clear filter
+              {dict.bookingsPage.clearFilter}
             </Link>
           )
         }
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <FilterSelect paramName="status" options={STATUS_OPTIONS} ariaLabel="Filter by status" />
-        <FilterSelect paramName="payment" options={PAYMENT_OPTIONS} ariaLabel="Filter by payment status" />
-        <DateRangeFilterInput fromParam="dateFrom" toParam="dateTo" ariaLabel="Filter by departure date" />
+        <FilterSelect paramName="status" options={STATUS_OPTIONS} ariaLabel={dict.bookingsPage.filterByStatus} />
+        <FilterSelect paramName="payment" options={PAYMENT_OPTIONS} ariaLabel={dict.bookingsPage.filterByPayment} />
+        <DateRangeFilterInput fromParam="dateFrom" toParam="dateTo" ariaLabel={dict.bookingsPage.filterByDepartureDate} />
       </div>
 
       {bookings.length === 0 ? (
         <EmptyState
-          title={status !== "ALL" || payment !== "ALL" || scopeLabel || dayRange ? "No bookings match these filters" : "Your ledger is empty, for now"}
+          title={status !== "ALL" || payment !== "ALL" || scopeLabel || dayRange ? dict.bookingsPage.emptyFilteredTitle : dict.bookingsPage.emptyDefaultTitle}
           message={
             status !== "ALL" || payment !== "ALL" || scopeLabel || dayRange
-              ? "Try a different combination of filters."
-              : "Bookings appear here the moment a traveler reserves a seat — or you add one yourself from a departure."
+              ? dict.bookingsPage.emptyFilteredMessage
+              : dict.bookingsPage.emptyDefaultMessage
           }
         />
       ) : (
@@ -151,12 +155,12 @@ export default async function BookingsPage({
                     {booking.customer.fullName} · {booking.departure.tour.title}
                   </p>
                   <p className="text-sm text-espresso-muted">
-                    {formatDate(booking.departure.date)} · {booking.paxCount} pax ·{" "}
+                    {formatDate(booking.departure.date)} · {booking.paxCount} {dict.bookingsPage.paxSuffix} ·{" "}
                     {formatMoney(booking.totalPrice.toString(), booking.currency)}
                   </p>
                 </div>
                 <span className="text-sm text-espresso-muted">
-                  {booking.status} · {booking.paymentStatus} · {booking.source}
+                  {dict.bookingStatus[booking.status]} · {dict.paymentStatus[booking.paymentStatus]} · {dict.bookingSource[booking.source]}
                 </span>
               </div>
             </Link>

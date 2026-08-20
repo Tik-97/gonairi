@@ -10,6 +10,7 @@ import { InterlacePattern } from "@/components/ornaments/interlace-pattern";
 import { SidebarNav } from "@/components/dashboard/sidebar-nav";
 import { SidebarPromoCard } from "@/components/dashboard/sidebar-promo-card";
 import type { Permission } from "@/lib/auth/permission-keys";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 /**
  * Mobile-only navigation: a fixed top bar with a hamburger trigger, plus an
@@ -22,11 +23,13 @@ export function MobileNav({
   permissions,
   isPlatformAdmin = false,
   platformOnly = false,
+  dict,
 }: {
   scheduleOnly: boolean;
   permissions: Permission[];
   isPlatformAdmin?: boolean;
   platformOnly?: boolean;
+  dict: Pick<Dictionary, "nav" | "mobileNav">;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -55,7 +58,7 @@ export function MobileNav({
           type="button"
           onClick={() => setOpen(true)}
           className="flex h-10 w-10 items-center justify-center rounded-full text-espresso transition-colors hover:bg-cream-100"
-          aria-label="Open menu"
+          aria-label={dict.mobileNav.openMenu}
         >
           <Menu className="h-5 w-5" strokeWidth={1.75} />
         </button>
@@ -84,7 +87,7 @@ export function MobileNav({
             <div className="flex flex-col">
               <Wordmark className="font-serif text-lg leading-tight font-bold" />
               <span className="text-[10px] font-medium tracking-[0.16em] text-navy-muted uppercase">
-                {isPlatformAdmin ? "Super Admin" : "Travel Agency"}
+                {isPlatformAdmin ? dict.mobileNav.superAdmin : dict.mobileNav.travelAgency}
               </span>
             </div>
           </Link>
@@ -92,7 +95,7 @@ export function MobileNav({
             type="button"
             onClick={() => setOpen(false)}
             className="flex h-8 w-8 items-center justify-center rounded-full text-navy-muted transition-colors hover:bg-white/8 hover:text-white"
-            aria-label="Close menu"
+            aria-label={dict.mobileNav.closeMenu}
           >
             <X className="h-4 w-4" strokeWidth={1.75} />
           </button>
@@ -102,6 +105,7 @@ export function MobileNav({
             scheduleOnly={scheduleOnly}
             permissions={permissions}
             isPlatformAdmin={isPlatformAdmin}
+            dict={dict.nav}
           />
         </div>
         {!platformOnly && <SidebarPromoCard />}

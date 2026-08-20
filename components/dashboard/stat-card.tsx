@@ -2,14 +2,18 @@ export function StatCard({
   label,
   value,
   delta,
+  deltaSuffix,
   hint,
   icon: Icon,
+  numberLocale = "en-US",
 }: {
   label: string;
   value: number | string;
   delta?: number | null;
+  deltaSuffix?: string;
   hint?: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  numberLocale?: string;
 }) {
   return (
     <div className="rounded-[16px] bg-card p-4 shadow-[0_8px_30px_rgba(0,0,0,0.06)] duration-500 animate-in fade-in slide-in-from-bottom-3 hover:-translate-y-0.5 transition-transform sm:rounded-[18px] sm:p-6">
@@ -20,12 +24,12 @@ export function StatCard({
         </span>
       </div>
       <p className="mt-2 text-xl font-semibold text-espresso sm:mt-3 sm:text-3xl">
-        {typeof value === "number" ? value.toLocaleString("en-US") : value}
+        {typeof value === "number" ? value.toLocaleString(numberLocale) : value}
       </p>
       {delta !== undefined && delta !== null && (
         <p className={delta >= 0 ? "mt-1 text-xs font-medium text-success" : "mt-1 text-xs font-medium text-danger"}>
           {delta >= 0 ? "+" : ""}
-          {delta}% this month
+          {delta}% {deltaSuffix}
         </p>
       )}
       {hint && !delta && <p className="mt-1 text-xs text-espresso-muted">{hint}</p>}

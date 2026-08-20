@@ -52,10 +52,12 @@ export function DateRangeFilterInput({
   fromParam,
   toParam,
   ariaLabel,
+  clearLabel = "Clear date filter",
 }: {
   fromParam: string;
   toParam: string;
   ariaLabel: string;
+  clearLabel?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -96,7 +98,7 @@ export function DateRangeFilterInput({
           type="button"
           onClick={() => navigate("", "")}
           className="rounded-[10px] px-2 py-2 text-sm text-espresso-muted transition-colors hover:bg-cream-100 hover:text-espresso"
-          aria-label="Clear date filter"
+          aria-label={clearLabel}
         >
           <X className="h-4 w-4" strokeWidth={1.75} />
         </button>

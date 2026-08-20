@@ -12,6 +12,7 @@ import { MobileNav } from "@/components/dashboard/mobile-nav";
 import { AmbientDecoration } from "@/components/dashboard/ambient-decoration";
 import { HeroBackground } from "@/components/dashboard/hero-background";
 import { Topbar } from "@/components/dashboard/topbar";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 const playfair = Playfair_Display({
   variable: "--font-serif",
@@ -26,12 +27,13 @@ const inter = Inter({
 
 export default async function PlatformAdminLayout({ children }: { children: React.ReactNode }) {
   const session = await requirePlatformAdmin();
-  const [agencies, cookieStore] = await Promise.all([
+  const [agencies, cookieStore, { locale, dict }] = await Promise.all([
     prisma.organization.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
     cookies(),
+    getDictionary(),
   ]);
   const activeAgencyId = cookieStore.get(PLATFORM_AGENCY_COOKIE)?.value;
 
@@ -42,6 +44,7 @@ export default async function PlatformAdminLayout({ children }: { children: Reac
         permissions={[]}
         isPlatformAdmin
         platformOnly
+        dict={dict}
       />
 
       <aside className="relative hidden w-72 shrink-0 flex-col overflow-hidden bg-navy px-7 py-9 lg:flex">
@@ -61,6 +64,7 @@ export default async function PlatformAdminLayout({ children }: { children: Reac
             scheduleOnly={false}
             permissions={[]}
             isPlatformAdmin
+            dict={dict.nav}
           />
         </div>
       </aside>
@@ -78,6 +82,8 @@ export default async function PlatformAdminLayout({ children }: { children: Reac
             isPlatformAdmin
             agencies={agencies}
             activeAgencyId={activeAgencyId}
+            locale={locale}
+            dict={dict}
           />
           {children}
         </div>

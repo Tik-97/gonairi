@@ -9,26 +9,14 @@ import { recordPayment, deletePayment } from "@/lib/actions/payments";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { PaymentForm } from "@/components/payment-form";
-
-const METHOD_LABEL: Record<string, string> = {
-  CASH: "Cash",
-  BANK_TRANSFER: "Bank transfer",
-  CARD_ONLINE: "Card / online",
-  OTHER: "Other",
-};
-
-const TRAVELER_PRICE_LABEL: Record<string, string> = {
-  FULL: "Full price",
-  HALF: "Half price",
-  FREE: "Free",
-};
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function BookingDetailPage({
   params,
 }: {
   params: Promise<{ bookingId: string }>;
 }) {
-  const { bookingId } = await params;
+  const [{ bookingId }, { dict }] = await Promise.all([params, getDictionary()]);
   const session = await requirePermission(PERMISSIONS.bookingsView);
   const db = scopedPrisma(session.user.organizationId);
 
@@ -64,14 +52,14 @@ export default async function BookingDetailPage({
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow="Your ledger"
+        eyebrow={dict.bookingDetailPage.eyebrow}
         title={booking.departure.tour.title}
         subtitle={formatDate(booking.departure.date)}
       />
 
       <div className="grid grid-cols-2 gap-6 rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)] p-6">
         <div>
-          <p className="text-sm text-espresso/60">Customer</p>
+          <p className="text-sm text-espresso/60">{dict.bookingDetailPage.customer}</p>
           <Link
             href={`/dashboard/customers/${booking.customer.id}`}
             className="font-medium underline"
@@ -80,45 +68,45 @@ export default async function BookingDetailPage({
           </Link>
         </div>
         <div>
-          <p className="text-sm text-espresso/60">Pax</p>
+          <p className="text-sm text-espresso/60">{dict.bookingDetailPage.pax}</p>
           <p className="font-medium">{booking.paxCount}</p>
         </div>
         <div>
-          <p className="text-sm text-espresso/60">Total price</p>
+          <p className="text-sm text-espresso/60">{dict.bookingDetailPage.totalPrice}</p>
           <p className="font-medium">
             {formatMoney(booking.totalPrice.toString(), booking.currency)}
           </p>
           {booking.discountPercent > 0 && (
             <p className="mt-0.5 text-xs text-terracotta-700">
-              {booking.discountPercent}% discount applied
+              {booking.discountPercent}{dict.bookingDetailPage.discountAppliedSuffix}
             </p>
           )}
         </div>
         <div>
-          <p className="text-sm text-espresso/60">Payment status</p>
+          <p className="text-sm text-espresso/60">{dict.bookingDetailPage.paymentStatus}</p>
           <p>
             <span
               className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${PAYMENT_BADGE[booking.paymentStatus]}`}
             >
-              {booking.paymentStatus}
+              {dict.paymentStatus[booking.paymentStatus]}
             </span>
           </p>
           <p className="mt-1 text-xs text-espresso-muted">
-            {formatMoney(totalPaid, booking.currency)} paid of{" "}
+            {formatMoney(totalPaid, booking.currency)} {dict.bookingDetailPage.paidOfInfix}{" "}
             {formatMoney(booking.totalPrice.toString(), booking.currency)}
           </p>
         </div>
         <div>
-          <p className="text-sm text-espresso/60">Status</p>
-          <p className="font-medium">{booking.status}</p>
+          <p className="text-sm text-espresso/60">{dict.bookingDetailPage.status}</p>
+          <p className="font-medium">{dict.bookingStatus[booking.status]}</p>
         </div>
         <div>
-          <p className="text-sm text-espresso/60">Source</p>
-          <p className="font-medium">{booking.source}</p>
+          <p className="text-sm text-espresso/60">{dict.bookingDetailPage.source}</p>
+          <p className="font-medium">{dict.bookingSource[booking.source]}</p>
         </div>
         {booking.specialRequests && (
           <div className="col-span-2">
-            <p className="text-sm text-espresso/60">Special requests</p>
+            <p className="text-sm text-espresso/60">{dict.bookingDetailPage.specialRequests}</p>
             <p className="font-medium">{booking.specialRequests}</p>
           </div>
         )}
@@ -127,14 +115,14 @@ export default async function BookingDetailPage({
       {booking.paxCount > 1 && (
         <div className="rounded-[18px] bg-card p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
           <h2 className="mb-4 font-serif text-lg font-medium text-espresso">
-            Party ({booking.paxCount} pax)
+            {dict.bookingDetailPage.partyPrefix}{booking.paxCount} {dict.bookingDetailPage.partySuffix}
           </h2>
           <div className="flex flex-col divide-y divide-border">
             <div className="flex items-center justify-between py-2.5 text-sm">
               <span className="font-medium text-espresso">
                 {booking.customer.fullName}
               </span>
-              <span className="text-espresso-muted">Full price</span>
+              <span className="text-espresso-muted">{dict.travelerPriceType.FULL}</span>
             </div>
             {booking.travelers.map((traveler) => (
               <div
@@ -146,19 +134,18 @@ export default async function BookingDetailPage({
                   {traveler.isChild && (
                     <span className="flex items-center gap-1 rounded-full bg-olive/12 px-2 py-0.5 text-xs font-medium text-olive">
                       <Baby className="h-3 w-3" strokeWidth={2} />
-                      Child
+                      {dict.bookingForm.child}
                     </span>
                   )}
                 </span>
                 <span className="text-espresso-muted">
-                  {TRAVELER_PRICE_LABEL[traveler.priceType]}
+                  {dict.travelerPriceType[traveler.priceType]}
                 </span>
               </div>
             ))}
             {booking.travelers.length < booking.paxCount - 1 && (
               <p className="py-2.5 text-sm text-espresso-muted">
-                {booking.paxCount - 1 - booking.travelers.length} more
-                traveler(s), name not recorded.
+                {booking.paxCount - 1 - booking.travelers.length} {dict.bookingDetailPage.moreTravelersSuffix}
               </p>
             )}
           </div>
@@ -176,7 +163,7 @@ export default async function BookingDetailPage({
                   type="submit"
                   className="rounded-[12px] bg-terracotta px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-terracotta-700"
                 >
-                  Confirm booking
+                  {dict.bookingDetailPage.confirmBooking}
                 </button>
               </form>
             )}
@@ -188,7 +175,7 @@ export default async function BookingDetailPage({
                   type="submit"
                   className="rounded-[12px] border border-terracotta/25 px-5 py-2.5 text-sm font-medium text-espresso transition-colors hover:bg-cream-100"
                 >
-                  Mark completed
+                  {dict.bookingDetailPage.markCompleted}
                 </button>
               </form>
             )}
@@ -205,7 +192,7 @@ export default async function BookingDetailPage({
                     type="submit"
                     className="rounded-[12px] border border-danger/30 px-5 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/10"
                   >
-                    Cancel booking
+                    {dict.bookingDetailPage.cancelBooking}
                   </button>
                 </form>
               )}
@@ -216,12 +203,12 @@ export default async function BookingDetailPage({
       {(canManageFinances || booking.payments.length > 0) && (
         <div className="rounded-[18px] bg-card p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
           <h2 className="mb-4 font-serif text-lg font-medium text-espresso">
-            Payments
+            {dict.bookingDetailPage.payments}
           </h2>
 
           {booking.payments.length === 0 ? (
             <p className="mb-4 text-sm text-espresso-muted">
-              No payments recorded yet.
+              {dict.bookingDetailPage.noPaymentsYet}
             </p>
           ) : (
             <div className="mb-5 flex flex-col divide-y divide-border">
@@ -235,7 +222,7 @@ export default async function BookingDetailPage({
                       {formatMoney(payment.amount.toString(), payment.currency)}
                     </span>{" "}
                     <span className="text-espresso-muted">
-                      · {METHOD_LABEL[payment.method]} ·{" "}
+                      · {dict.paymentMethod[payment.method]} ·{" "}
                       {formatDate(payment.paidAt)}
                       {payment.externalReference
                         ? ` · ${payment.externalReference}`
@@ -245,7 +232,7 @@ export default async function BookingDetailPage({
                   {canManageFinances && (
                     <form action={deletePayment.bind(null, payment.id)}>
                       <button type="submit" className="text-danger underline">
-                        Void
+                        {dict.bookingDetailPage.void}
                       </button>
                     </form>
                   )}
@@ -258,6 +245,7 @@ export default async function BookingDetailPage({
             <PaymentForm
               action={recordPayment.bind(null, booking.id)}
               currency={booking.currency}
+              dict={dict}
             />
           )}
         </div>

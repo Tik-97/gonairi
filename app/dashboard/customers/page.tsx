@@ -5,13 +5,14 @@ import { scopedPrisma } from "@/lib/db/scoped";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { SearchInput } from "@/components/dashboard/search-input";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function CustomersPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  const { q } = await searchParams;
+  const [{ q }, { dict }] = await Promise.all([searchParams, getDictionary()]);
   const session = await requirePermission(PERMISSIONS.customersView);
   const canManage = await roleHasPermission(
     session.user.role,
@@ -34,30 +35,30 @@ export default async function CustomersPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Your travelers"
-        title="Customers"
-        subtitle="The people you've welcomed on tour, and the ones about to be."
+        eyebrow={dict.customersPage.eyebrow}
+        title={dict.customersPage.title}
+        subtitle={dict.customersPage.subtitle}
         action={
           canManage && (
             <Link
               href="/dashboard/customers/new"
               className="rounded-[12px] bg-terracotta px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-terracotta-700"
             >
-              + New customer
+              {dict.customersPage.newCustomerButton}
             </Link>
           )
         }
       />
 
-      <SearchInput placeholder="Search by name, email, or phone…" />
+      <SearchInput placeholder={dict.customersPage.searchPlaceholder} />
 
       {customers.length === 0 ? (
         <EmptyState
-          title={q ? "No customers match your search" : "No travelers yet"}
+          title={q ? dict.customersPage.emptyNoMatchTitle : dict.customersPage.emptyDefaultTitle}
           message={
             q
-              ? "Try a different name, email, or phone number."
-              : "Add a customer by hand, or they'll appear here the moment they book a tour."
+              ? dict.customersPage.emptyNoMatchMessage
+              : dict.customersPage.emptyDefaultMessage
           }
         />
       ) : (
@@ -73,7 +74,7 @@ export default async function CustomersPage({
                 <p className="text-sm text-espresso-muted">
                   {[customer.email, customer.phone]
                     .filter(Boolean)
-                    .join(" · ") || "No contact info"}
+                    .join(" · ") || dict.customersPage.noContactInfo}
                 </p>
               </div>
             </Link>

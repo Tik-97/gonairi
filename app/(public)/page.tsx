@@ -2,17 +2,21 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 // Featured tours must reflect current publish/availability state, not a build-time snapshot.
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const featuredTours = await prisma.tour.findMany({
-    where: { isPublished: true, deletedAt: null, organization: { isPublished: true } },
-    include: { organization: true },
-    orderBy: { createdAt: "desc" },
-    take: 4,
-  });
+  const [featuredTours, { dict }] = await Promise.all([
+    prisma.tour.findMany({
+      where: { isPublished: true, deletedAt: null, organization: { isPublished: true } },
+      include: { organization: true },
+      orderBy: { createdAt: "desc" },
+      take: 4,
+    }),
+    getDictionary(),
+  ]);
 
   return (
     <div className="flex flex-col gap-14">
@@ -47,18 +51,17 @@ export default async function HomePage() {
           </div>
           <div className="relative z-10 flex h-full max-w-lg flex-col justify-center gap-6 px-6 sm:px-12">
             <h1 className="font-serif text-5xl font-semibold leading-[1.1] tracking-tight text-espresso">
-              Discover Armenia,<br /> one tour at a time.
+              {dict.homePage.heroTitleLine1}<br /> {dict.homePage.heroTitleLine2}
             </h1>
             <p className="text-lg text-espresso/70">
-              Browse tours from local Armenian agencies — monasteries, mountains, wine and
-              gastronomy — and book directly, no middleman.
+              {dict.homePage.heroSubtitle}
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/tours"
                 className="rounded-full bg-terracotta px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-terracotta-700"
               >
-                Browse tours
+                {dict.homePage.browseToursButton}
               </Link>
             </div>
           </div>
@@ -67,7 +70,7 @@ export default async function HomePage() {
 
       {featuredTours.length > 0 && (
         <div>
-          <h2 className="mb-5 font-serif text-2xl font-semibold text-espresso">Featured tours</h2>
+          <h2 className="mb-5 font-serif text-2xl font-semibold text-espresso">{dict.homePage.featuredTours}</h2>
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             {featuredTours.map((tour) => (
               <Link
@@ -81,7 +84,7 @@ export default async function HomePage() {
                 <p className="text-sm text-espresso/60">{tour.organization.name}</p>
                 <p className="mt-3 text-sm font-medium text-terracotta-700">
                   {formatMoney(tour.basePrice.toString(), tour.currency)}
-                  <span className="font-normal text-espresso/50"> · {tour.durationDays}d</span>
+                  <span className="font-normal text-espresso/50"> · {tour.durationDays}{dict.toursSearchPage.daySuffix}</span>
                 </p>
               </Link>
             ))}

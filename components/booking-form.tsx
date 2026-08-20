@@ -8,12 +8,8 @@ import { CustomerCombobox } from "@/components/customer-combobox";
 import { PhoneInput } from "@/components/phone-input";
 import { calculateBookingTotal, type TravelerPriceType } from "@/lib/bookings/pricing";
 import { formatMoney } from "@/lib/format";
-
-const PRICE_TYPE_OPTIONS: { value: TravelerPriceType; label: string }[] = [
-  { value: "FULL", label: "Full price" },
-  { value: "HALF", label: "Half price" },
-  { value: "FREE", label: "Free" },
-];
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import type { Locale } from "@/lib/i18n/config";
 
 type Traveler = { name: string; isChild: boolean; priceType: TravelerPriceType };
 
@@ -26,12 +22,21 @@ export function BookingForm({
   maxPax,
   unitPrice,
   currency,
+  locale,
+  dict,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   maxPax: number;
   unitPrice: number;
   currency: string;
+  locale: Locale;
+  dict: Pick<Dictionary, "bookingForm" | "customerCombobox" | "phoneInput">;
 }) {
+  const PRICE_TYPE_OPTIONS: { value: TravelerPriceType; label: string }[] = [
+    { value: "FULL", label: dict.bookingForm.fullPrice },
+    { value: "HALF", label: dict.bookingForm.halfPrice },
+    { value: "FREE", label: dict.bookingForm.free },
+  ];
   const [state, formAction, pending] = useActionState(action, undefined);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
   const [paxCount, setPaxCount] = useState(1);
@@ -60,14 +65,14 @@ export function BookingForm({
       <input type="hidden" name="existingCustomerId" value={selectedCustomer?.id ?? ""} />
 
       <label className="flex flex-col gap-1 text-sm">
-        Customer
-        <CustomerCombobox selected={selectedCustomer} onSelect={setSelectedCustomer} />
+        {dict.bookingForm.customer}
+        <CustomerCombobox selected={selectedCustomer} onSelect={setSelectedCustomer} dict={dict.customerCombobox} />
       </label>
 
       {!selectedCustomer && (
         <>
           <label className="flex flex-col gap-1 text-sm">
-            New customer name
+            {dict.bookingForm.newCustomerName}
             <input
               name="newCustomerName"
               required={!selectedCustomer}
@@ -75,7 +80,7 @@ export function BookingForm({
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            New customer email
+            {dict.bookingForm.newCustomerEmail}
             <input
               name="newCustomerEmail"
               type="email"
@@ -83,14 +88,14 @@ export function BookingForm({
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            New customer phone
-            <PhoneInput name="newCustomerPhone" />
+            {dict.bookingForm.newCustomerPhone}
+            <PhoneInput name="newCustomerPhone" locale={locale} dict={dict.phoneInput} />
           </label>
         </>
       )}
 
       <label className="flex flex-col gap-1 text-sm">
-        Pax count (max {maxPax})
+        {dict.bookingForm.paxCountPrefix} {maxPax})
         <input
           name="paxCount"
           type="number"
@@ -105,9 +110,9 @@ export function BookingForm({
 
       {travelers.length > 0 && (
         <div className="flex flex-col gap-2 text-sm">
-          <span>Other travelers in this party</span>
+          <span>{dict.bookingForm.otherTravelers}</span>
           <p className="text-xs text-espresso-muted">
-            The customer above counts as traveler 1. Add the rest here if you need their names — leave blank if unknown.
+            {dict.bookingForm.otherTravelersHint}
           </p>
           <div className="flex flex-col gap-2">
             {travelers.map((t, i) => (
@@ -117,7 +122,7 @@ export function BookingForm({
                     name={`traveler_${i}_name`}
                     value={t.name}
                     onChange={(e) => updateTraveler(i, { name: e.target.value })}
-                    placeholder={`Traveler ${i + 2} name`}
+                    placeholder={`${dict.bookingForm.travelerNamePrefix} ${i + 2} ${dict.bookingForm.travelerNameSuffix}`}
                     className="flex-1 rounded-[10px] border border-terracotta/20 bg-white px-3 py-2 text-sm"
                   />
                   <label className="flex items-center gap-1.5 text-xs text-espresso-muted">
@@ -129,7 +134,7 @@ export function BookingForm({
                       className="h-4 w-4"
                     />
                     <Baby className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    Child
+                    {dict.bookingForm.child}
                   </label>
                 </div>
                 <select
@@ -151,7 +156,7 @@ export function BookingForm({
       )}
 
       <label className="flex flex-col gap-1 text-sm">
-        Discount (%)
+        {dict.bookingForm.discountPercent}
         <input
           name="discountPercent"
           type="number"
@@ -165,13 +170,16 @@ export function BookingForm({
 
       <div className="rounded-[12px] bg-cream-100 px-4 py-3 text-sm">
         <div className="flex items-center justify-between">
-          <span className="text-espresso-muted">Estimated total</span>
-          <span className="font-medium text-espresso">{formatMoney(estimatedTotal, currency)}</span>
+          <span className="text-espresso-muted">{dict.bookingForm.estimatedTotal}</span>
+          {/* Node's and the browser's bundled ICU data can render hy-AM currency
+              formatting a few bytes apart (e.g. "18 000 ֏" vs "AMD 18,000") —
+              harmless, but React would otherwise warn on this every render. */}
+          <span className="font-medium text-espresso" suppressHydrationWarning>{formatMoney(estimatedTotal, currency)}</span>
         </div>
       </div>
 
       <label className="flex flex-col gap-1 text-sm">
-        Special requests
+        {dict.bookingForm.specialRequests}
         <input
           name="specialRequests"
           className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
@@ -183,7 +191,7 @@ export function BookingForm({
         disabled={pending}
         className="mt-2 w-fit rounded-[12px] bg-terracotta px-4 py-2 text-sm font-medium text-white disabled:opacity-50 hover:bg-terracotta-700"
       >
-        {pending ? "Booking…" : "Create booking"}
+        {pending ? dict.bookingForm.booking : dict.bookingForm.createBooking}
       </button>
     </form>
   );

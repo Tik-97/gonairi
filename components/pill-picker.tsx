@@ -17,12 +17,14 @@ export function PillPicker({
   defaultValue,
   renderLabel = (option) => option,
   customPlaceholder,
+  otherLabel = "Other…",
 }: {
   name: string;
   options: string[];
   defaultValue?: string;
   renderLabel?: (option: string) => React.ReactNode;
   customPlaceholder: string;
+  otherLabel?: string;
 }) {
   const startsCustom = Boolean(defaultValue) && !options.includes(defaultValue ?? "");
   const [selected, setSelected] = useState(startsCustom ? "" : (defaultValue ?? ""));
@@ -58,7 +60,7 @@ export function PillPicker({
           onMouseEnter={() => setHovered(OTHER_KEY)}
           onMouseLeave={() => setHovered((prev) => (prev === OTHER_KEY ? null : prev))}
         >
-          Other…
+          {otherLabel}
         </PillButton>
       </div>
       {customMode && (

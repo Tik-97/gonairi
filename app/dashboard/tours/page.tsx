@@ -9,13 +9,14 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { SearchInput } from "@/components/dashboard/search-input";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function ToursPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string; view?: string }>;
 }) {
-  const { q, view } = await searchParams;
+  const [{ q, view }, { dict }] = await Promise.all([searchParams, getDictionary()]);
   const showDeleted = view === "deleted";
   const session = await requirePermission(PERMISSIONS.toursView);
   const [canManage, canDelete] = await Promise.all([
@@ -50,16 +51,16 @@ export default async function ToursPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Your catalogue"
-        title="Tours"
-        subtitle="The experiences your agency offers, from monastery day trips to multi-day journeys."
+        eyebrow={dict.toursPage.eyebrow}
+        title={dict.toursPage.title}
+        subtitle={dict.toursPage.subtitle}
         action={
           canManage && (
             <Link
               href="/dashboard/tours/new"
               className="rounded-[12px] bg-terracotta px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-terracotta-700"
             >
-              + New tour
+              {dict.toursPage.newTourButton}
             </Link>
           )
         }
@@ -71,27 +72,27 @@ export default async function ToursPage({
             href="/dashboard/tours"
             className={`rounded-full px-4 py-2 ${!showDeleted ? "bg-terracotta text-white" : "bg-card text-espresso-muted"}`}
           >
-            Active
+            {dict.toursPage.active}
           </Link>
           <Link
             href="/dashboard/tours?view=deleted"
             className={`rounded-full px-4 py-2 ${showDeleted ? "bg-terracotta text-white" : "bg-card text-espresso-muted"}`}
           >
-            Deleted
+            {dict.toursPage.deleted}
           </Link>
         </div>
-        <SearchInput placeholder="Search tours by title or description…" />
+        <SearchInput placeholder={dict.toursPage.searchPlaceholder} />
       </div>
 
       {tours.length === 0 ? (
         <EmptyState
-          title={q ? "No tours match your search" : showDeleted ? "No deleted tours" : "Your catalogue is waiting"}
+          title={q ? dict.toursPage.emptyNoMatchTitle : showDeleted ? dict.toursPage.emptyNoDeletedTitle : dict.toursPage.emptyWaitingTitle}
           message={
             q
-              ? "Try a different title or keyword."
+              ? dict.toursPage.emptyNoMatchMessage
               : showDeleted
-                ? "Deleted tours will appear here and can be restored."
-                : "Add your first tour — an itinerary, a price, a story worth telling."
+                ? dict.toursPage.emptyNoDeletedMessage
+                : dict.toursPage.emptyWaitingMessage
           }
         />
       ) : (
@@ -123,13 +124,13 @@ export default async function ToursPage({
                     <p className="font-medium text-espresso">{tour.title}</p>
                     <p className="text-sm text-espresso-muted">
                       {formatMoney(tour.basePrice.toString(), tour.currency)} ·{" "}
-                      {tour.durationDays}d ·{" "}
-                      {showDeleted ? "Deleted" : tour.isPublished ? "Published" : "Draft"}
+                      {tour.durationDays}{dict.toursPage.daySuffix} ·{" "}
+                      {showDeleted ? dict.toursPage.deletedBadge : tour.isPublished ? dict.toursPage.publishedBadge : dict.toursPage.draftBadge}
                     </p>
                     <p className="mt-1 text-sm font-medium text-terracotta-700">
                       {nextDeparture
-                        ? `Next: ${formatDate(nextDeparture.date)}`
-                        : "No upcoming departures"}
+                        ? `${dict.toursPage.nextDeparturePrefix} ${formatDate(nextDeparture.date)}`
+                        : dict.toursPage.noUpcomingDepartures}
                     </p>
                   </div>
                 </div>
@@ -139,7 +140,7 @@ export default async function ToursPage({
                       href={`/dashboard/tours/${tour.id}/departures`}
                       className="text-terracotta-700 underline"
                     >
-                      Departures
+                      {dict.toursPage.departuresLink}
                     </Link>
                   )}
                   {!showDeleted && canManage && (
@@ -147,20 +148,20 @@ export default async function ToursPage({
                       href={`/dashboard/tours/${tour.id}/edit`}
                       className="text-terracotta-700 underline"
                     >
-                      Edit
+                      {dict.toursPage.editLink}
                     </Link>
                   )}
                   {!showDeleted && canDelete && (
                     <form action={deleteTour.bind(null, tour.id)}>
                       <button type="submit" className="text-danger underline">
-                        Delete
+                        {dict.toursPage.deleteLink}
                       </button>
                     </form>
                   )}
                   {showDeleted && canDelete && (
                     <form action={restoreTour.bind(null, tour.id)}>
                       <button type="submit" className="text-terracotta-700 underline">
-                        Restore
+                        {dict.toursPage.restoreLink}
                       </button>
                     </form>
                   )}

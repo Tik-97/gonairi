@@ -17,74 +17,66 @@ import {
   UserCog,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permission-keys";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
-const NAV_ITEMS: {
+function navItems(t: Dictionary["nav"]): {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
   permission?: Permission;
-}[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  {
-    href: "/dashboard/tours",
-    label: "Tours",
-    icon: Map,
-    permission: PERMISSIONS.toursView,
-  },
-  {
-    href: "/dashboard/bookings",
-    label: "Bookings",
-    icon: CalendarCheck,
-    permission: PERMISSIONS.bookingsView,
-  },
-  {
-    href: "/dashboard/customers",
-    label: "Customers",
-    icon: Users,
-    permission: PERMISSIONS.customersView,
-  },
-  {
-    href: "/dashboard/vehicles",
-    label: "Vehicles",
-    icon: Bus,
-    permission: PERMISSIONS.vehiclesView,
-  },
-  {
-    href: "/dashboard/staff",
-    label: "Staff",
-    icon: IdCard,
-    permission: PERMISSIONS.staffView,
-  },
-  {
-    href: "/dashboard/finances",
-    label: "Finances",
-    icon: Wallet,
-    permission: PERMISSIONS.financesView,
-  },
-  {
-    href: "/dashboard/settings/organization",
-    label: "Settings",
-    icon: Settings,
-    permission: PERMISSIONS.orgSettingsManage,
-  },
-];
-
-const SCHEDULE_ITEM = {
-  href: "/dashboard/schedule",
-  label: "My schedule",
-  icon: CalendarClock,
-};
-
-const PLATFORM_ITEMS = [
-  { href: "/admin/agencies", label: "Agencies", icon: Building2 },
-  { href: "/admin/users", label: "All users", icon: UserCog },
-  { href: "/admin/roles", label: "Role permissions", icon: ShieldCheck },
-];
+}[] {
+  return [
+    { href: "/dashboard", label: t.dashboard, icon: LayoutDashboard },
+    {
+      href: "/dashboard/tours",
+      label: t.tours,
+      icon: Map,
+      permission: PERMISSIONS.toursView,
+    },
+    {
+      href: "/dashboard/bookings",
+      label: t.bookings,
+      icon: CalendarCheck,
+      permission: PERMISSIONS.bookingsView,
+    },
+    {
+      href: "/dashboard/customers",
+      label: t.customers,
+      icon: Users,
+      permission: PERMISSIONS.customersView,
+    },
+    {
+      href: "/dashboard/vehicles",
+      label: t.vehicles,
+      icon: Bus,
+      permission: PERMISSIONS.vehiclesView,
+    },
+    {
+      href: "/dashboard/staff",
+      label: t.staff,
+      icon: IdCard,
+      permission: PERMISSIONS.staffView,
+    },
+    {
+      href: "/dashboard/finances",
+      label: t.finances,
+      icon: Wallet,
+      permission: PERMISSIONS.financesView,
+    },
+    {
+      href: "/dashboard/settings/organization",
+      label: t.settings,
+      icon: Settings,
+      permission: PERMISSIONS.orgSettingsManage,
+    },
+  ];
+}
 
 export function SidebarNav({
   scheduleOnly,
   permissions,
   isPlatformAdmin = false,
+  dict,
 }: {
   /** True for roles that only see "My schedule" (drivers, guides, driver-guides)
    *  — computed server-side via `!isBackOfficeRole(role)` so this component
@@ -93,22 +85,30 @@ export function SidebarNav({
   scheduleOnly: boolean;
   permissions: Permission[];
   isPlatformAdmin?: boolean;
+  dict: Dictionary["nav"];
 }) {
   const pathname = usePathname();
+  const scheduleItem = { href: "/dashboard/schedule", label: dict.mySchedule, icon: CalendarClock };
+  const platformItems = [
+    { href: "/admin/agencies", label: dict.agencies, icon: Building2 },
+    { href: "/admin/users", label: dict.allUsers, icon: UserCog },
+    { href: "/admin/roles", label: dict.rolePermissions, icon: ShieldCheck },
+  ];
   // Platform admins are not governed by an agency role's permission matrix.
   // Keep every CRM destination visible in both /admin and /dashboard layouts;
   // requireSession() still validates the selected agency before opening CRM data.
+  const items = navItems(dict);
   const agencyItems = isPlatformAdmin
-    ? NAV_ITEMS
+    ? items
     : scheduleOnly
-      ? [SCHEDULE_ITEM]
-      : NAV_ITEMS.filter(
+      ? [scheduleItem]
+      : items.filter(
           (item) => !item.permission || permissions.includes(item.permission),
         );
   const sections = isPlatformAdmin
     ? [
-        { label: "Agency CRM", items: agencyItems },
-        { label: "Platform", items: PLATFORM_ITEMS },
+        { label: dict.agencyCrmSection, items: agencyItems },
+        { label: dict.platformSection, items: platformItems },
       ]
     : [{ label: null, items: agencyItems }];
 

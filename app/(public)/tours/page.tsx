@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function ToursSearchPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string; category?: string }>;
 }) {
-  const { q, category } = await searchParams;
+  const [{ q, category }, { dict }] = await Promise.all([searchParams, getDictionary()]);
 
   const tours = await prisma.tour.findMany({
     where: {
@@ -23,24 +24,24 @@ export default async function ToursSearchPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-serif text-3xl font-semibold text-espresso">Tours in Armenia</h1>
+      <h1 className="font-serif text-3xl font-semibold text-espresso">{dict.toursSearchPage.title}</h1>
       <form className="flex gap-3">
         <input
           name="q"
           defaultValue={q}
-          placeholder="Search tours…"
+          placeholder={dict.toursSearchPage.searchPlaceholder}
           className="w-full max-w-sm rounded-full border border-terracotta/25 bg-white px-4 py-2.5 text-sm text-espresso placeholder:text-espresso/40 focus:border-terracotta focus:outline-none"
         />
         <button
           type="submit"
           className="rounded-full bg-terracotta px-5 py-2.5 text-sm font-medium text-white hover:bg-terracotta-700"
         >
-          Search
+          {dict.toursSearchPage.searchButton}
         </button>
       </form>
 
       {tours.length === 0 ? (
-        <p className="text-sm text-espresso/60">No tours found.</p>
+        <p className="text-sm text-espresso/60">{dict.toursSearchPage.noToursFound}</p>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           {tours.map((tour) => (
@@ -55,8 +56,8 @@ export default async function ToursSearchPage({
               <p className="text-sm text-espresso/60">{tour.organization.name}</p>
               <p className="mt-3 text-sm font-medium text-terracotta-700">
                 {formatMoney(tour.basePrice.toString(), tour.currency)}
-                <span className="font-normal text-espresso/50"> · {tour.durationDays}d</span>
-                {tour.category ? <span className="font-normal text-espresso/50"> · {tour.category}</span> : ""}
+                <span className="font-normal text-espresso/50"> · {tour.durationDays}{dict.toursSearchPage.daySuffix}</span>
+                {tour.category ? <span className="font-normal text-espresso/50"> · {dict.tourCategories[tour.category] ?? tour.category}</span> : ""}
               </p>
             </Link>
           ))}

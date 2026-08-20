@@ -8,19 +8,14 @@ import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { StatCard } from "@/components/dashboard/stat-card";
-
-const METHOD_LABEL: Record<string, string> = {
-  CASH: "Cash",
-  BANK_TRANSFER: "Bank transfer",
-  CARD_ONLINE: "Card / online",
-  OTHER: "Other",
-};
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 const PANEL =
   "rounded-[16px] sm:rounded-[18px] bg-card p-4 sm:p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)]";
 
 export default async function FinancesPage() {
-  const session = await requirePermission(PERMISSIONS.financesView);
+  const [session, { locale, dict }] = await Promise.all([requirePermission(PERMISSIONS.financesView), getDictionary()]);
+  const numberLocale = locale === "ru" ? "ru-RU" : "en-US";
   const canManage = await roleHasPermission(
     session.user.role,
     PERMISSIONS.financesManage,
@@ -100,41 +95,45 @@ export default async function FinancesPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Your books"
-        title="Finances"
-        subtitle="Revenue booked, payments collected, and what's still outstanding."
+        eyebrow={dict.financesPage.eyebrow}
+        title={dict.financesPage.title}
+        subtitle={dict.financesPage.subtitle}
       />
 
       <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
         <StatCard
-          label="Total revenue"
+          label={dict.financesPage.totalRevenue}
           value={formatMoney(primary.revenue, primary.currency)}
           icon={Wallet}
+          numberLocale={numberLocale}
         />
         <StatCard
-          label="Collected"
+          label={dict.financesPage.collected}
           value={formatMoney(primary.collected, primary.currency)}
           icon={Banknote}
+          numberLocale={numberLocale}
         />
         <StatCard
-          label="Outstanding"
+          label={dict.financesPage.outstanding}
           value={formatMoney(
             Math.max(primary.outstanding, 0),
             primary.currency,
           )}
           icon={Clock}
+          numberLocale={numberLocale}
         />
         <StatCard
-          label="Payments recorded"
+          label={dict.financesPage.paymentsRecorded}
           value={paymentCount}
           icon={Receipt}
+          numberLocale={numberLocale}
         />
       </div>
 
       {byCurrency.length > 1 && (
         <div className={PANEL}>
           <h2 className="mb-4 font-serif text-lg font-medium text-espresso">
-            By currency
+            {dict.financesPage.byCurrency}
           </h2>
           <div className="flex flex-col divide-y divide-border">
             {byCurrency.map((row) => (
@@ -146,7 +145,7 @@ export default async function FinancesPage() {
                   {row.currency}
                 </span>
                 <span className="text-espresso-muted">
-                  {formatMoney(row.collected, row.currency)} collected of{" "}
+                  {formatMoney(row.collected, row.currency)} {dict.financesPage.collectedOfInfix}{" "}
                   {formatMoney(row.revenue, row.currency)}
                 </span>
               </div>
@@ -158,12 +157,12 @@ export default async function FinancesPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_1fr]">
         <section className={PANEL}>
           <h2 className="mb-5 font-serif text-xl font-semibold text-espresso">
-            Recent payments
+            {dict.financesPage.recentPayments}
           </h2>
           {recentPayments.length === 0 ? (
             <EmptyState
-              title="No payments recorded yet"
-              message="Payments you record against a booking will show up here."
+              title={dict.financesPage.emptyTitle}
+              message={dict.financesPage.emptyMessage}
             />
           ) : (
             <div className="flex flex-col divide-y divide-border">
@@ -181,7 +180,7 @@ export default async function FinancesPage() {
                     </Link>
                     <p className="text-espresso-muted">
                       {payment.booking.departure.tour.title} ·{" "}
-                      {METHOD_LABEL[payment.method]} ·{" "}
+                      {dict.paymentMethod[payment.method]} ·{" "}
                       {formatDate(payment.paidAt)}
                     </p>
                   </div>
@@ -195,7 +194,7 @@ export default async function FinancesPage() {
                           type="submit"
                           className="text-xs text-danger underline"
                         >
-                          Void
+                          {dict.financesPage.void}
                         </button>
                       </form>
                     )}
@@ -208,10 +207,10 @@ export default async function FinancesPage() {
 
         <section className={PANEL}>
           <h2 className="mb-5 font-serif text-xl font-semibold text-espresso">
-            By payment method
+            {dict.financesPage.byPaymentMethod}
           </h2>
           {methodBreakdown.length === 0 ? (
-            <p className="text-sm text-espresso-muted">No payments yet.</p>
+            <p className="text-sm text-espresso-muted">{dict.financesPage.noPaymentsYet}</p>
           ) : (
             <div className="flex flex-col gap-4">
               {methodBreakdown
@@ -227,7 +226,7 @@ export default async function FinancesPage() {
                     <div key={row.method} className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-espresso">
-                          {METHOD_LABEL[row.method]}
+                          {dict.paymentMethod[row.method]}
                         </span>
                         <span className="font-medium text-espresso">
                           {formatMoney(amount, primary.currency)}

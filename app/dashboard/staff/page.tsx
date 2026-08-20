@@ -6,6 +6,7 @@ import { toggleStaffStatus } from "@/lib/actions/staff";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { SearchInput } from "@/components/dashboard/search-input";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 import type { UserRole } from "@/generated/prisma/enums";
 
 const ROLE_BADGE: Record<UserRole, string> = {
@@ -21,7 +22,7 @@ export default async function StaffPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  const { q } = await searchParams;
+  const [{ q }, { dict }] = await Promise.all([searchParams, getDictionary()]);
   const session = await requirePermission(PERMISSIONS.staffView);
   const canManage = Boolean(session.platformAdmin) || session.user.role === "OWNER";
 
@@ -42,27 +43,27 @@ export default async function StaffPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Your team"
-        title="Staff"
-        subtitle="Your agency's owner, operators, drivers, and guides."
+        eyebrow={dict.staffPage.eyebrow}
+        title={dict.staffPage.title}
+        subtitle={dict.staffPage.subtitle}
         action={
           canManage && (
             <Link
               href="/dashboard/staff/new"
               className="rounded-[12px] bg-terracotta px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-terracotta-700"
             >
-              + New staff member
+              {dict.staffPage.newStaffButton}
             </Link>
           )
         }
       />
 
-      <SearchInput placeholder="Search by name, email, or phone…" />
+      <SearchInput placeholder={dict.staffPage.searchPlaceholder} />
 
       {staff.length === 0 ? (
         <EmptyState
-          title="No staff match your search"
-          message="Try a different name, email, or phone number."
+          title={dict.staffPage.emptySearchTitle}
+          message={dict.staffPage.emptySearchMessage}
         />
       ) : (
         <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
@@ -78,7 +79,7 @@ export default async function StaffPage({
                   {member.name}
                   {member.id === session.user.id && (
                     <span className="ml-2 text-xs text-espresso-muted">
-                      (you)
+                      {dict.staffPage.youSuffix}
                     </span>
                   )}
                 </p>
@@ -93,12 +94,12 @@ export default async function StaffPage({
                     key={role}
                     className={`rounded-full px-3 py-1 text-xs font-medium ${ROLE_BADGE[role]}`}
                   >
-                    {role}
+                    {dict.roles[role]}
                   </span>
                 ))}
                 {member.status === "DISABLED" && (
                   <span className="rounded-full bg-danger/10 px-3 py-1 text-xs font-medium text-danger">
-                    Disabled
+                    {dict.staffPage.disabledBadge}
                   </span>
                 )}
                 {canManage && !member.roles.includes("OWNER") && (
@@ -107,13 +108,13 @@ export default async function StaffPage({
                       href={`/dashboard/staff/${member.id}/attendance`}
                       className="text-sm text-terracotta-700 underline"
                     >
-                      Attendance
+                      {dict.staffPage.attendanceLink}
                     </Link>
                     <Link
                       href={`/dashboard/staff/${member.id}/edit`}
                       className="text-sm text-terracotta-700 underline"
                     >
-                      Edit
+                      {dict.staffPage.editLink}
                     </Link>
                     {member.id !== session.user.id && (
                       <form action={toggleStaffStatus.bind(null, member.id)}>
@@ -126,8 +127,8 @@ export default async function StaffPage({
                           }
                         >
                           {member.status === "DISABLED"
-                            ? "Activate"
-                            : "Disable"}
+                            ? dict.staffPage.activate
+                            : dict.staffPage.disable}
                         </button>
                       </form>
                     )}

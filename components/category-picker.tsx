@@ -1,6 +1,7 @@
 "use client";
 
 import { PillPicker } from "@/components/pill-picker";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 const CATEGORIES = [
   "cultural",
@@ -19,14 +20,23 @@ const CATEGORIES = [
   "multi-day",
 ];
 
-export function CategoryPicker({ name, defaultValue }: { name: string; defaultValue?: string }) {
+export function CategoryPicker({
+  name,
+  defaultValue,
+  dict,
+}: {
+  name: string;
+  defaultValue?: string;
+  dict: Pick<Dictionary, "tourCategories" | "tourForm" | "common">;
+}) {
   return (
     <PillPicker
       name={name}
       options={CATEGORIES}
       defaultValue={defaultValue}
-      renderLabel={(cat) => `#${cat}`}
-      customPlaceholder="Custom category"
+      renderLabel={(cat) => `#${dict.tourCategories[cat] ?? cat}`}
+      customPlaceholder={dict.tourForm.customCategoryPlaceholder}
+      otherLabel={dict.common.other}
     />
   );
 }

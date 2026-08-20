@@ -9,13 +9,15 @@ import { calculateCustomerBookingStats } from "@/lib/customers/stats";
 import { formatDate, formatMoney } from "@/lib/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function CustomerDetailPage({
   params,
 }: {
   params: Promise<{ customerId: string }>;
 }) {
-  const { customerId } = await params;
+  const [{ customerId }, { locale, dict }] = await Promise.all([params, getDictionary()]);
+  const numberLocale = locale === "ru" ? "ru-RU" : "en-US";
   const session = await requirePermission(PERMISSIONS.customersView);
   const [canManage, canDelete] = await Promise.all([
     roleHasPermission(session.user.role, PERMISSIONS.customersManage),
@@ -42,20 +44,20 @@ export default async function CustomerDetailPage({
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow="Your travelers"
+        eyebrow={dict.customersPage.eyebrow}
         title={customer.fullName}
-        subtitle={[customer.email, customer.phone, customer.nationality].filter(Boolean).join(" · ") || "No contact info"}
+        subtitle={[customer.email, customer.phone, customer.nationality].filter(Boolean).join(" · ") || dict.customersPage.noContactInfo}
         action={
           <div className="flex items-center gap-4">
             {canManage && (
               <Link href={`/dashboard/customers/${customer.id}/edit`} className="text-sm text-terracotta-700 underline">
-                Edit
+                {dict.customerDetailPage.editLink}
               </Link>
             )}
             {canDelete && bookings.length === 0 && (
               <form action={deleteCustomer.bind(null, customer.id)}>
                 <button type="submit" className="text-sm text-danger underline">
-                  Delete
+                  {dict.customerDetailPage.deleteLink}
                 </button>
               </form>
             )}
@@ -71,27 +73,29 @@ export default async function CustomerDetailPage({
 
       {totalBookings > 0 && (
         <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
-          <StatCard label="Total bookings" value={totalBookings} icon={CalendarCheck} />
+          <StatCard label={dict.customerDetailPage.totalBookings} value={totalBookings} icon={CalendarCheck} numberLocale={numberLocale} />
           <StatCard
-            label="Cancelled"
+            label={dict.customerDetailPage.cancelled}
             value={cancelledCount}
-            hint={`${cancellationRate}% of bookings`}
+            hint={`${cancellationRate}${dict.customerDetailPage.cancellationRateSuffix}`}
             icon={XCircle}
+            numberLocale={numberLocale}
           />
-          <StatCard label="No-shows" value={noShowCount} icon={UserX} />
+          <StatCard label={dict.customerDetailPage.noShows} value={noShowCount} icon={UserX} numberLocale={numberLocale} />
           <StatCard
-            label="Total spent"
+            label={dict.customerDetailPage.totalSpent}
             value={formatMoney(totalSpent, currency)}
-            hint={`${confirmedCount} honored booking${confirmedCount === 1 ? "" : "s"}`}
+            hint={`${confirmedCount} ${dict.customerDetailPage.honoredBookingsSuffix}`}
             icon={Wallet}
+            numberLocale={numberLocale}
           />
         </div>
       )}
 
       <div>
-        <h2 className="mb-4 font-serif text-lg font-medium text-espresso">Bookings</h2>
+        <h2 className="mb-4 font-serif text-lg font-medium text-espresso">{dict.customerDetailPage.bookingsHeading}</h2>
         {bookings.length === 0 ? (
-          <p className="text-sm text-espresso-muted">No bookings yet.</p>
+          <p className="text-sm text-espresso-muted">{dict.dashboardPage.noBookingsYet}</p>
         ) : (
           <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
             {bookings.map((booking) => (
@@ -103,12 +107,12 @@ export default async function CustomerDetailPage({
                 <div>
                   <p className="font-medium text-espresso">{booking.departure.tour.title}</p>
                   <p className="text-sm text-espresso-muted">
-                    {formatDate(booking.departure.date)} · {booking.paxCount} pax ·{" "}
+                    {formatDate(booking.departure.date)} · {booking.paxCount} {dict.bookingsPage.paxSuffix} ·{" "}
                     {formatMoney(booking.totalPrice.toString(), booking.currency)}
                   </p>
                 </div>
                 <span className="text-sm text-espresso-muted">
-                  {booking.status} · {booking.paymentStatus}
+                  {dict.bookingStatus[booking.status]} · {dict.paymentStatus[booking.paymentStatus]}
                 </span>
               </Link>
             ))}

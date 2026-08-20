@@ -6,9 +6,10 @@ import { scopedPrisma } from "@/lib/db/scoped";
 import { toggleVehicleActive, deleteVehicle } from "@/lib/actions/vehicles";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function VehiclesPage() {
-  const session = await requirePermission(PERMISSIONS.vehiclesView);
+  const [session, { dict }] = await Promise.all([requirePermission(PERMISSIONS.vehiclesView), getDictionary()]);
   const [canManage, canDelete] = await Promise.all([
     roleHasPermission(session.user.role, PERMISSIONS.vehiclesManage),
     roleHasPermission(session.user.role, PERMISSIONS.vehiclesDelete),
@@ -37,16 +38,16 @@ export default async function VehiclesPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Your fleet"
-        title="Vehicles"
-        subtitle="The buses, cars, and jeeps you can assign to departures."
+        eyebrow={dict.vehiclesPage.eyebrow}
+        title={dict.vehiclesPage.title}
+        subtitle={dict.vehiclesPage.subtitle}
         action={
           canManage && (
             <Link
               href="/dashboard/vehicles/new"
               className="rounded-[12px] bg-terracotta px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-terracotta-700"
             >
-              + New vehicle
+              {dict.vehiclesPage.newVehicleButton}
             </Link>
           )
         }
@@ -54,8 +55,8 @@ export default async function VehiclesPage() {
 
       {vehicles.length === 0 ? (
         <EmptyState
-          title="Your fleet is empty"
-          message="Add a vehicle — a bus, car, or jeep — so you can assign it to departures."
+          title={dict.vehiclesPage.emptyTitle}
+          message={dict.vehiclesPage.emptyMessage}
         />
       ) : (
         <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
@@ -77,27 +78,27 @@ export default async function VehiclesPage() {
                 <div>
                   <p className="font-medium text-espresso">
                     {vehicle.name}
-                    {!vehicle.isActive && <span className="ml-2 text-xs text-espresso-muted">(inactive)</span>}
+                    {!vehicle.isActive && <span className="ml-2 text-xs text-espresso-muted">{dict.vehiclesPage.inactiveSuffix}</span>}
                   </p>
                   <p className="text-sm text-espresso-muted">
-                    {[vehicle.type, `${vehicle.capacity} seats`, vehicle.licensePlate].filter(Boolean).join(" · ")}
+                    {[vehicle.type ? (dict.vehicleTypes[vehicle.type] ?? vehicle.type) : null, `${vehicle.capacity} ${dict.departureForm.seatsSuffix}`, vehicle.licensePlate].filter(Boolean).join(" · ")}
                   </p>
                 </div>
               </Link>
               {canManage && (
                 <div className="flex items-center gap-4 text-sm">
                   <Link href={`/dashboard/vehicles/${vehicle.id}/edit`} className="text-terracotta-700 underline">
-                    Edit
+                    {dict.vehiclesPage.editLink}
                   </Link>
                   <form action={toggleVehicleActive.bind(null, vehicle.id)}>
                     <button type="submit" className={vehicle.isActive ? "text-danger underline" : "text-success underline"}>
-                      {vehicle.isActive ? "Deactivate" : "Activate"}
+                      {vehicle.isActive ? dict.vehiclesPage.deactivate : dict.vehiclesPage.activate}
                     </button>
                   </form>
                   {canDelete && vehicle.departureCount === 0 && (
                     <form action={deleteVehicle.bind(null, vehicle.id)}>
                       <button type="submit" className="text-danger underline">
-                        Delete
+                        {dict.vehiclesPage.deleteLink}
                       </button>
                     </form>
                   )}

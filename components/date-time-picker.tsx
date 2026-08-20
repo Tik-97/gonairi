@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useClickOutside } from "@/components/use-click-outside";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import type { Locale } from "@/lib/i18n/config";
 
-const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 // Native <input type="time"> renders in the OS/browser's locale (AM/PM on
 // most Windows/US setups) regardless of the `lang` attribute — Chromium
 // stopped honoring per-element lang for form-control formatting some
@@ -20,8 +21,12 @@ function toDatetimeLocal(date: Date, time: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${time}`;
 }
 
-function formatDisplay(date: Date, time: string): string {
-  const datePart = date.toLocaleDateString("en-GB", {
+function dateFnsLocale(locale: Locale): string {
+  return locale === "ru" ? "ru-RU" : "en-GB";
+}
+
+function formatDisplay(date: Date, time: string, locale: Locale): string {
+  const datePart = date.toLocaleDateString(dateFnsLocale(locale), {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -89,6 +94,8 @@ export function DateTimePicker({
   placeholder,
   minDate,
   onChange,
+  locale,
+  dict,
 }: {
   name: string;
   required?: boolean;
@@ -102,6 +109,8 @@ export function DateTimePicker({
   /** Fires with the applied "YYYY-MM-DDTHH:mm" value (or "" when cleared) —
    *  lets a parent form track this picker's value to constrain another one. */
   onChange?: (value: string) => void;
+  locale: Locale;
+  dict: Dictionary["dateTimePicker"];
 }) {
   const initial = parseDefaultValue(defaultValue);
   const [open, setOpen] = useState(false);
@@ -158,7 +167,7 @@ export function DateTimePicker({
 
   const weeks = buildCalendarWeeks(viewYear, viewMonth);
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString(
-    "en-GB",
+    dateFnsLocale(locale),
     { month: "long", year: "numeric" },
   );
 
@@ -184,8 +193,8 @@ export function DateTimePicker({
             className={appliedDate ? "text-espresso" : "text-espresso-muted"}
           >
             {appliedDate
-              ? formatDisplay(appliedDate, appliedTime)
-              : (placeholder ?? "Select date & time")}
+              ? formatDisplay(appliedDate, appliedTime, locale)
+              : (placeholder ?? dict.selectDateTime)}
           </span>
         </button>
         {clearable && appliedDate && (
@@ -197,7 +206,7 @@ export function DateTimePicker({
             }}
             className="shrink-0 text-xs text-espresso-muted underline transition-colors hover:text-espresso"
           >
-            Clear
+            {dict.clear}
           </button>
         )}
       </div>
@@ -209,7 +218,7 @@ export function DateTimePicker({
               type="button"
               onClick={() => shiftMonth(-1)}
               className="flex h-7 w-7 items-center justify-center rounded-full text-espresso-muted transition-colors hover:bg-cream-100 hover:text-espresso"
-              aria-label="Previous month"
+              aria-label={dict.previousMonth}
             >
               <ChevronLeft className="h-4 w-4" strokeWidth={1.75} />
             </button>
@@ -218,15 +227,15 @@ export function DateTimePicker({
               type="button"
               onClick={() => shiftMonth(1)}
               className="flex h-7 w-7 items-center justify-center rounded-full text-espresso-muted transition-colors hover:bg-cream-100 hover:text-espresso"
-              aria-label="Next month"
+              aria-label={dict.nextMonth}
             >
               <ChevronRight className="h-4 w-4" strokeWidth={1.75} />
             </button>
           </div>
 
           <div className="mb-1 grid grid-cols-7 text-center text-xs text-espresso-muted">
-            {WEEKDAY_LABELS.map((d) => (
-              <span key={d}>{d}</span>
+            {dict.weekdays.map((d, i) => (
+              <span key={i}>{d}</span>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-y-1 text-center text-sm">
@@ -261,7 +270,7 @@ export function DateTimePicker({
           </div>
 
           <label className="mt-4 flex items-center justify-between gap-3 text-sm text-espresso-muted">
-            Time (24h)
+            {dict.time24h}
             <input
               type="text"
               inputMode="numeric"
@@ -273,12 +282,12 @@ export function DateTimePicker({
           </label>
           {!TIME_PATTERN.test(draftTime) && (
             <p className="mt-1.5 text-xs text-danger">
-              Enter a time as HH:mm, e.g. 14:30.
+              {dict.timeFormatHint}
             </p>
           )}
           {draftViolatesMin && (
             <p className="mt-1.5 text-xs text-danger">
-              Must be after {formatDisplay(minParsed.date!, minParsed.time)}.
+              {dict.mustBeAfter} {formatDisplay(minParsed.date!, minParsed.time, locale)}.
             </p>
           )}
 
@@ -288,7 +297,7 @@ export function DateTimePicker({
               onClick={() => setOpen(false)}
               className="rounded-[12px] px-4 py-2 text-sm font-medium text-espresso-muted transition-colors hover:bg-cream-100"
             >
-              Cancel
+              {dict.cancel}
             </button>
             <button
               type="button"
@@ -298,7 +307,7 @@ export function DateTimePicker({
               }
               className="rounded-[12px] bg-terracotta px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-terracotta-700 disabled:opacity-50"
             >
-              OK
+              {dict.ok}
             </button>
           </div>
         </div>

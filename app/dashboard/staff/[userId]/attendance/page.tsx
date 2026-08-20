@@ -5,8 +5,7 @@ import { requireOwner } from "@/lib/auth/session";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { setAttendance, clearAttendance } from "@/lib/actions/attendance";
 import { PageHeader } from "@/components/dashboard/page-header";
-
-const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
@@ -38,7 +37,7 @@ export default async function StaffAttendancePage({
   searchParams: Promise<{ month?: string }>;
 }) {
   const { userId } = await params;
-  const { month: monthParam } = await searchParams;
+  const [{ month: monthParam }, { locale, dict }] = await Promise.all([searchParams, getDictionary()]);
   const session = await requireOwner();
   const db = scopedPrisma(session.user.organizationId);
 
@@ -61,7 +60,7 @@ export default async function StaffAttendancePage({
   const byDay = new Map(records.map((r) => [r.date.toISOString().slice(0, 10), r.status]));
 
   const weeks = buildMonthWeeks(year, month);
-  const monthLabel = new Date(year, month, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const monthLabel = new Date(year, month, 1).toLocaleDateString(locale === "ru" ? "ru-RU" : "en-GB", { month: "long", year: "numeric" });
 
   const prevMonth = new Date(year, month - 1, 1);
   const nextMonth = new Date(year, month + 1, 1);
@@ -74,12 +73,12 @@ export default async function StaffAttendancePage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Your team"
-        title={`${member.name} — attendance`}
-        subtitle={`${workedCount} day(s) worked, ${absentCount} absent in ${monthLabel}.`}
+        eyebrow={dict.staffPage.eyebrow}
+        title={`${member.name} ${dict.attendancePage.titleSuffix}`}
+        subtitle={`${workedCount} ${dict.attendancePage.daysWorkedSuffix} ${absentCount} ${dict.attendancePage.absentInInfix} ${monthLabel}.`}
         action={
           <Link href="/dashboard/staff" className="text-sm text-terracotta-700 underline">
-            Back to staff
+            {dict.attendancePage.backToStaff}
           </Link>
         }
       />
@@ -87,17 +86,17 @@ export default async function StaffAttendancePage({
       <div className="rounded-[18px] bg-card p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
         <div className="mb-4 flex items-center justify-between">
           <Link href={prevHref} className="rounded-full px-3 py-1.5 text-sm text-espresso-muted transition-colors hover:bg-cream-100">
-            ← Prev
+            {dict.attendancePage.prev}
           </Link>
           <p className="font-serif text-lg font-medium text-espresso">{monthLabel}</p>
           <Link href={nextHref} className="rounded-full px-3 py-1.5 text-sm text-espresso-muted transition-colors hover:bg-cream-100">
-            Next →
+            {dict.attendancePage.next}
           </Link>
         </div>
 
         <div className="mb-1 grid grid-cols-7 text-center text-xs text-espresso-muted">
-          {WEEKDAY_LABELS.map((d) => (
-            <span key={d}>{d}</span>
+          {dict.dateTimePicker.weekdays.map((d, i) => (
+            <span key={i}>{d}</span>
           ))}
         </div>
 
@@ -124,7 +123,7 @@ export default async function StaffAttendancePage({
                       <form action={setAttendance.bind(null, userId, dateKey, "WORKED")}>
                         <button
                           type="submit"
-                          aria-label={`Mark ${dateKey} worked`}
+                          aria-label={`${dict.attendancePage.markWorkedPrefix} ${dateKey} ${dict.attendanceStatus.WORKED}`}
                           className={`flex h-5 w-5 items-center justify-center rounded-full transition-colors ${
                             status === "WORKED" ? "bg-success text-white" : "text-espresso-muted hover:bg-success/20"
                           }`}
@@ -135,7 +134,7 @@ export default async function StaffAttendancePage({
                       <form action={setAttendance.bind(null, userId, dateKey, "ABSENT")}>
                         <button
                           type="submit"
-                          aria-label={`Mark ${dateKey} absent`}
+                          aria-label={`${dict.attendancePage.markAbsentPrefix} ${dateKey} ${dict.attendanceStatus.ABSENT}`}
                           className={`flex h-5 w-5 items-center justify-center rounded-full transition-colors ${
                             status === "ABSENT" ? "bg-danger text-white" : "text-espresso-muted hover:bg-danger/20"
                           }`}
@@ -147,7 +146,7 @@ export default async function StaffAttendancePage({
                     {status && (
                       <form action={clearAttendance.bind(null, userId, dateKey)}>
                         <button type="submit" className="text-[10px] text-espresso-muted underline">
-                          clear
+                          {dict.attendancePage.clear}
                         </button>
                       </form>
                     )}

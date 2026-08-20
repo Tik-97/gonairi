@@ -5,6 +5,8 @@ import { scopedPrisma } from "@/lib/db/scoped";
 import { updateCustomer } from "@/lib/actions/customers";
 import { CustomerForm } from "@/components/customer-form";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { countryOptions } from "@/lib/countries";
 
 export default async function EditCustomerPage({
   params,
@@ -12,7 +14,7 @@ export default async function EditCustomerPage({
   params: Promise<{ customerId: string }>;
 }) {
   const { customerId } = await params;
-  const session = await requirePermission(PERMISSIONS.customersManage);
+  const [session, { locale, dict }] = await Promise.all([requirePermission(PERMISSIONS.customersManage), getDictionary()]);
   const db = scopedPrisma(session.user.organizationId);
   const customer = await db.customer.findFirst({ where: { id: customerId } });
 
@@ -24,10 +26,13 @@ export default async function EditCustomerPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Your travelers" title={`Edit ${customer.fullName}`} />
+      <PageHeader eyebrow={dict.customersPage.eyebrow} title={`${dict.editCustomerPage.editPrefix} ${customer.fullName}`} />
       <CustomerForm
         action={updateCustomerWithId}
-        submitLabel="Save changes"
+        submitLabel={dict.editCustomerPage.submitLabel}
+        locale={locale}
+        dict={dict}
+        countries={countryOptions(locale)}
         defaultValues={{
           fullName: customer.fullName,
           email: customer.email ?? "",
