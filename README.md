@@ -75,11 +75,14 @@ npx prisma generate
 ## Scripts
 
 - `npm run dev` / `npm run build` / `npm start`
+- `npm run build` always regenerates Prisma Client before compiling, including
+  when a deployment platform restores a cached dependency installation
 - `npm run lint` — ESLint
 - `npm test` / `npm run test:watch` — Vitest (unit + DB integration tests,
   runs against the real dev database — there is no separate test DB)
 - `npx prisma db seed` / `npm run db:seed` — idempotently import geography and
   the tour-hashtag catalogue, then create the first Platform Admin when none exists
+- `npm run db:migrate:deploy` — apply pending migrations in staging/production
 - `npm run seed:categories` — idempotently seed only the 67 tour hashtags
 - `node scripts/create-platform-admin.cjs` — bootstrap the first Super Admin
   account (signs in through `/login`)
@@ -88,6 +91,14 @@ npx prisma generate
   existing application data and never reads or changes `PlatformAdmin`. The
   command prints the generated agency-user credentials when it finishes; set
   `DEMO_SEED_PASSWORD` to override only those demo users' shared password.
+
+## Production deployment
+
+Merges to `master` can deploy automatically to the PM2 server through GitHub
+Actions. The workflow builds the application, applies migrations, runs the
+idempotent default seed, and restarts only the `gonairi` process. Complete the
+one-time SSH and GitHub environment setup in
+[`docs/PRODUCTION_DEPLOYMENT.md`](docs/PRODUCTION_DEPLOYMENT.md).
 
 ## Multi-tenancy & authorization, in one paragraph
 

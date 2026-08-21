@@ -91,7 +91,12 @@ function loadGeography() {
   return {
     countries,
     sourcePath: SOURCE_PATH,
-    sourceSha256: crypto.createHash("sha256").update(source).digest("hex"),
+    // Keep the integrity hash stable across Linux production and Windows
+    // checkouts where Git may materialize the same JSON with CRLF endings.
+    sourceSha256: crypto
+      .createHash("sha256")
+      .update(source.replaceAll("\r\n", "\n"))
+      .digest("hex"),
     totalRegions,
     regionsWithoutIsoCode,
   };

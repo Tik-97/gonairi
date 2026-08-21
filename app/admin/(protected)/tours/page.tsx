@@ -24,15 +24,27 @@ export default async function PlatformToursPage({ searchParams }: { searchParams
     prisma.organization.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.tour.count({ where }),
     prisma.tour.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    skip: pagination.skip,
-    take: pagination.take,
-    include: {
-      organization: { select: { name: true } },
-      departures: { where: { status: { not: "CANCELLED" }, date: { gte: new Date() } }, orderBy: { date: "asc" }, take: 1 },
-      _count: { select: { departures: true } },
-    },
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: pagination.skip,
+      take: pagination.take,
+      select: {
+        id: true,
+        title: true,
+        basePrice: true,
+        currency: true,
+        durationDays: true,
+        deletedAt: true,
+        isPublished: true,
+        organization: { select: { name: true } },
+        departures: {
+          where: { status: { not: "CANCELLED" }, date: { gte: new Date() } },
+          orderBy: { date: "asc" },
+          take: 1,
+          select: { date: true },
+        },
+        _count: { select: { departures: true } },
+      },
     }),
   ]);
 

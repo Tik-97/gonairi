@@ -40,17 +40,26 @@ export default async function ToursPage({
   };
   const [toursRaw, totalItems] = await Promise.all([
     db.tour.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    skip: pagination.skip,
-    take: pagination.take,
-    include: {
-      departures: {
-        where: { status: { not: "CANCELLED" }, date: { gte: new Date() } },
-        orderBy: { date: "asc" },
-        take: 1,
+      where,
+      orderBy: { createdAt: "desc" },
+      skip: pagination.skip,
+      take: pagination.take,
+      select: {
+        id: true,
+        title: true,
+        basePrice: true,
+        currency: true,
+        durationDays: true,
+        deletedAt: true,
+        isPublished: true,
+        images: true,
+        departures: {
+          where: { status: { not: "CANCELLED" }, date: { gte: new Date() } },
+          orderBy: { date: "asc" },
+          take: 1,
+          select: { date: true },
+        },
       },
-    },
     }),
     db.tour.count({ where }),
   ]);
