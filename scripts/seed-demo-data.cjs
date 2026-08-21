@@ -5,6 +5,8 @@ require("dotenv/config");
 const bcrypt = require("bcryptjs");
 const crypto = require("node:crypto");
 const { Client } = require("pg");
+const { seedCategories } = require("./seed-categories.cjs");
+const { seedGeography } = require("./seed-geography.cjs");
 
 const DEMO_DOMAIN = "demo.gonairi.test";
 const DEMO_PASSWORD = process.env.DEMO_SEED_PASSWORD || "Demo123!";
@@ -141,10 +143,25 @@ async function main() {
     vehicleIdsByOrganization.set(organizationIndex, ids);
   }
 
-  const categories = ["Cultural", "Adventure", "Food", "Nature", "History", "Family"];
-  const regions = [["Yerevan"], ["Lori"], ["Syunik"], ["Vayots Dzor"], ["Gegharkunik"], ["Shirak"]];
+  const categoryGroups = [
+    ["cultural", "history"],
+    ["adventure", "hiking"],
+    ["food", "culinary"],
+    ["nature", "photography"],
+    ["history", "religious"],
+    ["family", "day-trip"],
+  ];
+  const armenianRegionCodes = ["AM-ER", "AM-LO", "AM-SU", "AM-VD", "AM-GR", "AM-SH"];
+  const caucasusRegionGroups = [
+    ["AM-LO", "GE-TB"],
+    ["GE-KA"],
+    ["AM-SH", "GE-SJ"],
+    ["GE-IM", "GE-SZ"],
+  ];
   const tourRows = [];
   const toursByOrganization = new Map();
+  const tourRegionCodesByTourId = new Map();
+  const tourCategorySlugsByTourId = new Map();
   function addTours(organizationIndex, count) {
     const ids = [];
     for (let index = 0; index < count; index++) {
@@ -153,12 +170,18 @@ async function main() {
       const primary = organizationIndex === 0;
       const deleted = primary && index === count - 1;
       const published = !deleted && (primary ? index % 6 !== 5 : index % 4 !== 3);
+      const regionCodes = organizationIndex === 1
+        ? caucasusRegionGroups[index % caucasusRegionGroups.length]
+        : [armenianRegionCodes[index % armenianRegionCodes.length]];
+      const categorySlugs = categoryGroups[index % categoryGroups.length];
+      tourRegionCodesByTourId.set(id, regionCodes);
+      tourCategorySlugsByTourId.set(id, categorySlugs);
       tourRows.push([
         id, organizationIds[organizationIndex],
         primary ? `Armenian Experience ${String(index + 1).padStart(2, "0")}` : organizationIndex === 1 ? `Caucasus Journey ${String(index + 1).padStart(2, "0")}` : `Demo Day Tour ${String(organizationIndex + 1).padStart(2, "0")}`,
         `demo-tour-${organizationIndex + 1}-${index + 1}`,
-        `Generated ${categories[index % categories.length].toLowerCase()} itinerary covering pricing, publishing, scheduling, and booking scenarios.`,
-        categories[index % categories.length], regions[index % regions.length], (index % 4) + 1,
+        `Generated ${categorySlugs[0]} itinerary covering pricing, publishing, scheduling, and booking scenarios.`,
+        (index % 4) + 1,
         index % 3 === 0 ? ["hy", "en", "ru"] : ["hy", "en"],
         index % 5 === 0 ? ["https://images.unsplash.com/photo-1566438480900-0609be27a4be?auto=format&fit=crop&w=1200&q=80"] : [],
         JSON.stringify([{ day: 1, title: "Arrival and orientation" }, { day: 2, title: "Guided exploration" }]),
@@ -314,6 +337,35 @@ async function main() {
 
   await client.query("BEGIN");
   try {
+    const geography = await seedGeography(client);
+    const categorySeed = await seedCategories(client);
+    const requiredRegionCodes = [...new Set([...tourRegionCodesByTourId.values()].flat())];
+    const regionResult = await client.query(
+      `SELECT "id", "isoCode" FROM "Region" WHERE "isoCode" = ANY($1::text[])`,
+      [requiredRegionCodes],
+    );
+    const regionIdByCode = new Map(regionResult.rows.map((row) => [row.isoCode, row.id]));
+    const missingRegionCodes = requiredRegionCodes.filter((code) => !regionIdByCode.has(code));
+    if (missingRegionCodes.length > 0) {
+      throw new Error(`Geography seed is missing required regions: ${missingRegionCodes.join(", ")}`);
+    }
+    const tourRegionRows = [...tourRegionCodesByTourId.entries()].flatMap(([tourId, regionCodes]) =>
+      regionCodes.map((code, position) => [tourId, regionIdByCode.get(code), position, now]),
+    );
+    const requiredCategorySlugs = [...new Set([...tourCategorySlugsByTourId.values()].flat())];
+    const categoryResult = await client.query(
+      `SELECT "id", "slug" FROM "Category" WHERE "slug" = ANY($1::text[])`,
+      [requiredCategorySlugs],
+    );
+    const categoryIdBySlug = new Map(categoryResult.rows.map((row) => [row.slug, row.id]));
+    const missingCategorySlugs = requiredCategorySlugs.filter((slug) => !categoryIdBySlug.has(slug));
+    if (missingCategorySlugs.length > 0) {
+      throw new Error(`Category seed is missing required hashtags: ${missingCategorySlugs.join(", ")}`);
+    }
+    const tourCategoryRows = [...tourCategorySlugsByTourId.entries()].flatMap(([tourId, categorySlugs]) =>
+      categorySlugs.map((slug, position) => [tourId, categoryIdBySlug.get(slug), position, now]),
+    );
+
     for (const table of ["BookingTraveler", "Payment", "Booking", "DepartureVehicle", "Attendance", "Departure", "Tour", "Vehicle", "Customer"]) {
       await client.query(`DELETE FROM ${quoteIdentifier(table)} WHERE "organizationId" = ANY($1::text[])`, [organizationIds]);
     }
@@ -327,7 +379,9 @@ async function main() {
     }
     await insertRows(client, "User", ["id", "organizationId", "email", "passwordHash", "name", "phone", "roles", "status", "createdAt", "updatedAt"], staffRows);
     await insertRows(client, "Vehicle", ["id", "organizationId", "name", "type", "capacity", "licensePlate", "driverName", "driverPhone", "isActive", "createdAt", "updatedAt"], vehicleRows);
-    await insertRows(client, "Tour", ["id", "organizationId", "title", "slug", "description", "category", "regions", "durationDays", "languagesOffered", "images", "itinerary", "included", "excluded", "basePrice", "currency", "isPublished", "createdAt", "updatedAt", "deletedAt"], tourRows);
+    await insertRows(client, "Tour", ["id", "organizationId", "title", "slug", "description", "durationDays", "languagesOffered", "images", "itinerary", "included", "excluded", "basePrice", "currency", "isPublished", "createdAt", "updatedAt", "deletedAt"], tourRows);
+    await insertRows(client, "TourRegion", ["tourId", "regionId", "position", "createdAt"], tourRegionRows);
+    await insertRows(client, "TourCategory", ["tourId", "categoryId", "position", "createdAt"], tourCategoryRows);
     await insertRows(client, "Departure", ["id", "organizationId", "tourId", "date", "returnAt", "capacity", "bookedCount", "priceOverride", "status", "notes", "createdAt", "updatedAt"], departureRows);
     await insertRows(client, "DepartureVehicle", ["id", "organizationId", "departureId", "vehicleId", "driverId", "guideId", "createdAt"], departureVehicleRows);
     await insertRows(client, "Customer", ["id", "organizationId", "fullName", "email", "phone", "nationality", "notes", "source", "createdAt", "updatedAt"], customerRows);
@@ -359,6 +413,10 @@ async function main() {
     console.log(`Organizations: ${organizationRows.length}`);
     console.log(`Users: ${ownerRows.length + staffRows.length}`);
     console.log(`Tours: ${tourRows.length}`);
+    console.log(`Tour regions: ${tourRegionRows.length}`);
+    console.log(`Tour hashtags: ${tourCategoryRows.length}`);
+    console.log(`Geography: ${geography.countryCount} countries, ${geography.regionCount} regions`);
+    console.log(`Categories: ${categorySeed.categoryCount} hashtags`);
     console.log(`Departures: ${departureRows.length}`);
     console.log(`Vehicles: ${vehicleRows.length}`);
     console.log(`Customers: ${customerRows.length}`);

@@ -210,7 +210,71 @@ model Customer {
   @@index([organizationId, email])
 }
 
-/// A tour product template (not itself bookable — Departures are).
+/// ISO 3166-1 country reference data shared by every tenant. Countries are
+/// intentionally global: an agency selects destinations, but does not own or
+/// rename the geographic catalogue.
+model Country {
+  id   String  @id @default(cuid())
+  iso2 String  @unique @db.VarChar(2)
+  iso3 String? @unique @db.VarChar(3)
+  name String
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  regions Region[]
+
+  @@index([isActive, sortOrder, name])
+}
+
+/// A geographic subdivision/locality from the versioned seed catalogue.
+/// `isoCode` stores normalized ISO-style subdivision codes where the source
+/// supplies one; it remains nullable instead of inventing codes for 179 source
+/// records and for retained legacy/product-specific groupings.
+model Region {
+  id        String  @id @default(cuid())
+  countryId String
+  country   Country @relation(fields: [countryId], references: [id], onDelete: Restrict)
+
+  isoCode String? @unique @db.VarChar(10)
+  name    String
+  type    String?
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tourRegions TourRegion[]
+
+  @@unique([countryId, name])
+  @@index([countryId, isActive, sortOrder, name])
+}
+
+/// A shared, seeded tour-discovery hashtag. Categories are global reference
+/// data rather than tenant-owned free text so filters remain consistent.
+model Category {
+  id    String @id @default(cuid())
+  slug  String @unique @db.VarChar(50)
+  label String
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tourCategories TourCategory[]
+
+  @@index([isActive, sortOrder, label])
+}
+
+/// A tour product template (not itself bookable; Departures are). A deferred
+/// database constraint requires at least one TourRegion at transaction commit.
 model Tour {
   id             String       @id @default(cuid())
   organizationId String
@@ -219,8 +283,6 @@ model Tour {
   title            String
   slug             String
   description      String?
-  category         String?
-  regions          String[]
   durationDays     Int      @default(1)
   languagesOffered String[]
   images           String[]
@@ -235,12 +297,48 @@ model Tour {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  departures Departure[]
+  departures     Departure[]
+  tourRegions    TourRegion[]
+  tourCategories TourCategory[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
   @@index([organizationId, isPublished])
   @@index([organizationId, deletedAt])
+}
+
+/// Ordered many-to-many link between tours and geographic regions. Keeping an
+/// explicit join model lets the product preserve itinerary/display order and
+/// add destination-specific metadata later without changing the relationship.
+model TourRegion {
+  tourId String
+  tour   Tour   @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  regionId String
+  region   Region @relation(fields: [regionId], references: [id], onDelete: Restrict)
+
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@id([tourId, regionId])
+  @@unique([tourId, position])
+  @@index([regionId, tourId])
+}
+
+/// Ordered many-to-many link between a tour and its discovery hashtags.
+model TourCategory {
+  tourId String
+  tour   Tour   @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@id([tourId, categoryId])
+  @@unique([tourId, position])
+  @@index([categoryId, tourId])
 }
 
 /// A scheduled, dated, bookable instance of a Tour.

@@ -27,9 +27,11 @@ describe("createBooking overbooking race", () => {
         title: "Race Test Tour",
         slug: "race-test-tour",
         basePrice: 10000,
-        regions: ["Yerevan"],
         languagesOffered: [],
         images: [],
+        tourRegions: {
+          create: { region: { connect: { isoCode: "AM-ER" } } },
+        },
       },
     });
     const departure = await db.departure.create({

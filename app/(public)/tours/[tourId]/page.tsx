@@ -19,6 +19,16 @@ export default async function TourDetailPage({
     where: { id: tourId, isPublished: true, deletedAt: null, organization: { isPublished: true } },
     include: {
       organization: true,
+      tourRegions: {
+        orderBy: { position: "asc" },
+        select: {
+          region: { select: { id: true, name: true, isoCode: true, country: { select: { name: true } } } },
+        },
+      },
+      tourCategories: {
+        orderBy: { position: "asc" },
+        select: { category: { select: { id: true, slug: true } } },
+      },
     },
   });
   if (!tour) {
@@ -51,7 +61,16 @@ export default async function TourDetailPage({
         <span className="rounded-full bg-cream-100 px-3 py-1.5 font-medium text-terracotta-700">
           {formatMoney(tour.basePrice.toString(), tour.currency)} / pax
         </span>
-        {tour.category && <span className="rounded-full bg-cream-100 px-3 py-1.5 text-espresso/70">{tour.category}</span>}
+        {tour.tourCategories.map(({ category }) => (
+          <span key={category.id} className="rounded-full bg-cream-100 px-3 py-1.5 text-espresso/70">
+            #{category.slug}
+          </span>
+        ))}
+        {tour.tourRegions.map(({ region }) => (
+          <span key={region.id} className="rounded-full bg-cream-100 px-3 py-1.5 text-espresso/70">
+            {region.name}, {region.country.name}
+          </span>
+        ))}
       </div>
 
       <div>

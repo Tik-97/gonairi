@@ -3,51 +3,90 @@ import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
 import { PaginationControls } from "@/components/pagination-controls";
 import { parsePagination, type PaginationParams } from "@/lib/pagination";
+import { PublicTourFilters } from "@/components/public-tour-filters";
+import {
+  getRegionOptionById,
+  getRegionOptionByIsoCode,
+  listCountryOptions,
+  listRegionOptions,
+} from "@/lib/geography";
+import { listCategoryOptions } from "@/lib/categories";
 
 export default async function ToursSearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string } & PaginationParams>;
+  searchParams: Promise<{
+    q?: string;
+    category?: string;
+    region_id?: string;
+    region?: string;
+  } & PaginationParams>;
 }) {
   const params = await searchParams;
-  const { q, category } = params;
+  const { q, category, region_id: regionId, region: legacyRegionCode } = params;
   const pagination = parsePagination(params);
+  const [countries, categories, selectedRegion] = await Promise.all([
+    listCountryOptions(),
+    listCategoryOptions(),
+    regionId ? getRegionOptionById(regionId) : getRegionOptionByIsoCode(legacyRegionCode),
+  ]);
+  const selectedCategory = categories.find((categoryOption) => categoryOption.slug === category);
+  const initialCountry =
+    countries.find((country) => country.id === selectedRegion?.countryId) ??
+    countries.find((country) => country.iso2 === "AM") ??
+    countries[0];
 
   const where = {
-      isPublished: true,
-      deletedAt: null,
-      organization: { isPublished: true },
-      ...(category ? { category: { equals: category, mode: "insensitive" as const } } : {}),
-      ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
+    isPublished: true,
+    deletedAt: null,
+    organization: { isPublished: true },
+    ...(selectedCategory
+      ? { tourCategories: { some: { categoryId: selectedCategory.id } } }
+      : {}),
+    ...(q ? { title: { contains: q, mode: "insensitive" as const } } : {}),
+    ...(selectedRegion
+      ? {
+          tourRegions: {
+            some: { regionId: selectedRegion.id },
+          },
+        }
+      : {}),
   } as const;
-  const [tours, totalItems] = await Promise.all([
+  const [tours, totalItems, initialRegions] = await Promise.all([
     prisma.tour.findMany({
-    where,
-    include: { organization: true },
-    orderBy: { createdAt: "desc" },
-    skip: pagination.skip,
-    take: pagination.take,
+      where,
+      include: {
+        organization: true,
+        tourRegions: {
+          orderBy: { position: "asc" },
+          select: { region: { select: { name: true, country: { select: { name: true } } } } },
+        },
+        tourCategories: {
+          orderBy: { position: "asc" },
+          select: { category: { select: { id: true, slug: true } } },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip: pagination.skip,
+      take: pagination.take,
     }),
     prisma.tour.count({ where }),
+    initialCountry ? listRegionOptions(initialCountry.id) : Promise.resolve([]),
   ]);
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-serif text-3xl font-semibold text-espresso">Tours in Armenia</h1>
-      <form className="flex gap-3">
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="Search tours…"
-          className="w-full max-w-sm rounded-full border border-terracotta/25 bg-white px-4 py-2.5 text-sm text-espresso placeholder:text-espresso/40 focus:border-terracotta focus:outline-none"
-        />
-        <button
-          type="submit"
-          className="rounded-full bg-terracotta px-5 py-2.5 text-sm font-medium text-white hover:bg-terracotta-700"
-        >
-          Search
-        </button>
-      </form>
+      <h1 className="font-serif text-3xl font-semibold text-espresso">Tours</h1>
+      <PublicTourFilters
+        key={`${initialCountry?.id ?? "none"}:${selectedRegion?.id ?? "all"}:${selectedCategory?.id ?? "all"}`}
+        countries={countries}
+        categories={categories}
+        initialCountryId={initialCountry?.id ?? ""}
+        initialRegions={initialRegions}
+        initialRegionId={selectedRegion?.id}
+        query={q}
+        category={selectedCategory?.slug}
+      />
 
       {tours.length === 0 ? (
         <p className="text-sm text-espresso/60">No tours found.</p>
@@ -63,10 +102,19 @@ export default async function ToursSearchPage({
                 {tour.title}
               </p>
               <p className="text-sm text-espresso/60">{tour.organization.name}</p>
+              <p className="mt-1 text-xs text-espresso/50">
+                {tour.tourRegions
+                  .map(({ region: destination }) => `${destination.name}, ${destination.country.name}`)
+                  .join(" · ")}
+              </p>
               <p className="mt-3 text-sm font-medium text-terracotta-700">
                 {formatMoney(tour.basePrice.toString(), tour.currency)}
                 <span className="font-normal text-espresso/50"> · {tour.durationDays}d</span>
-                {tour.category ? <span className="font-normal text-espresso/50"> · {tour.category}</span> : ""}
+                {tour.tourCategories.map(({ category: tourCategory }) => (
+                  <span key={tourCategory.id} className="font-normal text-espresso/50">
+                    {" "}· #{tourCategory.slug}
+                  </span>
+                ))}
               </p>
             </Link>
           ))}

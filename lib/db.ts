@@ -10,7 +10,8 @@ function createPrismaClient() {
 }
 
 // Raw, unscoped client. Only for: public marketplace reads (always filtered to
-// isPublished/isPublic in the query itself) and platform-admin tooling.
+// isPublished/isPublic in the query itself), shared geography reference reads,
+// and platform-admin tooling.
 // Back-office code paths must use `scopedPrisma` from lib/db/scoped.ts instead.
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 

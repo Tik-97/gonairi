@@ -9,7 +9,10 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "db:seed": "prisma db seed",
     "seed:admin": "node scripts/create-platform-admin.cjs",
+    "seed:categories": "node scripts/seed-categories.cjs",
+    "seed:geography": "node scripts/seed-geography.cjs",
     "seed:demo": "node scripts/seed-demo-data.cjs",
     "postinstall": "prisma generate"
   },

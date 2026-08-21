@@ -51,8 +51,11 @@ practical getting-started guide; those two are the deeper reference.
    - `MARKETPLACE_ENABLED` — optional, defaults to closed. See `proxy.ts`.
 2. `npm install` (this also runs `prisma generate` via `postinstall`).
 3. Apply migrations: `npx prisma migrate deploy`.
-4. Create the one platform Super Admin with
-   `npm run seed:admin -- <email> <password> <name>`, then run `npm run dev`.
+4. Run `npx prisma db seed`. This imports the geography and tour-hashtag
+   catalogues, then creates the first Platform Admin from `SEED_ADMIN_EMAIL`,
+   `SEED_ADMIN_PASSWORD`, and `SEED_ADMIN_NAME`. Development defaults are
+   documented in `.env.example`; production requires secure overrides.
+   Rerunning the seed never resets an existing administrator's password.
 5. Sign in at `/login` and create each travel agency and its Owner from
    `/admin/agencies`. Public agency registration is intentionally disabled.
 
@@ -75,6 +78,9 @@ npx prisma generate
 - `npm run lint` — ESLint
 - `npm test` / `npm run test:watch` — Vitest (unit + DB integration tests,
   runs against the real dev database — there is no separate test DB)
+- `npx prisma db seed` / `npm run db:seed` — idempotently import geography and
+  the tour-hashtag catalogue, then create the first Platform Admin when none exists
+- `npm run seed:categories` — idempotently seed only the 67 tour hashtags
 - `node scripts/create-platform-admin.cjs` — bootstrap the first Super Admin
   account (signs in through `/login`)
 - `npm run seed:demo` — create a repeatable, full-feature demo dataset. It

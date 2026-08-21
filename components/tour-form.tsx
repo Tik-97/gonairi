@@ -6,6 +6,8 @@ import type { FormState } from "@/lib/form-state";
 import { uploadTourImage, deleteTourImage } from "@/lib/actions/upload";
 import { CategoryPicker } from "@/components/category-picker";
 import { RegionPicker } from "@/components/region-picker";
+import type { GeographyCountryOption, GeographyRegionOption } from "@/types/geography";
+import type { CategoryOption } from "@/types/category";
 
 const MAX_IMAGES = 10;
 
@@ -18,20 +20,30 @@ type ImageSlot =
 type TourFormValues = {
   title: string;
   description: string;
-  category: string;
+  categoryIds: string[];
   durationDays: number;
   basePrice: number;
   isPublished: boolean;
   images: string[];
-  regions: string[];
+  regionIds: string[];
 };
 
 export function TourForm({
   action,
+  categories,
+  countries,
+  initialCountryId,
+  initialRegions,
+  selectedRegions,
   defaultValues,
   submitLabel,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
+  categories: CategoryOption[];
+  countries: GeographyCountryOption[];
+  initialCountryId: string;
+  initialRegions: GeographyRegionOption[];
+  selectedRegions?: GeographyRegionOption[];
   defaultValues?: Partial<TourFormValues>;
   submitLabel: string;
 }) {
@@ -95,12 +107,23 @@ export function TourForm({
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Category
-        <CategoryPicker name="category" defaultValue={defaultValues?.category} />
+        Category hashtags
+        <CategoryPicker
+          name="categoryIds"
+          categories={categories}
+          defaultValue={defaultValues?.categoryIds}
+        />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Region
-        <RegionPicker name="regions" defaultValue={defaultValues?.regions} />
+        Regions
+        <RegionPicker
+          name="regionIds"
+          countries={countries}
+          initialCountryId={initialCountryId}
+          initialRegions={initialRegions}
+          selectedRegions={selectedRegions}
+          defaultValue={defaultValues?.regionIds}
+        />
       </label>
       <label className="flex flex-col gap-1 text-sm">
         Duration (days)

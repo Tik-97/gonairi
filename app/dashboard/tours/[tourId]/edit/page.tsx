@@ -5,6 +5,8 @@ import { scopedPrisma } from "@/lib/db/scoped";
 import { updateTour } from "@/lib/actions/tours";
 import { TourForm } from "@/components/tour-form";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { listCountryOptions, listRegionOptions } from "@/lib/geography";
+import { listCategoryOptions } from "@/lib/categories";
 
 export default async function EditTourPage({
   params,
@@ -14,12 +16,49 @@ export default async function EditTourPage({
   const { tourId } = await params;
   const session = await requirePermission(PERMISSIONS.toursManage);
   const db = scopedPrisma(session.user.organizationId);
-  const tour = await db.tour.findFirst({ where: { id: tourId, deletedAt: null } });
+  const [tour, countries] = await Promise.all([
+    db.tour.findFirst({
+      where: { id: tourId, deletedAt: null },
+      include: {
+        tourRegions: {
+          orderBy: { position: "asc" },
+          select: {
+            region: {
+              select: {
+                id: true,
+                countryId: true,
+                isoCode: true,
+                name: true,
+                type: true,
+                isActive: true,
+              },
+            },
+          },
+        },
+        tourCategories: {
+          orderBy: { position: "asc" },
+          select: { categoryId: true },
+        },
+      },
+    }),
+    listCountryOptions(),
+  ]);
 
   if (!tour) {
     notFound();
   }
 
+  const selectedRegions = tour.tourRegions.map(({ region }) => region);
+  const selectedRegionIds = selectedRegions.map(({ id }) => id);
+  const selectedCategoryIds = tour.tourCategories.map(({ categoryId }) => categoryId);
+  const initialCountry =
+    countries.find((country) => country.id === selectedRegions[0]?.countryId) ??
+    countries.find((country) => country.iso2 === "AM") ??
+    countries[0];
+  const [initialRegions, categories] = await Promise.all([
+    initialCountry ? listRegionOptions(initialCountry.id, selectedRegionIds) : Promise.resolve([]),
+    listCategoryOptions(selectedCategoryIds),
+  ]);
   const updateTourWithId = updateTour.bind(null, tour.id);
 
   return (
@@ -27,16 +66,21 @@ export default async function EditTourPage({
       <PageHeader eyebrow="Your catalogue" title={tour.title} subtitle="Refine the details of this tour." />
       <TourForm
         action={updateTourWithId}
+        categories={categories}
+        countries={countries}
+        initialCountryId={initialCountry?.id ?? ""}
+        initialRegions={initialRegions}
+        selectedRegions={selectedRegions}
         submitLabel="Save changes"
         defaultValues={{
           title: tour.title,
           description: tour.description ?? "",
-          category: tour.category ?? "",
+          categoryIds: selectedCategoryIds,
           durationDays: tour.durationDays,
           basePrice: Number(tour.basePrice),
           isPublished: tour.isPublished,
           images: tour.images,
-          regions: tour.regions,
+          regionIds: selectedRegionIds,
         }}
       />
     </div>
