@@ -6,7 +6,8 @@ import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { deleteCustomer } from "@/lib/actions/customers";
 import { calculateCustomerBookingStats } from "@/lib/customers/stats";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { PaginationControls } from "@/components/pagination-controls";
@@ -117,7 +118,7 @@ export default async function CustomerDetailPage({
                 <div>
                   <p className="font-medium text-espresso">{booking.departure.tour.title}</p>
                   <p className="text-sm text-espresso-muted">
-                    {formatDate(booking.departure.date)} · {booking.paxCount} pax ·{" "}
+                    <LocalDateTime value={booking.departure.date.toISOString()} /> · {booking.paxCount} pax ·{" "}
                     {formatMoney(booking.totalPrice.toString(), booking.currency)}
                   </p>
                 </div>

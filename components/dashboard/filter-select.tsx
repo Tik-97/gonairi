@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
+import { getBrowserTimeZone } from "@/lib/time-zone";
 
 export function FilterSelect({
   paramName,
@@ -67,6 +68,7 @@ export function DateRangeFilterInput({
   function navigate(nextFrom: string, nextTo: string) {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("page");
+    params.set("timeZone", getBrowserTimeZone());
     if (nextFrom) params.set(fromParam, nextFrom);
     else params.delete(fromParam);
     if (nextTo) params.set(toParam, nextTo);

@@ -1,7 +1,8 @@
 import { Map as MapIcon } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/auth/platform-admin-session";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { SearchInput } from "@/components/dashboard/search-input";
@@ -65,7 +66,7 @@ export default async function PlatformToursPage({ searchParams }: { searchParams
                 <div>
                   <p className="font-medium text-espresso">{tour.title}</p>
                   <p className="text-sm text-espresso-muted">{tour.organization.name} · {formatMoney(tour.basePrice.toString(), tour.currency)} · {tour.durationDays}d · {tour._count.departures} departures</p>
-                  <p className="text-sm text-terracotta-700">{tour.departures[0] ? `Next: ${formatDate(tour.departures[0].date)}` : "No upcoming departure"}</p>
+                  <p className="text-sm text-terracotta-700">{tour.departures[0] ? <>Next: <LocalDateTime value={tour.departures[0].date.toISOString()} /></> : "No upcoming departure"}</p>
                 </div>
               </div>
               <span className={tour.deletedAt ? "text-sm text-danger" : tour.isPublished ? "text-sm text-success" : "text-sm text-espresso-muted"}>{tour.deletedAt ? "Deleted" : tour.isPublished ? "Published" : "Draft"}</span>

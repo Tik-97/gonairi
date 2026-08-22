@@ -2,6 +2,9 @@
 
 import { useActionState } from "react";
 import type { FormState } from "@/lib/form-state";
+import { TimeZoneInput } from "@/components/time-zone-input";
+import { dateKeyInTimeZone } from "@/lib/time-zone";
+import { useBrowserTimeZone } from "@/lib/use-browser-time-zone";
 
 const METHOD_OPTIONS: { value: string; label: string }[] = [
   { value: "CASH", label: "Cash" },
@@ -18,10 +21,12 @@ export function PaymentForm({
   currency: string;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
-  const today = new Date().toISOString().slice(0, 10);
+  const timeZone = useBrowserTimeZone();
+  const today = dateKeyInTimeZone(new Date(), timeZone) ?? "";
 
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-3">
+      <TimeZoneInput />
       <label className="flex flex-col gap-1 text-sm">
         Amount ({currency})
         <input

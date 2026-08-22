@@ -7,11 +7,13 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma, type ScopedPrisma } from "@/lib/db/scoped";
 import { derivePaymentStatus } from "@/lib/payments/derive-status";
 import { formStateFromZodError, type FormState } from "@/lib/form-state";
+import { isValidTimeZone, zonedDateTimeToUtc } from "@/lib/time-zone";
 
 const RecordPaymentSchema = z.object({
   amount: z.coerce.number().positive("Enter an amount greater than zero."),
   method: z.enum(["CASH", "BANK_TRANSFER", "CARD_ONLINE", "OTHER"]),
   paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date."),
+  timeZone: z.string().refine(isValidTimeZone, "Your browser sent an invalid timezone."),
   reference: z.string().trim().optional(),
 });
 
@@ -45,6 +47,7 @@ export async function recordPayment(
     amount: formData.get("amount"),
     method: formData.get("method"),
     paidAt: formData.get("paidAt"),
+    timeZone: formData.get("timeZone"),
     reference: formData.get("reference") || undefined,
   });
   if (!parsed.success) {
@@ -55,6 +58,10 @@ export async function recordPayment(
   const booking = await db.booking.findFirst({ where: { id: bookingId } });
   if (!booking) {
     return { error: "Booking not found." };
+  }
+  const paidAt = zonedDateTimeToUtc(`${parsed.data.paidAt}T00:00`, parsed.data.timeZone);
+  if (!paidAt) {
+    return { error: "That payment date is not valid in your timezone." };
   }
 
   await db.payment.create({
@@ -67,7 +74,7 @@ export async function recordPayment(
       status: "COMPLETED",
       externalReference: parsed.data.reference || null,
       recordedByUserId: session.user.id,
-      paidAt: new Date(`${parsed.data.paidAt}T00:00:00`),
+      paidAt,
     },
   });
 

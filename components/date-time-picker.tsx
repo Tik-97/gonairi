@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useClickOutside } from "@/components/use-click-outside";
+import { utcInstantToZonedInput, zonedDateTimeToUtc } from "@/lib/time-zone";
+import { useBrowserTimeZone } from "@/lib/use-browser-time-zone";
 
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 // Native <input type="time"> renders in the OS/browser's locale (AM/PM on
@@ -81,7 +83,19 @@ function combine(date: Date, time: string): Date {
   return combined;
 }
 
-export function DateTimePicker({
+type DateTimePickerProps = {
+  name: string;
+  required?: boolean;
+  defaultValue?: string;
+  clearable?: boolean;
+  placeholder?: string;
+  minDate?: string;
+  onChange?: (value: string) => void;
+};
+
+type DateTimePickerInnerProps = DateTimePickerProps & { timeZone: string };
+
+function DateTimePickerInner({
   name,
   required,
   defaultValue,
@@ -89,20 +103,13 @@ export function DateTimePicker({
   placeholder,
   minDate,
   onChange,
-}: {
-  name: string;
-  required?: boolean;
-  defaultValue?: string;
+  timeZone,
+}: DateTimePickerInnerProps) {
   /** Shows a "Clear" action so an optional value can be unset once applied. */
-  clearable?: boolean;
-  placeholder?: string;
   /** "YYYY-MM-DDTHH:mm" — earlier days are unpickable, and on the boundary
    *  day the time input won't go earlier than this either. */
-  minDate?: string;
   /** Fires with the applied "YYYY-MM-DDTHH:mm" value (or "" when cleared) —
    *  lets a parent form track this picker's value to constrain another one. */
-  onChange?: (value: string) => void;
-}) {
   const initial = parseDefaultValue(defaultValue);
   const [open, setOpen] = useState(false);
   const [appliedDate, setAppliedDate] = useState<Date | null>(initial.date);
@@ -112,6 +119,9 @@ export function DateTimePicker({
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(new Date().getMonth());
   const containerRef = useClickOutside<HTMLDivElement>(() => setOpen(false));
+  const appliedUtc = appliedDate
+    ? zonedDateTimeToUtc(toDatetimeLocal(appliedDate, appliedTime), timeZone)?.toISOString() ?? ""
+    : "";
 
   const minParsed = parseDefaultValue(minDate);
   const minDateTime = minParsed.date
@@ -167,7 +177,7 @@ export function DateTimePicker({
       <input
         type="hidden"
         name={name}
-        value={appliedDate ? toDatetimeLocal(appliedDate, appliedTime) : ""}
+        value={appliedUtc}
         required={required}
       />
       <div className="flex items-center gap-2">
@@ -305,4 +315,13 @@ export function DateTimePicker({
       )}
     </div>
   );
+}
+
+export function DateTimePicker(props: DateTimePickerProps) {
+  const timeZone = useBrowserTimeZone();
+  const isInstant = Boolean(props.defaultValue && /Z$|[+-]\d{2}:\d{2}$/.test(props.defaultValue));
+  const defaultValue = isInstant
+    ? utcInstantToZonedInput(props.defaultValue!, timeZone)
+    : props.defaultValue;
+  return <DateTimePickerInner key={`${props.defaultValue ?? ""}:${timeZone}`} {...props} defaultValue={defaultValue} timeZone={timeZone} />;
 }

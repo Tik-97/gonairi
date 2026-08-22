@@ -4,7 +4,7 @@ import { Bus, Car } from "lucide-react";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { formatDate } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { PaginationControls } from "@/components/pagination-controls";
@@ -86,8 +86,8 @@ export default async function VehicleDetailPage({
                 <div className="flex-1">
                   <p className="font-medium text-espresso">{departure.tour.title}</p>
                   <p className="text-sm text-espresso-muted">
-                    {formatDate(departure.date)}
-                    {departure.returnAt && ` – back ${formatDate(departure.returnAt)}`} · {departure.bookedCount}/
+                    <LocalDateTime value={departure.date.toISOString()} />
+                    {departure.returnAt && <> – back <LocalDateTime value={departure.returnAt.toISOString()} /></>} · {departure.bookedCount}/
                     {departure.capacity} booked · {departure.status}
                     {driver && ` · Driver: ${driver.name}`}
                     {guide && ` · Guide: ${guide.name}`}

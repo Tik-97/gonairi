@@ -1,7 +1,8 @@
 import { Banknote, Clock, Receipt, Wallet } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/auth/platform-admin-session";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -42,7 +43,7 @@ export default async function PlatformFinancesPage({ searchParams }: { searchPar
       {totals.length > 1 && <div className="rounded-[18px] bg-card p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]"><h2 className="mb-3 font-serif text-lg font-semibold text-espresso">By currency</h2>{totals.map((row) => <div key={row.currency} className="flex items-center justify-between border-t border-border py-2.5 text-sm first:border-0"><span className="font-medium">{row.currency}</span><span className="text-espresso-muted">{formatMoney(row.collected, row.currency)} collected of {formatMoney(row.revenue, row.currency)}</span></div>)}</div>}
       <section className="rounded-[18px] bg-card p-5 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
         <h2 className="mb-4 font-serif text-xl font-semibold text-espresso">Recent payments</h2>
-        {payments.length === 0 ? <EmptyState title="No payments recorded" message="Completed payments will appear here." /> : <div className="flex flex-col divide-y divide-border">{payments.map((payment) => <div key={payment.id} className="flex flex-col gap-1 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-espresso">{payment.booking.customer.fullName} · {payment.booking.departure.tour.title}</p><p className="text-espresso-muted">{payment.organization.name} · {payment.method} · {formatDate(payment.paidAt)}</p></div><span className="font-medium text-terracotta-700">{formatMoney(payment.amount.toString(), payment.currency)}</span></div>)}</div>}
+        {payments.length === 0 ? <EmptyState title="No payments recorded" message="Completed payments will appear here." /> : <div className="flex flex-col divide-y divide-border">{payments.map((payment) => <div key={payment.id} className="flex flex-col gap-1 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-espresso">{payment.booking.customer.fullName} · {payment.booking.departure.tour.title}</p><p className="text-espresso-muted">{payment.organization.name} · {payment.method} · <LocalDateTime value={payment.paidAt.toISOString()} /></p></div><span className="font-medium text-terracotta-700">{formatMoney(payment.amount.toString(), payment.currency)}</span></div>)}</div>}
       </section>
       <PaginationControls totalItems={paymentCount} page={pagination.page} perPage={pagination.perPage} />
     </div>

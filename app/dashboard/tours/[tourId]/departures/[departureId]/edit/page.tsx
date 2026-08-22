@@ -6,17 +6,6 @@ import { updateDeparture } from "@/lib/actions/departures";
 import { DepartureForm } from "@/components/departure-form";
 import { PageHeader } from "@/components/dashboard/page-header";
 
-function pad(n: number): string {
-  return String(n).padStart(2, "0");
-}
-
-/** Matches the "YYYY-MM-DDTHH:mm" shape DateTimePicker submits/expects,
- *  formatted from the server's local time — the same interpretation used
- *  when the value was originally parsed (`new Date(dateString)`) on save. */
-function toDatetimeLocalValue(date: Date): string {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 export default async function EditDeparturePage({
   params,
 }: {
@@ -84,8 +73,8 @@ export default async function EditDeparturePage({
         restrictPastDates={false}
         departureId={departure.id}
         defaultValues={{
-          date: toDatetimeLocalValue(departure.date),
-          returnAt: departure.returnAt ? toDatetimeLocalValue(departure.returnAt) : undefined,
+          date: departure.date.toISOString(),
+          returnAt: departure.returnAt?.toISOString(),
           vehicleRows: departure.vehicles.map((v) => ({
             vehicleId: v.vehicleId ?? undefined,
             driverId: v.driverId ?? undefined,

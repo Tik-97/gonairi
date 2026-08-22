@@ -3,7 +3,7 @@ import { CalendarClock } from "lucide-react";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { formatDate } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { formatDepartureCrew } from "@/lib/departures/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -96,7 +96,7 @@ export default async function MySchedulePage({
                 <div>
                   <p className="font-medium text-espresso">{departure.tour.title}</p>
                   <p className="text-sm text-espresso-muted">
-                    {formatDate(departure.date)} · {departure.bookedCount}/{departure.capacity} pax · {departure.status}
+                    <LocalDateTime value={departure.date.toISOString()} /> · {departure.bookedCount}/{departure.capacity} pax · {departure.status}
                     {departure.myVehicles.length > 0 && ` · ${formatDepartureCrew(departure.myVehicles)}`}
                   </p>
                 </div>

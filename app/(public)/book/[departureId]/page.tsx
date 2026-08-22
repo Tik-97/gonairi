@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { createGuestBooking } from "@/lib/actions/guest-bookings";
 import { GuestBookingForm } from "@/components/guest-booking-form";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 
 export default async function BookDeparturePage({
   params,
@@ -32,7 +33,7 @@ export default async function BookDeparturePage({
       <div>
         <h1 className="font-serif text-3xl font-semibold text-espresso">{departure.tour.title}</h1>
         <p className="mt-1 text-sm text-espresso/60">
-          {departure.tour.organization.name} · {formatDate(departure.date)} ·{" "}
+          {departure.tour.organization.name} · <LocalDateTime value={departure.date.toISOString()} /> ·{" "}
           <span className="font-medium text-terracotta-700">
             {formatMoney(unitPrice.toString(), departure.tour.currency)} / pax
           </span>

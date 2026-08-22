@@ -6,7 +6,8 @@ import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { updateBookingStatus } from "@/lib/actions/bookings";
 import { recordPayment, deletePayment } from "@/lib/actions/payments";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { PaymentForm } from "@/components/payment-form";
 
@@ -66,7 +67,7 @@ export default async function BookingDetailPage({
       <PageHeader
         eyebrow="Your ledger"
         title={booking.departure.tour.title}
-        subtitle={formatDate(booking.departure.date)}
+        subtitle={<LocalDateTime value={booking.departure.date.toISOString()} />}
       />
 
       <div className="grid grid-cols-2 gap-6 rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)] p-6">
@@ -236,7 +237,7 @@ export default async function BookingDetailPage({
                     </span>{" "}
                     <span className="text-espresso-muted">
                       · {METHOD_LABEL[payment.method]} ·{" "}
-                      {formatDate(payment.paidAt)}
+                      <LocalDateTime value={payment.paidAt.toISOString()} />
                       {payment.externalReference
                         ? ` · ${payment.externalReference}`
                         : ""}

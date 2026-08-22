@@ -87,8 +87,8 @@ model PlatformAdmin {
   passwordHash String
   name         String
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 }
 
 /// A single permission grant for a UserRole, platform-wide (not tenant-scoped).
@@ -99,7 +99,7 @@ model RolePermission {
   id         String   @id @default(cuid())
   role       UserRole
   permission String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
 
   @@unique([role, permission])
   @@index([role])
@@ -122,8 +122,8 @@ model Organization {
   timezone     String  @default("Asia/Yerevan")
   isPublished  Boolean @default(false)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   users             User[]             @relation("OrganizationMembers")
   customers         Customer[]
@@ -156,8 +156,8 @@ model User {
   roles        UserRole[] @default([OPERATOR])
   status       UserStatus @default(ACTIVE)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   createdBookings         Booking[]          @relation("BookingCreatedByUser")
   guidedDepartureVehicles DepartureVehicle[] @relation("DepartureVehicleGuide")
@@ -181,8 +181,8 @@ model Attendance {
   status AttendanceStatus
   note   String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@unique([userId, date])
   @@index([organizationId, date])
@@ -201,8 +201,8 @@ model Customer {
   notes       String?
   source      BookingSource @default(MANUAL)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   bookings Booking[]
 
@@ -222,8 +222,8 @@ model Country {
   isActive  Boolean @default(true)
   sortOrder Int     @default(0)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   regions Region[]
 
@@ -246,8 +246,8 @@ model Region {
   isActive  Boolean @default(true)
   sortOrder Int     @default(0)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   tourRegions TourRegion[]
 
@@ -265,8 +265,8 @@ model Category {
   isActive  Boolean @default(true)
   sortOrder Int     @default(0)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   tourCategories TourCategory[]
 
@@ -293,9 +293,9 @@ model Tour {
   currency         String   @default("AMD")
   isPublished      Boolean  @default(false)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  deletedAt DateTime? @db.Timestamptz(3)
 
   departures     Departure[]
   tourRegions    TourRegion[]
@@ -318,7 +318,7 @@ model TourRegion {
   region   Region @relation(fields: [regionId], references: [id], onDelete: Restrict)
 
   position  Int      @default(0)
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@id([tourId, regionId])
   @@unique([tourId, position])
@@ -334,7 +334,7 @@ model TourCategory {
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   position  Int      @default(0)
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@id([tourId, categoryId])
   @@unique([tourId, position])
@@ -349,19 +349,19 @@ model Departure {
   tourId         String
   tour           Tour         @relation(fields: [tourId], references: [id], onDelete: Cascade)
 
-  date          DateTime
+  date          DateTime        @db.Timestamptz(3)
   /// Estimated return time — when the assigned vehicle is expected back and
   /// free to be booked on another departure. Null means unknown; conflict
   /// checks then assume the vehicle is tied up for a full 24h from `date`.
-  returnAt      DateTime?
+  returnAt      DateTime?       @db.Timestamptz(3)
   capacity      Int
   bookedCount   Int             @default(0)
   priceOverride Decimal?        @db.Decimal(10, 2)
   status        DepartureStatus @default(SCHEDULED)
   notes         String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   bookings Booking[]
   vehicles DepartureVehicle[]
@@ -391,7 +391,7 @@ model DepartureVehicle {
   guideId   String?
   guide     User?    @relation("DepartureVehicleGuide", fields: [guideId], references: [id], onDelete: SetNull)
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@unique([departureId, vehicleId])
   @@index([organizationId])
@@ -422,8 +422,8 @@ model Booking {
   specialRequests String?
   lookupToken     String        @unique @default(cuid())
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   payments  Payment[]
   travelers BookingTraveler[]
@@ -448,7 +448,7 @@ model BookingTraveler {
   isChild   Boolean           @default(false)
   priceType TravelerPriceType @default(FULL)
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([organizationId])
   @@index([bookingId])
@@ -468,8 +468,8 @@ model Vehicle {
   driverPhone  String?
   isActive     Boolean @default(true)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   departureVehicles DepartureVehicle[]
 
@@ -490,9 +490,9 @@ model Payment {
   status            PaymentRecordStatus @default(COMPLETED)
   externalReference String?
   recordedByUserId  String?
-  paidAt            DateTime            @default(now())
+  paidAt            DateTime            @default(now()) @db.Timestamptz(3)
 
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([organizationId])
   @@index([bookingId])

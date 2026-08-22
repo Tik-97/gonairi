@@ -5,7 +5,8 @@ import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { deleteTour, restoreTour } from "@/lib/actions/tours";
 import { sortByNextDeparture } from "@/lib/tours/sort";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { SearchInput } from "@/components/dashboard/search-input";
@@ -147,7 +148,7 @@ export default async function ToursPage({
                     </p>
                     <p className="mt-1 text-sm font-medium text-terracotta-700">
                       {nextDeparture
-                        ? `Next: ${formatDate(nextDeparture.date)}`
+                        ? <>Next: <LocalDateTime value={nextDeparture.date.toISOString()} /></>
                         : "No upcoming departures"}
                     </p>
                   </div>

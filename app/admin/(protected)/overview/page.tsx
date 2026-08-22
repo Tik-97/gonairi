@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Building2, CalendarCheck, CalendarClock, Map, Users } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/auth/platform-admin-session";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatCard } from "@/components/dashboard/stat-card";
 
@@ -64,7 +65,7 @@ export default async function PlatformOverviewPage() {
                 <div key={booking.id} className="flex flex-col gap-1 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="font-medium text-espresso">{booking.customer.fullName} · {booking.departure.tour.title}</p>
-                    <p className="text-espresso-muted">{booking.organization.name} · {formatDate(booking.departure.date)}</p>
+                    <p className="text-espresso-muted">{booking.organization.name} · <LocalDateTime value={booking.departure.date.toISOString()} /></p>
                   </div>
                   <span className="font-medium text-terracotta-700">{formatMoney(booking.totalPrice.toString(), booking.currency)}</span>
                 </div>

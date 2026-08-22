@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/auth/platform-admin-session";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { SearchInput } from "@/components/dashboard/search-input";
@@ -50,7 +51,7 @@ export default async function PlatformBookingsPage({ searchParams }: { searchPar
             <div key={booking.id} className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div>
                 <p className="font-medium text-espresso">{booking.customer.fullName} · {booking.departure.tour.title}</p>
-                <p className="text-sm text-espresso-muted">{booking.organization.name} · {formatDate(booking.departure.date)} · {booking.paxCount} pax · {formatMoney(booking.totalPrice.toString(), booking.currency)}</p>
+                <p className="text-sm text-espresso-muted">{booking.organization.name} · <LocalDateTime value={booking.departure.date.toISOString()} /> · {booking.paxCount} pax · {formatMoney(booking.totalPrice.toString(), booking.currency)}</p>
               </div>
               <span className="text-sm text-espresso-muted">{booking.status} · {booking.paymentStatus} · {booking.source}</span>
             </div>

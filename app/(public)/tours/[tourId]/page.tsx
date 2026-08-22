@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { PaginationControls } from "@/components/pagination-controls";
 import { parsePagination, type PaginationParams } from "@/lib/pagination";
 
@@ -84,7 +85,7 @@ export default async function TourDetailPage({
               return (
                 <div key={departure.id} className="flex items-center justify-between px-5 py-4">
                   <div>
-                    <p className="font-medium text-espresso">{formatDate(departure.date)}</p>
+                    <p className="font-medium text-espresso"><LocalDateTime value={departure.date.toISOString()} /></p>
                     <p className="text-sm text-espresso/60">
                       {remaining > 0 ? `${remaining} seats left` : "Fully booked"} ·{" "}
                       {formatMoney((departure.priceOverride ?? tour.basePrice).toString(), tour.currency)}

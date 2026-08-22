@@ -8,10 +8,14 @@ import { scopedPrisma } from "@/lib/db/scoped";
 import { formStateFromZodError, type FormState } from "@/lib/form-state";
 import { logError } from "@/lib/log";
 import { vehicleWindow, windowsOverlap } from "@/lib/departures/vehicle-availability";
+import { dateKeyInTimeZone, isValidTimeZone, localDateUtcRange } from "@/lib/time-zone";
+
+const UTC_INSTANT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
 const DepartureSchema = z.object({
-  date: z.string().min(1, "Date is required."),
-  returnAt: z.string().trim().optional(),
+  date: z.string().regex(UTC_INSTANT_PATTERN, "Enter a valid date and time."),
+  returnAt: z.string().regex(UTC_INSTANT_PATTERN, "Enter a valid return date and time.").optional(),
+  timeZone: z.string().refine(isValidTimeZone, "Your browser sent an invalid timezone."),
   capacity: z.coerce.number().int().min(1, "Capacity must be at least 1."),
   priceOverride: z.coerce.number().min(0).optional(),
   notes: z.string().trim().optional(),
@@ -65,8 +69,8 @@ function findIntraSubmissionConflict(rows: VehicleAssignmentRow[]): string | nul
   return null;
 }
 
-function formatTime(date: Date): string {
-  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Yerevan" }).format(
+function formatTime(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone }).format(
     date,
   );
 }
@@ -108,18 +112,18 @@ async function findStaffConflict(
   db: ReturnType<typeof scopedPrisma>,
   personId: string,
   date: Date,
+  timeZone: string,
   excludeDepartureId?: string,
 ) {
-  const dayStart = new Date(date);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
+  const dateKey = dateKeyInTimeZone(date, timeZone);
+  const range = dateKey ? localDateUtcRange(dateKey, timeZone) : null;
+  if (!range) return null;
 
   return db.departureVehicle.findFirst({
     where: {
       OR: [{ driverId: personId }, { guideId: personId }],
       departure: {
-        date: { gte: dayStart, lt: dayEnd },
+        date: { gte: range.start, lt: range.end },
         status: { not: "CANCELLED" },
         ...(excludeDepartureId ? { id: { not: excludeDepartureId } } : {}),
       },
@@ -138,6 +142,7 @@ async function checkVehicleRow(
   row: VehicleAssignmentRow,
   date: Date,
   returnAt: Date | null,
+  timeZone: string,
   excludeDepartureId?: string,
 ): Promise<string | null> {
   const label = `Vehicle #${rowIndex + 1}`;
@@ -148,21 +153,21 @@ async function checkVehicleRow(
     const conflict = await findVehicleConflict(db, row.vehicleId, date, returnAt, excludeDepartureId);
     if (conflict) {
       const conflictEnd = vehicleWindow(conflict.date, conflict.returnAt).end;
-      return `${label}: ${vehicle.name} is still tied up with "${conflict.tour.title}" until ~${formatTime(conflictEnd)} (return time + 1h buffer) — pick a later departure or a different vehicle.`;
+      return `${label}: ${vehicle.name} is still tied up with "${conflict.tour.title}" until ~${formatTime(conflictEnd, timeZone)} (return time + 1h buffer) — pick a later departure or a different vehicle.`;
     }
   }
 
   if (row.driverId) {
     const driver = await db.user.findFirst({ where: { id: row.driverId, roles: { hasSome: ["DRIVER", "DRIVER_GUIDE"] } } });
     if (!driver) return `${label}: selected driver not found.`;
-    const conflict = await findStaffConflict(db, row.driverId, date, excludeDepartureId);
+    const conflict = await findStaffConflict(db, row.driverId, date, timeZone, excludeDepartureId);
     if (conflict) return `${label}: ${driver.name} is already crewing "${conflict.departure.tour.title}" that same day.`;
   }
 
   if (row.guideId) {
     const guide = await db.user.findFirst({ where: { id: row.guideId, roles: { hasSome: ["GUIDE", "DRIVER_GUIDE"] } } });
     if (!guide) return `${label}: selected guide not found.`;
-    const conflict = await findStaffConflict(db, row.guideId, date, excludeDepartureId);
+    const conflict = await findStaffConflict(db, row.guideId, date, timeZone, excludeDepartureId);
     if (conflict) return `${label}: ${guide.name} is already crewing "${conflict.departure.tour.title}" that same day.`;
   }
 
@@ -174,10 +179,11 @@ async function checkAllRows(
   rows: VehicleAssignmentRow[],
   date: Date,
   returnAt: Date | null,
+  timeZone: string,
   excludeDepartureId?: string,
 ): Promise<string | null> {
   for (let i = 0; i < rows.length; i++) {
-    const error = await checkVehicleRow(db, i, rows[i], date, returnAt, excludeDepartureId);
+    const error = await checkVehicleRow(db, i, rows[i], date, returnAt, timeZone, excludeDepartureId);
     if (error) return error;
   }
   return null;
@@ -193,10 +199,16 @@ export async function checkVehicleAvailability(
   vehicleId: string,
   dateStr: string,
   returnAtStr: string | null,
+  timeZone: string,
   excludeDepartureId?: string,
 ): Promise<{ conflict: string | null }> {
   const session = await requirePermission(PERMISSIONS.departuresManage);
-  if (!vehicleId || !dateStr) {
+  if (
+    !vehicleId ||
+    !UTC_INSTANT_PATTERN.test(dateStr) ||
+    (returnAtStr !== null && !UTC_INSTANT_PATTERN.test(returnAtStr)) ||
+    !isValidTimeZone(timeZone)
+  ) {
     return { conflict: null };
   }
   const date = new Date(dateStr);
@@ -220,7 +232,7 @@ export async function checkVehicleAvailability(
   }
   const conflictEnd = vehicleWindow(conflict.date, conflict.returnAt).end;
   return {
-    conflict: `${vehicle.name} is tied up with "${conflict.tour.title}" until ~${formatTime(conflictEnd)} (return time + 1h buffer).`,
+    conflict: `${vehicle.name} is tied up with "${conflict.tour.title}" until ~${formatTime(conflictEnd, timeZone)} (return time + 1h buffer).`,
   };
 }
 
@@ -243,6 +255,7 @@ export async function createDeparture(
   const parsed = DepartureSchema.safeParse({
     date: formData.get("date"),
     returnAt: formData.get("returnAt") || undefined,
+    timeZone: formData.get("timeZone"),
     capacity: formData.get("capacity"),
     priceOverride: priceOverrideRaw ? priceOverrideRaw : undefined,
     notes: formData.get("notes"),
@@ -277,7 +290,7 @@ export async function createDeparture(
       return { error: "Tour not found." };
     }
 
-    const rowsError = await checkAllRows(db, rows, departureDate, returnAt);
+    const rowsError = await checkAllRows(db, rows, departureDate, returnAt, parsed.data.timeZone);
     if (rowsError) {
       return { error: rowsError };
     }
@@ -326,6 +339,7 @@ export async function updateDeparture(
   const parsed = DepartureSchema.safeParse({
     date: formData.get("date"),
     returnAt: formData.get("returnAt") || undefined,
+    timeZone: formData.get("timeZone"),
     capacity: formData.get("capacity"),
     priceOverride: priceOverrideRaw ? priceOverrideRaw : undefined,
     notes: formData.get("notes"),
@@ -365,7 +379,7 @@ export async function updateDeparture(
       return { error: `Capacity can't be less than the ${existing.bookedCount} seat(s) already booked.` };
     }
 
-    const rowsError = await checkAllRows(db, rows, departureDate, returnAt, departureId);
+    const rowsError = await checkAllRows(db, rows, departureDate, returnAt, parsed.data.timeZone, departureId);
     if (rowsError) {
       return { error: rowsError };
     }

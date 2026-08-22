@@ -2,13 +2,15 @@ import Link from "next/link";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { FilterSelect, DateRangeFilterInput } from "@/components/dashboard/filter-select";
 import type { BookingStatus, PaymentStatus } from "@/generated/prisma/enums";
 import { PaginationControls } from "@/components/pagination-controls";
 import { parsePagination, type PaginationParams } from "@/lib/pagination";
+import { isValidTimeZone, localDateUtcRange, UTC_TIME_ZONE } from "@/lib/time-zone";
 
 const STATUS_OPTIONS: { value: BookingStatus | "ALL"; label: string }[] = [
   { value: "ALL", label: "All statuses" },
@@ -43,12 +45,6 @@ function filterHref(status: string, payment: string): string {
   return qs ? `/dashboard/bookings?${qs}` : "/dashboard/bookings";
 }
 
-function parseDateOnly(value: string | undefined): Date | null {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const parsed = new Date(`${value}T00:00:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
 export default async function BookingsPage({
   searchParams,
 }: {
@@ -59,10 +55,12 @@ export default async function BookingsPage({
     departureId?: string;
     dateFrom?: string;
     dateTo?: string;
+    timeZone?: string;
   } & PaginationParams>;
 }) {
   const params = await searchParams;
   const { status: statusParam, payment: paymentParam, tourId, departureId, dateFrom, dateTo } = params;
+  const timeZone = isValidTimeZone(params.timeZone) ? params.timeZone : UTC_TIME_ZONE;
   const pagination = parsePagination(params);
   const status = statusParam ?? "ALL";
   const payment = paymentParam ?? "ALL";
@@ -71,14 +69,11 @@ export default async function BookingsPage({
   const db = scopedPrisma(session.user.organizationId);
 
   // "From" alone filters a single day; adding "To" turns it into a range.
-  const fromDate = parseDateOnly(dateFrom);
-  const toDate = parseDateOnly(dateTo);
   let dayRange: { gte: Date; lt: Date } | null = null;
-  if (fromDate || toDate) {
-    const start = fromDate ?? toDate!;
-    const end = new Date(toDate ?? fromDate!);
-    end.setDate(end.getDate() + 1);
-    dayRange = { gte: start, lt: end };
+  const startRange = localDateUtcRange(dateFrom ?? dateTo ?? "", timeZone);
+  const endRange = localDateUtcRange(dateTo ?? dateFrom ?? "", timeZone);
+  if (startRange && endRange) {
+    dayRange = { gte: startRange.start, lt: endRange.end };
   }
 
   const bookingWhere = {
@@ -105,7 +100,7 @@ export default async function BookingsPage({
   ]);
 
   const scopeLabel = departure
-    ? `Everyone who booked "${departure.tour.title}" · ${formatDate(departure.date)}.`
+    ? <>Everyone who booked &quot;{departure.tour.title}&quot; · <LocalDateTime value={departure.date.toISOString()} />.</>
     : tour
       ? `Everyone who has booked "${tour.title}".`
       : null;
@@ -159,7 +154,7 @@ export default async function BookingsPage({
                     {booking.customer.fullName} · {booking.departure.tour.title}
                   </p>
                   <p className="text-sm text-espresso-muted">
-                    {formatDate(booking.departure.date)} · {booking.paxCount} pax ·{" "}
+                    <LocalDateTime value={booking.departure.date.toISOString()} /> · {booking.paxCount} pax ·{" "}
                     {formatMoney(booking.totalPrice.toString(), booking.currency)}
                   </p>
                 </div>

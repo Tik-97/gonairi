@@ -4,7 +4,8 @@ import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { deletePayment } from "@/lib/actions/payments";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -186,7 +187,7 @@ export default async function FinancesPage({ searchParams }: { searchParams: Pro
                     <p className="text-espresso-muted">
                       {payment.booking.departure.tour.title} ·{" "}
                       {METHOD_LABEL[payment.method]} ·{" "}
-                      {formatDate(payment.paidAt)}
+                      <LocalDateTime value={payment.paidAt.toISOString()} />
                     </p>
                   </div>
                   <div className="flex items-center gap-3 pl-0 sm:pl-0">

@@ -4,7 +4,8 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
 import { createManualBooking } from "@/lib/actions/bookings";
 import { BookingForm } from "@/components/booking-form";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { PageHeader } from "@/components/dashboard/page-header";
 
 export default async function NewBookingPage({
@@ -37,7 +38,7 @@ export default async function NewBookingPage({
       <PageHeader
         eyebrow="Your ledger"
         title={departure.tour.title}
-        subtitle={`${formatDate(departure.date)} · ${remaining} of ${departure.capacity} seats left · ${formatMoney(unitPrice.toString(), departure.tour.currency)} / pax`}
+        subtitle={<><LocalDateTime value={departure.date.toISOString()} /> · {remaining} of {departure.capacity} seats left · {formatMoney(unitPrice.toString(), departure.tour.currency)} / pax</>}
       />
       {remaining <= 0 ? (
         <p className="text-sm text-danger">This departure is fully booked.</p>

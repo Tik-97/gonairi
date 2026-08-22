@@ -9,7 +9,8 @@ import {
   deleteDeparture,
 } from "@/lib/actions/departures";
 import { DepartureForm } from "@/components/departure-form";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 import { formatDepartureCrew } from "@/lib/departures/format";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -167,7 +168,7 @@ export default async function TourDeparturesPage({
                 className="-m-1 rounded-md p-1 transition-colors hover:bg-cream-100/70"
               >
                 <p className="font-medium text-espresso">
-                  {formatDate(departure.date)}
+                  <LocalDateTime value={departure.date.toISOString()} />
                 </p>
                 <p className="text-sm text-espresso-muted">
                   {departure.bookedCount}/{departure.capacity} booked ·{" "}
@@ -176,8 +177,9 @@ export default async function TourDeparturesPage({
                     tour.currency,
                   )}{" "}
                   · {departure.status}
-                  {departure.returnAt &&
-                    ` (back ${formatDate(departure.returnAt)})`}
+                  {departure.returnAt && (
+                    <> (back <LocalDateTime value={departure.returnAt.toISOString()} />)</>
+                  )}
                   {departure.vehicles.length > 0 &&
                     ` · ${formatDepartureCrew(departure.vehicles)}`}
                 </p>

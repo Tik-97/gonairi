@@ -4,7 +4,10 @@ import { startTransition, useActionState, useEffect, useRef, useState } from "re
 import { X } from "lucide-react";
 import type { FormState } from "@/lib/form-state";
 import { DateTimePicker } from "@/components/date-time-picker";
+import { TimeZoneInput } from "@/components/time-zone-input";
 import { checkVehicleAvailability } from "@/lib/actions/departures";
+import { dateKeyInTimeZone, utcInstantToZonedInput, zonedDateTimeToUtc } from "@/lib/time-zone";
+import { useBrowserTimeZone } from "@/lib/use-browser-time-zone";
 
 type VehicleOption = {
   id: string;
@@ -56,10 +59,17 @@ export function DepartureForm({
   departureId?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
+  const browserTimeZone = useBrowserTimeZone();
   const [capacity, setCapacity] = useState(defaultValues?.capacity ?? 10);
   const capacityTouchedByUser = useRef(defaultValues?.capacity !== undefined);
-  const [departureDateValue, setDepartureDateValue] = useState(defaultValues?.date ?? "");
-  const [returnAtValue, setReturnAtValue] = useState(defaultValues?.returnAt ?? "");
+  const [departureDateValue, setDepartureDateValue] = useState<string>();
+  const [returnAtValue, setReturnAtValue] = useState<string>();
+  const effectiveDepartureDate = departureDateValue ?? (defaultValues?.date
+    ? utcInstantToZonedInput(defaultValues.date, browserTimeZone)
+    : "");
+  const effectiveReturnAt = returnAtValue ?? (defaultValues?.returnAt
+    ? utcInstantToZonedInput(defaultValues.returnAt, browserTimeZone)
+    : "");
   const [rows, setRows] = useState<VehicleRow[]>(() => {
     const initial = defaultValues?.vehicleRows;
     if (initial && initial.length > 0) {
@@ -115,7 +125,7 @@ export function DepartureForm({
   useEffect(() => {
     let cancelled = false;
     const timeout = setTimeout(() => {
-      if (!departureDateValue) {
+      if (!effectiveDepartureDate) {
         setVehicleWarnings({});
         return;
       }
@@ -126,9 +136,14 @@ export function DepartureForm({
       // Functions from the client one at a time per client anyway.
       startTransition(async () => {
         const next: Record<string, string | null> = {};
+        const departureUtc = zonedDateTimeToUtc(effectiveDepartureDate, browserTimeZone)?.toISOString() ?? null;
+        const returnUtc = effectiveReturnAt
+          ? zonedDateTimeToUtc(effectiveReturnAt, browserTimeZone)?.toISOString() ?? null
+          : null;
+        if (!departureUtc || (effectiveReturnAt && !returnUtc)) return;
         for (const row of rows) {
           next[row.key] = row.vehicleId
-            ? (await checkVehicleAvailability(row.vehicleId, departureDateValue, returnAtValue || null, departureId))
+            ? (await checkVehicleAvailability(row.vehicleId, departureUtc, returnUtc, browserTimeZone, departureId))
                 .conflict
             : null;
         }
@@ -140,18 +155,20 @@ export function DepartureForm({
       clearTimeout(timeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows.map((r) => r.vehicleId).join(","), departureDateValue, returnAtValue, departureId]);
+  }, [rows.map((r) => r.vehicleId).join(","), effectiveDepartureDate, effectiveReturnAt, browserTimeZone, departureId]);
 
   const hasAnyResource = vehicles.length > 0 || drivers.length > 0 || guides.length > 0;
   const hasWarning = Object.values(vehicleWarnings).some(Boolean);
-  const today = new Date();
-  const todayMidnight = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}T00:00`;
+  const today = dateKeyInTimeZone(new Date(), browserTimeZone);
+  const todayMidnight = today ? `${today}T00:00` : undefined;
 
   return (
     <form
       action={formAction}
       className="flex max-w-md flex-col gap-4 rounded-[18px] bg-card p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)]"
     >
+      <TimeZoneInput />
+      <p className="text-xs text-espresso-muted">Times are entered in {browserTimeZone}.</p>
       <label className="flex flex-col gap-1 text-sm">
         Departure (leaving)
         <DateTimePicker
@@ -170,7 +187,7 @@ export function DepartureForm({
           defaultValue={defaultValues?.returnAt}
           clearable
           placeholder="Select return date & time"
-          minDate={departureDateValue || undefined}
+          minDate={effectiveDepartureDate || undefined}
           onChange={setReturnAtValue}
         />
         <span className="text-xs text-espresso-muted">

@@ -10,7 +10,8 @@ import { BookingStatusBar } from "@/components/dashboard/booking-status-bar";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { OrnamentDivider } from "@/components/ornaments/ornament-divider";
 import { InterlacePattern } from "@/components/ornaments/interlace-pattern";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 
 function initials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/);
@@ -111,7 +112,7 @@ export default async function DashboardOverviewPage() {
                       <div>
                         <p className="font-medium text-espresso">{booking.customer.fullName}</p>
                         <p className="text-espresso-muted">
-                          {booking.departure.tour.title} · {formatDate(booking.departure.date)}
+                          {booking.departure.tour.title} · <LocalDateTime value={booking.departure.date.toISOString()} />
                         </p>
                       </div>
                     </div>

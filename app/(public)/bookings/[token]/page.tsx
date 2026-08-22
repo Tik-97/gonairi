@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
+import { LocalDateTime } from "@/components/local-date-time";
 
 export default async function GuestBookingStatusPage({
   params,
@@ -24,7 +25,7 @@ export default async function GuestBookingStatusPage({
         <p className="font-serif text-lg font-medium text-espresso">{booking.departure.tour.title}</p>
         <p className="text-sm text-espresso/60">{booking.departure.tour.organization.name}</p>
         <p className="mt-4 text-sm text-espresso/80">
-          {formatDate(booking.departure.date)} · {booking.paxCount} pax
+          <LocalDateTime value={booking.departure.date.toISOString()} /> · {booking.paxCount} pax
         </p>
         <p className="text-sm font-medium text-terracotta-700">
           {formatMoney(booking.totalPrice.toString(), booking.currency)}
