@@ -152,21 +152,23 @@ export function DepartureForm({
       action={formAction}
       className="flex max-w-md flex-col gap-4 rounded-[18px] bg-card p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)]"
     >
-      <label className="flex flex-col gap-1 text-sm">
-        Departure (leaving)
+      <div className="flex flex-col gap-1 text-sm">
+        <span>Departure (leaving)</span>
         <DateTimePicker
           name="date"
+          ariaLabel="Departure (leaving)"
           required
           defaultValue={defaultValues?.date}
           onChange={setDepartureDateValue}
           minDate={restrictPastDates ? todayMidnight : undefined}
         />
-      </label>
+      </div>
 
-      <label className="flex flex-col gap-1 text-sm">
-        Estimated return (optional)
+      <div className="flex flex-col gap-1 text-sm">
+        <span>Estimated return (optional)</span>
         <DateTimePicker
           name="returnAt"
+          ariaLabel="Estimated return (optional)"
           defaultValue={defaultValues?.returnAt}
           clearable
           placeholder="Select return date & time"
@@ -177,7 +179,7 @@ export function DepartureForm({
           Used to check vehicles are free for other departures. Left blank, a vehicle is assumed booked for a full
           24h.
         </span>
-      </label>
+      </div>
 
       {hasAnyResource && (
         <div className="flex flex-col gap-3">

@@ -89,6 +89,7 @@ export function DateTimePicker({
   placeholder,
   minDate,
   onChange,
+  ariaLabel,
 }: {
   name: string;
   required?: boolean;
@@ -102,6 +103,7 @@ export function DateTimePicker({
   /** Fires with the applied "YYYY-MM-DDTHH:mm" value (or "" when cleared) —
    *  lets a parent form track this picker's value to constrain another one. */
   onChange?: (value: string) => void;
+  ariaLabel?: string;
 }) {
   const initial = parseDefaultValue(defaultValue);
   const [open, setOpen] = useState(false);
@@ -174,6 +176,7 @@ export function DateTimePicker({
         <button
           type="button"
           onClick={openPicker}
+          aria-label={ariaLabel}
           className="flex w-full items-center gap-2.5 rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5 text-left"
         >
           <Calendar
