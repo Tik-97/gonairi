@@ -85,6 +85,7 @@ function combine(date: Date, time: string): Date {
 
 type DateTimePickerProps = {
   name: string;
+  ariaLabel?: string;
   required?: boolean;
   defaultValue?: string;
   clearable?: boolean;
@@ -105,17 +106,7 @@ function DateTimePickerInner({
   onChange,
   ariaLabel,
   timeZone,
-}: {
-  name: string;
-  required?: boolean;
-  defaultValue?: string;
-  /** Shows a "Clear" action so an optional value can be unset once applied. */
-  /** "YYYY-MM-DDTHH:mm" — earlier days are unpickable, and on the boundary
-   *  day the time input won't go earlier than this either. */
-  /** Fires with the applied "YYYY-MM-DDTHH:mm" value (or "" when cleared) —
-   *  lets a parent form track this picker's value to constrain another one. */
-  onChange?: (value: string) => void;
-}) {
+}: DateTimePickerInnerProps) {
   const initial = parseDefaultValue(defaultValue);
   const [open, setOpen] = useState(false);
   const [appliedDate, setAppliedDate] = useState<Date | null>(initial.date);
