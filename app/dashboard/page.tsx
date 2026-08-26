@@ -12,6 +12,7 @@ import { OrnamentDivider } from "@/components/ornaments/ornament-divider";
 import { InterlacePattern } from "@/components/ornaments/interlace-pattern";
 import { formatMoney } from "@/lib/format";
 import { LocalDateTime } from "@/components/local-date-time";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 function initials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/);
@@ -19,7 +20,7 @@ function initials(fullName: string): string {
 }
 
 function firstName(fullName: string | null | undefined): string {
-  return fullName?.trim().split(/\s+/)[0] || "there";
+  return fullName?.trim().split(/\s+/)[0] ?? "";
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -37,66 +38,73 @@ export default async function DashboardOverviewPage() {
   if (!isBackOfficeRole(session.user.role)) {
     redirect("/dashboard/schedule");
   }
-  const [stats, organization, canCreateTour] = await Promise.all([
+  const [stats, organization, canCreateTour, { locale, dict }] = await Promise.all([
     getDashboardStats(session.user.organizationId),
     prisma.organization.findUnique({
       where: { id: session.user.organizationId },
       select: { name: true, description: true },
     }),
     roleHasPermission(session.user.role, PERMISSIONS.toursManage),
+    getDictionary(),
   ]);
+  const numberLocale = locale === "ru" ? "ru-RU" : "en-US";
 
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2 pt-1 pb-14 duration-700 animate-in fade-in sm:gap-3 sm:pb-20 lg:pb-28">
         <h1 className="font-serif text-2xl leading-[1.1] font-bold text-espresso sm:text-4xl lg:text-[48px]">
-          Welcome back, {firstName(session.user.name)}! 👋
+          {dict.dashboardPage.welcomeBack}{firstName(session.user.name) && `, ${firstName(session.user.name)}`}! 👋
         </h1>
         <p className="max-w-md font-sans text-sm text-espresso-muted sm:text-base lg:text-lg">
-          Here&apos;s what&apos;s happening with {organization?.name ?? "your agency"} today.
+          {dict.dashboardPage.todayIntroPrefix} {organization?.name ?? dict.dashboardPage.yourAgency} {dict.dashboardPage.todayIntroSuffix}
         </p>
         <OrnamentDivider className="mt-1 hidden h-4 w-64 text-terracotta opacity-20 sm:block" />
       </div>
 
       <div className="relative z-20 -mt-12 grid grid-cols-2 gap-3 sm:-mt-16 sm:gap-5 lg:-mt-20 lg:grid-cols-4">
         <StatCard
-          label="Total tours"
+          label={dict.dashboardPage.totalTours}
           value={stats.totalTours}
-          hint={`${stats.publishedTours} published`}
+          hint={`${stats.publishedTours} ${dict.dashboardPage.published}`}
           icon={Map}
+          numberLocale={numberLocale}
         />
         <StatCard
-          label="Total bookings"
+          label={dict.dashboardPage.totalBookings}
           value={stats.totalBookings}
           delta={stats.bookingsDelta}
-          hint={`${stats.bookingsThisMonth} this month`}
+          deltaSuffix={dict.dashboardPage.thisMonth}
+          hint={`${stats.bookingsThisMonth} ${dict.dashboardPage.thisMonth}`}
           icon={CalendarCheck}
+          numberLocale={numberLocale}
         />
         <StatCard
-          label="Total customers"
+          label={dict.dashboardPage.totalCustomers}
           value={stats.totalCustomers}
           delta={stats.customersDelta}
+          deltaSuffix={dict.dashboardPage.thisMonth}
           icon={Users}
+          numberLocale={numberLocale}
         />
-        <StatCard label="Upcoming departures" value={stats.upcomingDepartures} icon={CalendarClock} />
+        <StatCard label={dict.dashboardPage.upcomingDepartures} value={stats.upcomingDepartures} icon={CalendarClock} numberLocale={numberLocale} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_1fr]">
         <div className="flex flex-col gap-6">
           <section className={PANEL}>
-            <h2 className="mb-5 font-serif text-xl font-semibold text-espresso">Bookings, last 30 days</h2>
+            <h2 className="mb-5 font-serif text-xl font-semibold text-espresso">{dict.dashboardPage.bookingsLast30Days}</h2>
             <BookingsTrendChart data={stats.dailyBookingTrend} />
           </section>
 
           <section className={PANEL}>
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="font-serif text-xl font-semibold text-espresso">Recent bookings</h2>
+              <h2 className="font-serif text-xl font-semibold text-espresso">{dict.dashboardPage.recentBookings}</h2>
               <Link href="/dashboard/bookings" className="text-sm text-terracotta-700 underline">
-                View all
+                {dict.dashboardPage.viewAll}
               </Link>
             </div>
             {stats.recentBookings.length === 0 ? (
-              <p className="text-sm text-espresso-muted">No bookings yet.</p>
+              <p className="text-sm text-espresso-muted">{dict.dashboardPage.noBookingsYet}</p>
             ) : (
               <div className="flex flex-col divide-y divide-border">
                 {stats.recentBookings.map((booking) => (
@@ -121,7 +129,7 @@ export default async function DashboardOverviewPage() {
                         {formatMoney(booking.totalPrice.toString(), booking.currency)}
                       </span>
                       <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_BADGE[booking.status]}`}>
-                        {booking.status}
+                        {dict.bookingStatus[booking.status]}
                       </span>
                     </div>
                   </Link>
@@ -133,14 +141,14 @@ export default async function DashboardOverviewPage() {
 
         <div className="flex flex-col gap-6">
           <section className={PANEL}>
-            <h2 className="mb-5 font-serif text-xl font-semibold text-espresso">Booking status</h2>
-            <BookingStatusBar counts={stats.statusBarCounts} />
+            <h2 className="mb-5 font-serif text-xl font-semibold text-espresso">{dict.dashboardPage.bookingStatusTitle}</h2>
+            <BookingStatusBar counts={stats.statusBarCounts} dict={dict} />
           </section>
 
           <section className={PANEL}>
-            <h2 className="mb-5 font-serif text-xl font-semibold text-espresso">Popular tours</h2>
+            <h2 className="mb-5 font-serif text-xl font-semibold text-espresso">{dict.dashboardPage.popularTours}</h2>
             {stats.popularTours.length === 0 ? (
-              <p className="text-sm text-espresso-muted">No bookings yet.</p>
+              <p className="text-sm text-espresso-muted">{dict.dashboardPage.noBookingsYet}</p>
             ) : (
               <div className="flex flex-col divide-y divide-border">
                 {stats.popularTours.map((tour) => (
@@ -163,7 +171,7 @@ export default async function DashboardOverviewPage() {
                     )}
                     <div className="flex flex-1 items-center justify-between gap-3">
                       <span className="text-espresso">{tour.title}</span>
-                      <span className="text-espresso-muted">{tour.count} bookings</span>
+                      <span className="text-espresso-muted">{tour.count} {dict.dashboardPage.bookingsSuffix}</span>
                     </div>
                   </Link>
                 ))}
@@ -178,13 +186,13 @@ export default async function DashboardOverviewPage() {
                 className="pointer-events-none absolute inset-0 h-full w-full text-terracotta opacity-[0.07]"
               />
               <div className="relative flex flex-col gap-3">
-                <p className="text-sm font-medium text-white">Ready for your next departure?</p>
+                <p className="text-sm font-medium text-white">{dict.dashboardPage.readyForNextDeparture}</p>
                 <Link
                   href="/dashboard/tours/new"
                   className="inline-flex w-fit items-center gap-2 rounded-[12px] bg-terracotta px-5 py-2.5 text-sm font-medium text-navy transition-colors hover:bg-terracotta-700"
                 >
                   <Plus className="h-4 w-4" strokeWidth={2} />
-                  New tour
+                  {dict.dashboardPage.newTour}
                 </Link>
               </div>
             </div>

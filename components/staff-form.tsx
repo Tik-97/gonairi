@@ -3,17 +3,8 @@
 import { useActionState } from "react";
 import type { FormState } from "@/lib/form-state";
 import { PhoneInput } from "@/components/phone-input";
-
-const ROLE_OPTIONS = [
-  { value: "OPERATOR", label: "Operator", hint: "Day-to-day bookings, customers, tours — can't delete." },
-  { value: "DRIVER", label: "Driver", hint: "Can be assigned to departures as the driver." },
-  { value: "GUIDE", label: "Guide", hint: "Can be assigned to departures as the guide." },
-  {
-    value: "DRIVER_GUIDE",
-    label: "Driver-Guide",
-    hint: "Can be assigned to departures as the driver, the guide, or both — for tours where one person does both jobs.",
-  },
-] as const;
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import type { Locale } from "@/lib/i18n/config";
 
 type StaffFormValues = {
   name: string;
@@ -27,18 +18,32 @@ export function StaffForm({
   defaultValues,
   submitLabel,
   showEmailAndPassword = true,
+  locale,
+  dict,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   defaultValues?: Partial<StaffFormValues>;
   submitLabel: string;
   showEmailAndPassword?: boolean;
+  locale: Locale;
+  dict: Pick<Dictionary, "staffForm" | "roles" | "phoneInput">;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
+  const ROLE_OPTIONS = [
+    { value: "OPERATOR", label: dict.roles.OPERATOR, hint: dict.staffForm.operatorHint },
+    { value: "DRIVER", label: dict.roles.DRIVER, hint: dict.staffForm.driverHint },
+    { value: "GUIDE", label: dict.roles.GUIDE, hint: dict.staffForm.guideHint },
+    {
+      value: "DRIVER_GUIDE",
+      label: dict.roles.DRIVER_GUIDE,
+      hint: dict.staffForm.driverGuideHint,
+    },
+  ] as const;
 
   return (
     <form action={formAction} className="flex max-w-md flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm">
-        Name
+        {dict.staffForm.name}
         <input
           name="name"
           defaultValue={defaultValues?.name}
@@ -50,7 +55,7 @@ export function StaffForm({
       {showEmailAndPassword && (
         <>
           <label className="flex flex-col gap-1 text-sm">
-            Email
+            {dict.staffForm.email}
             <input
               name="email"
               type="email"
@@ -60,7 +65,7 @@ export function StaffForm({
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            Password
+            {dict.staffForm.password}
             <input
               name="password"
               type="password"
@@ -73,13 +78,13 @@ export function StaffForm({
       )}
 
       <label className="flex flex-col gap-1 text-sm">
-        Phone
-        <PhoneInput name="phone" defaultValue={defaultValues?.phone} />
+        {dict.staffForm.phone}
+        <PhoneInput name="phone" defaultValue={defaultValues?.phone} locale={locale} dict={dict.phoneInput} />
       </label>
 
       <div className="flex flex-col gap-1.5 text-sm">
-        <span>Roles</span>
-        <span className="text-xs text-espresso-muted">Select one or more roles. The user chooses an active role after login.</span>
+        <span>{dict.staffForm.rolesLabel}</span>
+        <span className="text-xs text-espresso-muted">{dict.staffForm.rolesHint}</span>
         <div className="flex flex-col gap-2">
           {ROLE_OPTIONS.map((opt) => (
             <label
@@ -108,7 +113,7 @@ export function StaffForm({
         disabled={pending}
         className="mt-2 w-fit rounded-[12px] bg-terracotta px-4 py-2 text-sm font-medium text-white disabled:opacity-50 hover:bg-terracotta-700"
       >
-        {pending ? "Saving…" : submitLabel}
+        {pending ? dict.staffForm.saving : submitLabel}
       </button>
     </form>
   );

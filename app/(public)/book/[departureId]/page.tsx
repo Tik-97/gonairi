@@ -4,13 +4,14 @@ import { createGuestBooking } from "@/lib/actions/guest-bookings";
 import { GuestBookingForm } from "@/components/guest-booking-form";
 import { formatMoney } from "@/lib/format";
 import { LocalDateTime } from "@/components/local-date-time";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function BookDeparturePage({
   params,
 }: {
   params: Promise<{ departureId: string }>;
 }) {
-  const { departureId } = await params;
+  const [{ departureId }, { dict }] = await Promise.all([params, getDictionary()]);
 
   const departure = await prisma.departure.findFirst({
     where: {
@@ -35,14 +36,14 @@ export default async function BookDeparturePage({
         <p className="mt-1 text-sm text-espresso/60">
           {departure.tour.organization.name} · <LocalDateTime value={departure.date.toISOString()} /> ·{" "}
           <span className="font-medium text-terracotta-700">
-            {formatMoney(unitPrice.toString(), departure.tour.currency)} / pax
+            {formatMoney(unitPrice.toString(), departure.tour.currency)} {dict.bookDeparturePage.perPaxSuffix}
           </span>
         </p>
       </div>
       {remaining <= 0 ? (
-        <p className="text-sm text-brick">Sorry, this departure is fully booked.</p>
+        <p className="text-sm text-brick">{dict.bookDeparturePage.fullyBookedMessage}</p>
       ) : (
-        <GuestBookingForm action={createBookingForDeparture} maxPax={remaining} />
+        <GuestBookingForm action={createBookingForDeparture} maxPax={remaining} dict={dict.guestBookingForm} />
       )}
     </div>
   );

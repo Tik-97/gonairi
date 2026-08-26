@@ -13,6 +13,7 @@ import { AmbientDecoration } from "@/components/dashboard/ambient-decoration";
 import { HeroBackground } from "@/components/dashboard/hero-background";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
 import { Topbar } from "@/components/dashboard/topbar";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 // Dynamic-rendering opt-in for this whole subtree lives in requireSession()
 // (lib/auth/session.ts) via connection() — not here — so it can never be
@@ -33,7 +34,7 @@ const inter = Inter({
 });
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const session = await requireSession();
+  const [session, { locale, dict }] = await Promise.all([requireSession(), getDictionary()]);
   const [permissions, canViewBookings, canManageOrgSettings] = session.platformAdmin
     ? [ALL_PERMISSIONS, true, true] as const
     : await Promise.all([
@@ -68,6 +69,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         scheduleOnly={scheduleOnly}
         permissions={permissions}
         isPlatformAdmin={Boolean(session.platformAdmin)}
+        dict={dict}
       />
 
       <aside className="relative hidden w-72 shrink-0 flex-col overflow-hidden bg-navy px-7 py-9 lg:flex">
@@ -89,6 +91,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             scheduleOnly={scheduleOnly}
             permissions={permissions}
             isPlatformAdmin={Boolean(session.platformAdmin)}
+            dict={dict.nav}
           />
         </div>
         <SidebarPromoCard />
@@ -118,6 +121,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
             availableRoles={session.user.availableRoles}
             agencies={availableAgencies}
             activeAgencyId={session.user.organizationId}
+            locale={locale}
+            dict={dict}
           />
           {children}
         </div>

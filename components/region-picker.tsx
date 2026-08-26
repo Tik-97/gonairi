@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { PillButton } from "@/components/pill-button";
 import type { GeographyCountryOption, GeographyRegionOption } from "@/types/geography";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 const COLLAPSED_REGION_LIMIT = 20;
 
@@ -14,6 +15,7 @@ export function RegionPicker({
   initialRegions,
   selectedRegions = [],
   defaultValue,
+  dict,
 }: {
   name: string;
   countries: GeographyCountryOption[];
@@ -21,6 +23,7 @@ export function RegionPicker({
   initialRegions: GeographyRegionOption[];
   selectedRegions?: GeographyRegionOption[];
   defaultValue?: string[];
+  dict: Pick<Dictionary, "tourForm">;
 }) {
   const [countryId, setCountryId] = useState(initialCountryId);
   const [regionsByCountry, setRegionsByCountry] = useState<Record<string, GeographyRegionOption[]>>(
@@ -194,7 +197,7 @@ export function RegionPicker({
         <input key={regionId} type="hidden" name={name} value={regionId} />
       ))}
       {touched && selected.length === 0 ? (
-        <p className="text-xs text-danger">Select at least one region.</p>
+        <p className="text-xs text-danger">{dict.tourForm.selectRegionWarning}</p>
       ) : null}
     </div>
   );

@@ -1,24 +1,27 @@
 import { Clock, CheckCircle2, XCircle, UserX } from "lucide-react";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 // CSS var references, not hardcoded hex — one source of truth in
 // globals.css (warm gold = pending, green = confirmed, red = cancelled,
 // neutral gray = no-show).
 const SEGMENTS = [
-  { key: "pending", label: "Pending", color: "var(--color-terracotta)", icon: Clock },
-  { key: "confirmed", label: "Confirmed", color: "var(--color-success)", icon: CheckCircle2 },
-  { key: "cancelled", label: "Cancelled", color: "var(--color-danger)", icon: XCircle },
-  { key: "noShow", label: "No-show", color: "var(--color-olive)", icon: UserX },
+  { key: "pending", statusKey: "PENDING", color: "var(--color-terracotta)", icon: Clock },
+  { key: "confirmed", statusKey: "CONFIRMED", color: "var(--color-success)", icon: CheckCircle2 },
+  { key: "cancelled", statusKey: "CANCELLED", color: "var(--color-danger)", icon: XCircle },
+  { key: "noShow", statusKey: "NO_SHOW", color: "var(--color-olive)", icon: UserX },
 ] as const;
 
 export function BookingStatusBar({
   counts,
+  dict,
 }: {
   counts: { pending: number; confirmed: number; cancelled: number; noShow: number };
+  dict: Pick<Dictionary, "bookingStatus" | "dashboardPage">;
 }) {
   const total = counts.pending + counts.confirmed + counts.cancelled + counts.noShow;
 
   if (total === 0) {
-    return <p className="text-sm text-espresso-muted">No bookings yet.</p>;
+    return <p className="text-sm text-espresso-muted">{dict.dashboardPage.noBookingsYet}</p>;
   }
 
   return (
@@ -33,7 +36,7 @@ export function BookingStatusBar({
               key={segment.key}
               style={{ width: `${pct}%`, backgroundColor: segment.color }}
               className={i > 0 ? "ml-[2px]" : undefined}
-              title={`${segment.label}: ${value}`}
+              title={`${dict.bookingStatus[segment.statusKey]}: ${value}`}
             />
           );
         })}
@@ -50,7 +53,7 @@ export function BookingStatusBar({
               >
                 <Icon className="h-3 w-3 text-white" strokeWidth={2.25} />
               </span>
-              <span className="text-espresso-muted">{segment.label}</span>
+              <span className="text-espresso-muted">{dict.bookingStatus[segment.statusKey]}</span>
               <span className="font-medium text-espresso">{counts[segment.key]}</span>
             </div>
           );

@@ -4,13 +4,16 @@ import { useEffect, useState } from "react";
 import { Search, X, UserPlus } from "lucide-react";
 import { searchCustomers, type CustomerSearchResult } from "@/lib/actions/customers";
 import { useClickOutside } from "@/components/use-click-outside";
+import en, { type Dictionary } from "@/lib/i18n/dictionaries/en";
 
 export function CustomerCombobox({
   selected,
   onSelect,
+  dict = en.customerCombobox,
 }: {
   selected: CustomerSearchResult | null;
   onSelect: (customer: CustomerSearchResult | null) => void;
+  dict?: Dictionary["customerCombobox"];
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CustomerSearchResult[]>([]);
@@ -42,7 +45,7 @@ export function CustomerCombobox({
           type="button"
           onClick={() => onSelect(null)}
           className="flex h-7 w-7 items-center justify-center rounded-full text-espresso-muted transition-colors hover:bg-cream-100 hover:text-espresso"
-          aria-label="Clear selected customer"
+          aria-label={dict.clearSelected}
         >
           <X className="h-4 w-4" strokeWidth={1.75} />
         </button>
@@ -58,7 +61,7 @@ export function CustomerCombobox({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setOpen(true)}
-          placeholder="Search customers by name, email or phone…"
+          placeholder={dict.searchPlaceholder}
           className="w-full rounded-[12px] border border-terracotta/25 bg-white py-2.5 pr-3.5 pl-10"
         />
       </div>
@@ -75,13 +78,13 @@ export function CustomerCombobox({
             className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium text-terracotta-700 transition-colors hover:bg-cream-100"
           >
             <UserPlus className="h-4 w-4" strokeWidth={1.75} />
-            New customer
+            {dict.newCustomer}
           </button>
           <div className="max-h-64 overflow-y-auto border-t border-border">
             {loading ? (
-              <p className="px-4 py-3 text-sm text-espresso-muted">Searching…</p>
+              <p className="px-4 py-3 text-sm text-espresso-muted">{dict.searching}</p>
             ) : results.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-espresso-muted">No customers found.</p>
+              <p className="px-4 py-3 text-sm text-espresso-muted">{dict.noCustomersFound}</p>
             ) : (
               results.map((customer) => (
                 <button

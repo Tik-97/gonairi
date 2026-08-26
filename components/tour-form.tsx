@@ -8,6 +8,7 @@ import { CategoryPicker } from "@/components/category-picker";
 import { RegionPicker } from "@/components/region-picker";
 import type { GeographyCountryOption, GeographyRegionOption } from "@/types/geography";
 import type { CategoryOption } from "@/types/category";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 const MAX_IMAGES = 10;
 
@@ -37,6 +38,7 @@ export function TourForm({
   selectedRegions,
   defaultValues,
   submitLabel,
+  dict,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   categories: CategoryOption[];
@@ -46,6 +48,7 @@ export function TourForm({
   selectedRegions?: GeographyRegionOption[];
   defaultValues?: Partial<TourFormValues>;
   submitLabel: string;
+  dict: Pick<Dictionary, "tourForm" | "tourCategories" | "armenianRegions" | "common">;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const [slots, setSlots] = useState<ImageSlot[]>(
@@ -65,7 +68,7 @@ export function TourForm({
     setSlots((prev) =>
       prev.map((s, i) => {
         if (i !== index) return s;
-        if (result.error || !result.url) return { status: "error", error: result.error ?? "Upload failed." };
+        if (result.error || !result.url) return { status: "error", error: result.error ?? dict.tourForm.uploadFailed };
         return { status: "done", url: result.url, fileName: file.name };
       }),
     );
@@ -89,7 +92,7 @@ export function TourForm({
   return (
     <form action={formAction} className="flex max-w-lg flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm">
-        Title
+        {dict.tourForm.title}
         <input
           name="title"
           defaultValue={defaultValues?.title}
@@ -98,7 +101,7 @@ export function TourForm({
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Description
+        {dict.tourForm.description}
         <textarea
           name="description"
           defaultValue={defaultValues?.description}
@@ -107,7 +110,7 @@ export function TourForm({
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Category hashtags
+        {dict.tourForm.category}
         <CategoryPicker
           name="categoryIds"
           categories={categories}
@@ -115,7 +118,7 @@ export function TourForm({
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Regions
+        {dict.tourForm.region}
         <RegionPicker
           name="regionIds"
           countries={countries}
@@ -123,10 +126,11 @@ export function TourForm({
           initialRegions={initialRegions}
           selectedRegions={selectedRegions}
           defaultValue={defaultValues?.regionIds}
+          dict={dict}
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Duration (days)
+        {dict.tourForm.durationDays}
         <input
           name="durationDays"
           type="number"
@@ -137,7 +141,7 @@ export function TourForm({
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Base price (AMD)
+        {dict.tourForm.basePrice}
         <input
           name="basePrice"
           type="number"
@@ -150,7 +154,7 @@ export function TourForm({
       </label>
 
       <div className="flex flex-col gap-2 text-sm">
-        <span>Photos (up to {MAX_IMAGES})</span>
+        <span>{dict.tourForm.photosPrefix} {MAX_IMAGES})</span>
         <div className="flex flex-col gap-2">
           {slots.map((slot, i) => (
             <div key={i} className="flex items-center gap-3 rounded-[12px] border border-terracotta/25 bg-white p-2.5">
@@ -170,7 +174,7 @@ export function TourForm({
               <div className="min-w-0 flex-1">
                 {slot.status === "empty" && (
                   <label className="inline-flex cursor-pointer items-center text-sm text-terracotta-700 underline">
-                    Choose photo
+                    {dict.tourForm.choosePhoto}
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp,image/gif"
@@ -179,15 +183,15 @@ export function TourForm({
                     />
                   </label>
                 )}
-                {slot.status === "uploading" && <p className="text-espresso-muted">Uploading…</p>}
+                {slot.status === "uploading" && <p className="text-espresso-muted">{dict.tourForm.uploading}</p>}
                 {slot.status === "done" && (
-                  <p className="truncate text-espresso-muted">{slot.fileName ?? "Photo uploaded"}</p>
+                  <p className="truncate text-espresso-muted">{slot.fileName ?? dict.tourForm.photoUploaded}</p>
                 )}
                 {slot.status === "error" && (
                   <div className="flex flex-col gap-1">
                     <p className="text-danger">{slot.error}</p>
                     <label className="inline-flex w-fit cursor-pointer items-center text-terracotta-700 underline">
-                      Try again
+                      {dict.tourForm.tryAgain}
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp,image/gif"
@@ -205,7 +209,7 @@ export function TourForm({
                 type="button"
                 onClick={() => removeSlot(i)}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-espresso-muted transition-colors hover:bg-cream-100 hover:text-danger"
-                aria-label="Remove image"
+                aria-label={dict.tourForm.removeImage}
               >
                 <X className="h-4 w-4" strokeWidth={1.75} />
               </button>
@@ -219,7 +223,7 @@ export function TourForm({
             className="flex w-fit items-center gap-2 rounded-[12px] border border-dashed border-terracotta/30 px-3.5 py-2 text-sm text-terracotta-700 transition-colors hover:bg-cream-100"
           >
             <ImagePlus className="h-4 w-4" strokeWidth={1.75} />
-            Add another
+            {dict.tourForm.addAnother}
           </button>
         )}
       </div>
@@ -231,7 +235,7 @@ export function TourForm({
           defaultChecked={defaultValues?.isPublished}
           className="h-4 w-4"
         />
-        Published (visible on the public marketplace)
+        {dict.tourForm.publishedLabel}
       </label>
       {state?.error && <p className="text-sm text-danger">{state.error}</p>}
       <button
@@ -239,7 +243,7 @@ export function TourForm({
         disabled={pending || anyUploading}
         className="mt-2 w-fit rounded-[12px] bg-terracotta px-4 py-2 text-sm font-medium text-white disabled:opacity-50 hover:bg-terracotta-700"
       >
-        {pending ? "Saving…" : anyUploading ? "Uploading photos…" : submitLabel}
+        {pending ? dict.tourForm.saving : anyUploading ? dict.tourForm.uploadingPhotos : submitLabel}
       </button>
     </form>
   );

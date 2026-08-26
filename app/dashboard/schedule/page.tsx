@@ -9,22 +9,22 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { PaginationControls } from "@/components/pagination-controls";
 import { parsePagination, type PaginationParams } from "@/lib/pagination";
-
-const WHEN_OPTIONS = [
-  { value: "upcoming", label: "Upcoming" },
-  { value: "past", label: "Past" },
-  { value: "all", label: "All" },
-] as const;
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function MySchedulePage({
   searchParams,
 }: {
   searchParams: Promise<{ when?: string } & PaginationParams>;
 }) {
-  const params = await searchParams;
+  const [params, { dict }] = await Promise.all([searchParams, getDictionary()]);
   const { when: whenParam } = params;
   const pagination = parsePagination(params);
   const when = whenParam === "past" || whenParam === "all" ? whenParam : "upcoming";
+  const WHEN_OPTIONS = [
+    { value: "upcoming", label: dict.departuresPage.whenUpcoming },
+    { value: "past", label: dict.departuresPage.whenPast },
+    { value: "all", label: dict.departuresPage.whenAll },
+  ] as const;
 
   const session = await requirePermission(PERMISSIONS.scheduleViewOwn);
   const db = scopedPrisma(session.user.organizationId);
@@ -59,9 +59,9 @@ export default async function MySchedulePage({
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow="Your assignments"
-        title="My schedule"
-        subtitle="Tours you're driving or guiding."
+        eyebrow={dict.schedulePage.eyebrow}
+        title={dict.schedulePage.title}
+        subtitle={dict.schedulePage.subtitle}
       />
 
       <div className="flex flex-wrap gap-2">
@@ -82,8 +82,8 @@ export default async function MySchedulePage({
 
       {departures.length === 0 ? (
         <EmptyState
-          title={when === "upcoming" ? "No upcoming assignments" : when === "past" ? "No past assignments" : "Nothing assigned yet"}
-          message="When you're assigned as a driver or guide on a departure, it shows up here."
+          title={when === "upcoming" ? dict.schedulePage.emptyNoUpcomingTitle : when === "past" ? dict.schedulePage.emptyNoPastTitle : dict.schedulePage.emptyNoneTitle}
+          message={dict.schedulePage.emptyMessage}
         />
       ) : (
         <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
@@ -96,8 +96,8 @@ export default async function MySchedulePage({
                 <div>
                   <p className="font-medium text-espresso">{departure.tour.title}</p>
                   <p className="text-sm text-espresso-muted">
-                    <LocalDateTime value={departure.date.toISOString()} /> · {departure.bookedCount}/{departure.capacity} pax · {departure.status}
-                    {departure.myVehicles.length > 0 && ` · ${formatDepartureCrew(departure.myVehicles)}`}
+                    <LocalDateTime value={departure.date.toISOString()} /> · {departure.bookedCount}/{departure.capacity} {dict.bookingsPage.paxSuffix} · {dict.departureStatus[departure.status]}
+                    {departure.myVehicles.length > 0 && ` · ${formatDepartureCrew(departure.myVehicles, dict.departureCrew)}`}
                   </p>
                 </div>
               </div>

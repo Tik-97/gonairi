@@ -9,11 +9,13 @@ import { OWNER_AGENCY_COOKIE } from "@/lib/auth/session";
 import { isBackOfficeRole } from "@/lib/auth/permissions";
 import type { FormState } from "@/lib/form-state";
 import { clientIp, isRateLimited } from "@/lib/rate-limit";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 import type { UserRole } from "@/generated/prisma/enums";
 
 export async function login(_prevState: FormState, formData: FormData): Promise<FormState> {
+  const { dict } = await getDictionary();
   if (isRateLimited(`login:${await clientIp()}`, { limit: 10, windowMs: 60_000 })) {
-    return { error: "Too many attempts. Please wait a minute and try again." };
+    return { error: dict.loginPage.tooManyAttempts };
   }
 
   try {
@@ -24,7 +26,7 @@ export async function login(_prevState: FormState, formData: FormData): Promise<
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      return { error: "Invalid email or password." };
+      return { error: dict.loginPage.invalidCredentials };
     }
     throw error;
   }

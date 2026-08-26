@@ -8,6 +8,8 @@ import { TimeZoneInput } from "@/components/time-zone-input";
 import { checkVehicleAvailability } from "@/lib/actions/departures";
 import { dateKeyInTimeZone, utcInstantToZonedInput, zonedDateTimeToUtc } from "@/lib/time-zone";
 import { useBrowserTimeZone } from "@/lib/use-browser-time-zone";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import type { Locale } from "@/lib/i18n/config";
 
 type VehicleOption = {
   id: string;
@@ -40,9 +42,11 @@ export function DepartureForm({
   drivers = [],
   guides = [],
   defaultValues,
-  submitLabel = "Add departure",
+  submitLabel,
   restrictPastDates = true,
   departureId,
+  locale,
+  dict,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   vehicles?: VehicleOption[];
@@ -57,7 +61,10 @@ export function DepartureForm({
   /** Excludes this departure from its own vehicle-availability check — set
    *  when editing. */
   departureId?: string;
+  locale: Locale;
+  dict: Pick<Dictionary, "departureForm" | "dateTimePicker">;
 }) {
+  const resolvedSubmitLabel = submitLabel ?? dict.departureForm.addDepartureDefault;
   const [state, formAction, pending] = useActionState(action, undefined);
   const browserTimeZone = useBrowserTimeZone();
   const [capacity, setCapacity] = useState(defaultValues?.capacity ?? 10);
@@ -170,47 +177,50 @@ export function DepartureForm({
       <TimeZoneInput />
       <p className="text-xs text-espresso-muted">Times are entered in {browserTimeZone}.</p>
       <div className="flex flex-col gap-1 text-sm">
-       <span>Departure (leaving)</span>
+       <span>{dict.departureForm.departureLabel}</span>
         <DateTimePicker
           name="date"
-          ariaLabel="Departure (leaving)"
+          ariaLabel={dict.departureForm.departureLabel}
           required
           defaultValue={defaultValues?.date}
           onChange={setDepartureDateValue}
           minDate={restrictPastDates ? todayMidnight : undefined}
+          locale={locale}
+          dict={dict.dateTimePicker}
         />
       </div>
 
       <div className="flex flex-col gap-1 text-sm">
-        <span>Estimated return (optional)</span>
+        <span>{dict.departureForm.estimatedReturn}</span>
         <DateTimePicker
           name="returnAt"
-          ariaLabel="Estimated return (optional)"
+          ariaLabel={dict.departureForm.estimatedReturn}
           defaultValue={defaultValues?.returnAt}
           clearable
-          placeholder="Select return date & time"
+          placeholder={dict.departureForm.selectReturnPlaceholder}
           minDate={effectiveDepartureDate || undefined}
           onChange={setReturnAtValue}
+          locale={locale}
+          dict={dict.dateTimePicker}
         />
         <span className="text-xs text-espresso-muted">
-          Used to check vehicles are free for other departures. Left blank, a vehicle is assumed booked for a full
-          24h.
+          {dict.departureForm.returnHint}
         </span>
       </div>
 
       {hasAnyResource && (
         <div className="flex flex-col gap-3">
-          <span className="text-sm">Vehicles &amp; crew (optional)</span>
+          <span className="text-sm">{dict.departureForm.vehiclesCrew}</span>
           {rows.map((row, index) => (
             <div key={row.key} className="flex flex-col gap-2 rounded-[12px] border border-terracotta/20 bg-cream-100/40 p-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-espresso-muted">Vehicle #{index + 1}</span>
+                <span className="text-xs font-medium text-espresso-muted">{dict.departureForm.vehicleNumberPrefix}{index + 1}</span>
                 {rows.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeRow(row.key)}
                     className="flex h-6 w-6 items-center justify-center rounded-full text-espresso-muted transition-colors hover:bg-cream-100 hover:text-danger"
-                    aria-label={`Remove vehicle #${index + 1}`}
+                    aria-label={`${dict.departureForm.removeVehiclePrefix}${index + 1}`}
                   >
                     <X className="h-3.5 w-3.5" strokeWidth={1.75} />
                   </button>
@@ -219,17 +229,17 @@ export function DepartureForm({
 
               {vehicles.length > 0 && (
                 <label className="flex flex-col gap-1 text-sm">
-                  Vehicle
+                  {dict.departureForm.vehicleLabel}
                   <select
                     name={`vehicleRow_${index}_vehicleId`}
                     value={row.vehicleId}
                     onChange={(e) => updateRow(row.key, { vehicleId: e.target.value })}
                     className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
                   >
-                    <option value="">No vehicle</option>
+                    <option value="">{dict.departureForm.noVehicle}</option>
                     {vehicles.map((v) => (
                       <option key={v.id} value={v.id}>
-                        {v.name} {v.type ? `(${v.type})` : ""} · {v.capacity} seats
+                        {v.name} {v.type ? `(${v.type})` : ""} · {v.capacity} {dict.departureForm.seatsSuffix}
                         {v.licensePlate ? ` · ${v.licensePlate}` : ""}
                       </option>
                     ))}
@@ -240,14 +250,14 @@ export function DepartureForm({
 
               {drivers.length > 0 && (
                 <label className="flex flex-col gap-1 text-sm">
-                  Driver
+                  {dict.departureForm.driverLabel}
                   <select
                     name={`vehicleRow_${index}_driverId`}
                     value={row.driverId}
                     onChange={(e) => updateRow(row.key, { driverId: e.target.value })}
                     className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
                   >
-                    <option value="">No driver</option>
+                    <option value="">{dict.departureForm.noDriver}</option>
                     {drivers.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.name}
@@ -259,14 +269,14 @@ export function DepartureForm({
 
               {guides.length > 0 && (
                 <label className="flex flex-col gap-1 text-sm">
-                  Guide
+                  {dict.departureForm.guideLabel}
                   <select
                     name={`vehicleRow_${index}_guideId`}
                     value={row.guideId}
                     onChange={(e) => updateRow(row.key, { guideId: e.target.value })}
                     className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
                   >
-                    <option value="">No guide</option>
+                    <option value="">{dict.departureForm.noGuide}</option>
                     {guides.map((g) => (
                       <option key={g.id} value={g.id}>
                         {g.name}
@@ -283,17 +293,16 @@ export function DepartureForm({
             onClick={addRow}
             className="flex w-fit items-center gap-1.5 rounded-[10px] border border-dashed border-terracotta/30 px-3 py-1.5 text-sm text-terracotta-700 transition-colors hover:bg-cream-100"
           >
-            + Add another vehicle
+            {dict.departureForm.addAnotherVehicle}
           </button>
           <span className="text-xs text-espresso-muted">
-            Selecting vehicles suggests a total seat count below — feel free to change it. Add more than one for
-            tours that run several vehicles at once (e.g. a jeeping tour).
+            {dict.departureForm.capacityHint}
           </span>
         </div>
       )}
 
       <label className="flex flex-col gap-1 text-sm">
-        Capacity
+        {dict.departureForm.capacityLabel}
         <input
           name="capacity"
           type="number"
@@ -308,7 +317,7 @@ export function DepartureForm({
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Price override (optional)
+        {dict.departureForm.priceOverrideLabel}
         <input
           name="priceOverride"
           type="number"
@@ -319,7 +328,7 @@ export function DepartureForm({
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Notes
+        {dict.departureForm.notesLabel}
         <input
           name="notes"
           defaultValue={defaultValues?.notes}
@@ -332,7 +341,7 @@ export function DepartureForm({
         disabled={pending || hasWarning}
         className="w-fit rounded-[12px] bg-terracotta px-4 py-2 text-sm font-medium text-white disabled:opacity-50 hover:bg-terracotta-700"
       >
-        {pending ? "Saving…" : submitLabel}
+        {pending ? dict.departureForm.saving : resolvedSubmitLabel}
       </button>
     </form>
   );

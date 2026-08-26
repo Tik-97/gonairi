@@ -5,30 +5,32 @@ import type { FormState } from "@/lib/form-state";
 import { TimeZoneInput } from "@/components/time-zone-input";
 import { dateKeyInTimeZone } from "@/lib/time-zone";
 import { useBrowserTimeZone } from "@/lib/use-browser-time-zone";
-
-const METHOD_OPTIONS: { value: string; label: string }[] = [
-  { value: "CASH", label: "Cash" },
-  { value: "BANK_TRANSFER", label: "Bank transfer" },
-  { value: "CARD_ONLINE", label: "Card / online" },
-  { value: "OTHER", label: "Other" },
-];
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
 export function PaymentForm({
   action,
   currency,
+  dict,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   currency: string;
+  dict: Pick<Dictionary, "paymentForm" | "paymentMethod">;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const timeZone = useBrowserTimeZone();
   const today = dateKeyInTimeZone(new Date(), timeZone) ?? "";
+  const METHOD_OPTIONS: { value: string; label: string }[] = [
+    { value: "CASH", label: dict.paymentMethod.CASH },
+    { value: "BANK_TRANSFER", label: dict.paymentMethod.BANK_TRANSFER },
+    { value: "CARD_ONLINE", label: dict.paymentMethod.CARD_ONLINE },
+    { value: "OTHER", label: dict.paymentMethod.OTHER },
+  ];
 
   return (
     <form action={formAction} className="flex flex-wrap items-end gap-3">
       <TimeZoneInput />
       <label className="flex flex-col gap-1 text-sm">
-        Amount ({currency})
+        {dict.paymentForm.amountPrefix} ({currency})
         <input
           name="amount"
           type="number"
@@ -39,7 +41,7 @@ export function PaymentForm({
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Method
+        {dict.paymentForm.method}
         <select
           name="method"
           className="rounded-[10px] border border-border bg-white px-3 py-2 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-terracotta/30"
@@ -52,7 +54,7 @@ export function PaymentForm({
         </select>
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Date
+        {dict.paymentForm.date}
         <input
           name="paidAt"
           type="date"
@@ -63,11 +65,11 @@ export function PaymentForm({
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
-        Reference (optional)
+        {dict.paymentForm.referenceOptional}
         <input
           name="reference"
           type="text"
-          placeholder="e.g. receipt #"
+          placeholder={dict.paymentForm.referencePlaceholder}
           className="w-40 rounded-[10px] border border-border bg-white px-3 py-2 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-terracotta/30"
         />
       </label>
@@ -76,7 +78,7 @@ export function PaymentForm({
         disabled={pending}
         className="rounded-[10px] bg-terracotta px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-terracotta-700 disabled:opacity-50"
       >
-        {pending ? "Saving…" : "Record payment"}
+        {pending ? dict.paymentForm.saving : dict.paymentForm.recordPayment}
       </button>
       {state?.error && (
         <p className="w-full text-sm text-danger">{state.error}</p>

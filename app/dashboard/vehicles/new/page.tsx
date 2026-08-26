@@ -3,18 +3,19 @@ import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { VehicleForm } from "@/components/vehicle-form";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function NewVehiclePage() {
-  await requirePermission(PERMISSIONS.vehiclesManage);
+  const [, { locale, dict }] = await Promise.all([requirePermission(PERMISSIONS.vehiclesManage), getDictionary()]);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Your fleet"
-        title="New vehicle"
-        subtitle="Add a bus, car, or jeep to assign to departures."
+        eyebrow={dict.vehiclesPage.eyebrow}
+        title={dict.newVehiclePage.title}
+        subtitle={dict.newVehiclePage.subtitle}
       />
-      <VehicleForm action={createVehicle} submitLabel="Add vehicle" />
+      <VehicleForm action={createVehicle} submitLabel={dict.newVehiclePage.submitLabel} locale={locale} dict={dict} />
     </div>
   );
 }

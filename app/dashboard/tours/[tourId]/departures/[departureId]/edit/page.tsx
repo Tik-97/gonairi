@@ -5,6 +5,7 @@ import { scopedPrisma } from "@/lib/db/scoped";
 import { updateDeparture } from "@/lib/actions/departures";
 import { DepartureForm } from "@/components/departure-form";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function EditDeparturePage({
   params,
@@ -12,7 +13,7 @@ export default async function EditDeparturePage({
   params: Promise<{ tourId: string; departureId: string }>;
 }) {
   const { tourId, departureId } = await params;
-  const session = await requirePermission(PERMISSIONS.departuresManage);
+  const [session, { locale, dict }] = await Promise.all([requirePermission(PERMISSIONS.departuresManage), getDictionary()]);
   const db = scopedPrisma(session.user.organizationId);
 
   const [departure, activeVehicles, activeDrivers, activeGuides] = await Promise.all([
@@ -63,15 +64,17 @@ export default async function EditDeparturePage({
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Your catalogue" title={`Edit departure — ${departure.tour.title}`} />
+      <PageHeader eyebrow={dict.departuresPage.eyebrow} title={`${dict.departuresPage.editDeparturePrefix} ${departure.tour.title}`} />
       <DepartureForm
         action={updateDeparture.bind(null, departure.id)}
         vehicles={vehicles}
         drivers={drivers}
         guides={guides}
-        submitLabel="Save changes"
+        submitLabel={dict.editTourPage.submitLabel}
         restrictPastDates={false}
         departureId={departure.id}
+        locale={locale}
+        dict={dict}
         defaultValues={{
           date: departure.date.toISOString(),
           returnAt: departure.returnAt?.toISOString(),

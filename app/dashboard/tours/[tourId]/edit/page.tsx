@@ -7,6 +7,7 @@ import { TourForm } from "@/components/tour-form";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { listCountryOptions, listRegionOptions } from "@/lib/geography";
 import { listCategoryOptions } from "@/lib/categories";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function EditTourPage({
   params,
@@ -14,7 +15,7 @@ export default async function EditTourPage({
   params: Promise<{ tourId: string }>;
 }) {
   const { tourId } = await params;
-  const session = await requirePermission(PERMISSIONS.toursManage);
+  const [session, { dict }] = await Promise.all([requirePermission(PERMISSIONS.toursManage), getDictionary()]);
   const db = scopedPrisma(session.user.organizationId);
   const [tour, countries] = await Promise.all([
     db.tour.findFirst({
@@ -63,7 +64,7 @@ export default async function EditTourPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Your catalogue" title={tour.title} subtitle="Refine the details of this tour." />
+      <PageHeader eyebrow={dict.toursPage.eyebrow} title={tour.title} subtitle={dict.editTourPage.subtitle} />
       <TourForm
         action={updateTourWithId}
         categories={categories}
@@ -71,7 +72,8 @@ export default async function EditTourPage({
         initialCountryId={initialCountry?.id ?? ""}
         initialRegions={initialRegions}
         selectedRegions={selectedRegions}
-        submitLabel="Save changes"
+        submitLabel={dict.editTourPage.submitLabel}
+        dict={dict}
         defaultValues={{
           title: tour.title,
           description: tour.description ?? "",

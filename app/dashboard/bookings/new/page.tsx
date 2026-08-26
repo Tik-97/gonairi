@@ -7,13 +7,14 @@ import { BookingForm } from "@/components/booking-form";
 import { formatMoney } from "@/lib/format";
 import { LocalDateTime } from "@/components/local-date-time";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function NewBookingPage({
   searchParams,
 }: {
   searchParams: Promise<{ departureId?: string }>;
 }) {
-  const { departureId } = await searchParams;
+  const [{ departureId }, { locale, dict }] = await Promise.all([searchParams, getDictionary()]);
   if (!departureId) {
     notFound();
   }
@@ -36,18 +37,20 @@ export default async function NewBookingPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Your ledger"
+        eyebrow={dict.newBookingPage.eyebrow}
         title={departure.tour.title}
-        subtitle={<><LocalDateTime value={departure.date.toISOString()} /> · {remaining} of {departure.capacity} seats left · {formatMoney(unitPrice.toString(), departure.tour.currency)} / pax</>}
+        subtitle={<><LocalDateTime value={departure.date.toISOString()} /> · {remaining} {dict.newBookingPage.seatsLeftInfix} {departure.capacity} {dict.newBookingPage.seatsLeftSuffix} · {formatMoney(unitPrice.toString(), departure.tour.currency)} {dict.newBookingPage.perPaxSuffix}</>}
       />
       {remaining <= 0 ? (
-        <p className="text-sm text-danger">This departure is fully booked.</p>
+        <p className="text-sm text-danger">{dict.newBookingPage.fullyBooked}</p>
       ) : (
         <BookingForm
           action={createBookingForDeparture}
           maxPax={remaining}
           unitPrice={Number(unitPrice)}
           currency={departure.tour.currency}
+          locale={locale}
+          dict={dict}
         />
       )}
     </div>

@@ -16,12 +16,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { PaginationControls } from "@/components/pagination-controls";
 import { parsePagination, type PaginationParams } from "@/lib/pagination";
-
-const WHEN_OPTIONS = [
-  { value: "upcoming", label: "Upcoming" },
-  { value: "past", label: "Past" },
-  { value: "all", label: "All" },
-] as const;
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function TourDeparturesPage({
   params,
@@ -30,12 +25,16 @@ export default async function TourDeparturesPage({
   params: Promise<{ tourId: string }>;
   searchParams: Promise<{ when?: string } & PaginationParams>;
 }) {
-  const { tourId } = await params;
-  const query = await searchParams;
+  const [{ tourId }, query, { locale, dict }] = await Promise.all([params, searchParams, getDictionary()]);
   const { when: whenParam } = query;
   const pagination = parsePagination(query);
   const when =
     whenParam === "past" || whenParam === "all" ? whenParam : "upcoming";
+  const WHEN_OPTIONS = [
+    { value: "upcoming", label: dict.departuresPage.whenUpcoming },
+    { value: "past", label: dict.departuresPage.whenPast },
+    { value: "all", label: dict.departuresPage.whenAll },
+  ] as const;
 
   const session = await requirePermission(PERMISSIONS.toursView);
   const [
@@ -110,16 +109,16 @@ export default async function TourDeparturesPage({
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow="Your catalogue"
+        eyebrow={dict.departuresPage.eyebrow}
         title={tour.title}
-        subtitle="Scheduled departures and their remaining seats."
+        subtitle={dict.departuresPage.subtitle}
         action={
           canViewBookings && (
             <Link
               href={`/dashboard/bookings?tourId=${tourId}`}
               className="rounded-[12px] border border-terracotta/25 px-4 py-2 text-sm font-medium text-terracotta-700 transition-colors hover:bg-cream-100"
             >
-              View bookings
+              {dict.departuresPage.viewBookings}
             </Link>
           )
         }
@@ -145,15 +144,15 @@ export default async function TourDeparturesPage({
         <EmptyState
           title={
             when === "upcoming"
-              ? "No upcoming departures"
+              ? dict.departuresPage.emptyNoUpcomingTitle
               : when === "past"
-                ? "No past departures"
-                : "No departures on the calendar"
+                ? dict.departuresPage.emptyNoPastTitle
+                : dict.departuresPage.emptyNoneTitle
           }
           message={
             when === "upcoming"
-              ? "Schedule a date and this tour becomes bookable — by you and by travelers."
-              : "Nothing to show for this filter yet."
+              ? dict.departuresPage.emptyUpcomingMessage
+              : dict.departuresPage.emptyOtherMessage
           }
         />
       ) : (
@@ -171,17 +170,17 @@ export default async function TourDeparturesPage({
                   <LocalDateTime value={departure.date.toISOString()} />
                 </p>
                 <p className="text-sm text-espresso-muted">
-                  {departure.bookedCount}/{departure.capacity} booked ·{" "}
+                  {departure.bookedCount}/{departure.capacity} {dict.departuresPage.bookedSuffix} ·{" "}
                   {formatMoney(
                     (departure.priceOverride ?? tour.basePrice).toString(),
                     tour.currency,
                   )}{" "}
-                  · {departure.status}
+                  · {dict.departureStatus[departure.status]}
                   {departure.returnAt && (
-                    <> (back <LocalDateTime value={departure.returnAt.toISOString()} />)</>
+                    <> ({dict.departuresPage.backPrefix} <LocalDateTime value={departure.returnAt.toISOString()} />)</>
                   )}
                   {departure.vehicles.length > 0 &&
-                    ` · ${formatDepartureCrew(departure.vehicles)}`}
+                    ` · ${formatDepartureCrew(departure.vehicles, dict.departureCrew)}`}
                 </p>
               </Link>
               {(canManageDepartures ||
@@ -195,7 +194,7 @@ export default async function TourDeparturesPage({
                         href={`/dashboard/bookings/new?departureId=${departure.id}`}
                         className="text-sm text-terracotta-700 underline"
                       >
-                        Book
+                        {dict.departuresPage.bookLink}
                       </Link>
                     )}
                   {canManageDepartures && (
@@ -203,7 +202,7 @@ export default async function TourDeparturesPage({
                       href={`/dashboard/tours/${tourId}/departures/${departure.id}/edit`}
                       className="text-sm text-terracotta-700 underline"
                     >
-                      Edit
+                      {dict.departuresPage.editLink}
                     </Link>
                   )}
                   {departure.status !== "CANCELLED" && canManageDepartures && (
@@ -212,7 +211,7 @@ export default async function TourDeparturesPage({
                         type="submit"
                         className="text-sm text-danger underline"
                       >
-                        Cancel
+                        {dict.departuresPage.cancelLink}
                       </button>
                     </form>
                   )}
@@ -222,7 +221,7 @@ export default async function TourDeparturesPage({
                         type="submit"
                         className="text-sm text-danger underline"
                       >
-                        Delete
+                        {dict.departuresPage.deleteLink}
                       </button>
                     </form>
                   )}
@@ -238,13 +237,15 @@ export default async function TourDeparturesPage({
       {canManageDepartures && (
         <div>
           <h2 className="mb-4 font-serif text-lg font-medium text-espresso">
-            Add a departure
+            {dict.departuresPage.addDepartureHeading}
           </h2>
           <DepartureForm
             action={createDepartureForTour}
             vehicles={vehicles}
             drivers={drivers}
             guides={guides}
+            locale={locale}
+            dict={dict}
           />
         </div>
       )}

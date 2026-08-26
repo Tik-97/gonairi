@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
 import { PaginationControls } from "@/components/pagination-controls";
 import { parsePagination, type PaginationParams } from "@/lib/pagination";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function AgencyProfilePage({
   params,
@@ -12,8 +13,8 @@ export default async function AgencyProfilePage({
   params: Promise<{ orgSlug: string }>;
   searchParams: Promise<PaginationParams>;
 }) {
-  const { orgSlug } = await params;
-  const pagination = parsePagination(await searchParams);
+  const [{ orgSlug }, paginationParams, { dict }] = await Promise.all([params, searchParams, getDictionary()]);
+  const pagination = parsePagination(paginationParams);
 
   const organization = await prisma.organization.findFirst({
     where: { slug: orgSlug, isPublished: true },
@@ -42,9 +43,9 @@ export default async function AgencyProfilePage({
       </div>
 
       <div>
-        <h2 className="mb-4 font-serif text-xl font-semibold text-espresso">Tours</h2>
+        <h2 className="mb-4 font-serif text-xl font-semibold text-espresso">{dict.agencyProfilePage.toursHeading}</h2>
         {tours.length === 0 ? (
-          <p className="text-sm text-espresso/60">No published tours yet.</p>
+          <p className="text-sm text-espresso/60">{dict.agencyProfilePage.noPublishedTours}</p>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             {tours.map((tour) => (
@@ -56,7 +57,7 @@ export default async function AgencyProfilePage({
                 <p className="font-serif text-lg font-medium text-espresso group-hover:text-brick">{tour.title}</p>
                 <p className="mt-3 text-sm font-medium text-terracotta-700">
                   {formatMoney(tour.basePrice.toString(), tour.currency)}
-                  <span className="font-normal text-espresso/50"> · {tour.durationDays}d</span>
+                  <span className="font-normal text-espresso/50"> · {tour.durationDays}{dict.toursSearchPage.daySuffix}</span>
                 </p>
               </Link>
             ))}

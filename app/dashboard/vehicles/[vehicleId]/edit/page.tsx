@@ -5,6 +5,7 @@ import { scopedPrisma } from "@/lib/db/scoped";
 import { updateVehicle } from "@/lib/actions/vehicles";
 import { VehicleForm } from "@/components/vehicle-form";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function EditVehiclePage({
   params,
@@ -12,7 +13,7 @@ export default async function EditVehiclePage({
   params: Promise<{ vehicleId: string }>;
 }) {
   const { vehicleId } = await params;
-  const session = await requirePermission(PERMISSIONS.vehiclesManage);
+  const [session, { locale, dict }] = await Promise.all([requirePermission(PERMISSIONS.vehiclesManage), getDictionary()]);
   const db = scopedPrisma(session.user.organizationId);
   const vehicle = await db.vehicle.findFirst({ where: { id: vehicleId } });
 
@@ -24,10 +25,12 @@ export default async function EditVehiclePage({
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Your fleet" title={vehicle.name} subtitle="Refine the details of this vehicle." />
+      <PageHeader eyebrow={dict.vehiclesPage.eyebrow} title={vehicle.name} subtitle={dict.editVehiclePage.subtitle} />
       <VehicleForm
         action={updateVehicleWithId}
-        submitLabel="Save changes"
+        submitLabel={dict.editVehiclePage.submitLabel}
+        locale={locale}
+        dict={dict}
         defaultValues={{
           name: vehicle.name,
           type: vehicle.type ?? "",

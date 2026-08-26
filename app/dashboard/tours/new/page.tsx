@@ -5,23 +5,29 @@ import { TourForm } from "@/components/tour-form";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { listCountryOptions, listRegionOptions } from "@/lib/geography";
 import { listCategoryOptions } from "@/lib/categories";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function NewTourPage() {
-  await requirePermission(PERMISSIONS.toursManage);
-  const [countries, categories] = await Promise.all([listCountryOptions(), listCategoryOptions()]);
+  const [, countries, categories, { dict }] = await Promise.all([
+    requirePermission(PERMISSIONS.toursManage),
+    listCountryOptions(),
+    listCategoryOptions(),
+    getDictionary(),
+  ]);
   const initialCountry = countries.find((country) => country.iso2 === "AM") ?? countries[0];
   const initialRegions = initialCountry ? await listRegionOptions(initialCountry.id) : [];
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Your catalogue" title="New tour" subtitle="Describe the journey — the details become the listing your travelers see." />
+      <PageHeader eyebrow={dict.toursPage.eyebrow} title={dict.dashboardPage.newTour} subtitle={dict.newTourPage.subtitle} />
       <TourForm
         action={createTour}
         categories={categories}
         countries={countries}
         initialCountryId={initialCountry?.id ?? ""}
         initialRegions={initialRegions}
-        submitLabel="Create tour"
+        submitLabel={dict.newTourPage.submitLabel}
+        dict={dict}
       />
     </div>
   );

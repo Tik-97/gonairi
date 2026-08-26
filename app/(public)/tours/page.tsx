@@ -11,6 +11,7 @@ import {
   listRegionOptions,
 } from "@/lib/geography";
 import { listCategoryOptions } from "@/lib/categories";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function ToursSearchPage({
   searchParams,
@@ -22,7 +23,7 @@ export default async function ToursSearchPage({
     region?: string;
   } & PaginationParams>;
 }) {
-  const params = await searchParams;
+  const [params, { dict }] = await Promise.all([searchParams, getDictionary()]);
   const { q, category, region_id: regionId, region: legacyRegionCode } = params;
   const pagination = parsePagination(params);
   const [countries, categories, selectedRegion] = await Promise.all([
@@ -76,7 +77,7 @@ export default async function ToursSearchPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-serif text-3xl font-semibold text-espresso">Tours</h1>
+      <h1 className="font-serif text-3xl font-semibold text-espresso">{dict.toursSearchPage.title}</h1>
       <PublicTourFilters
         key={`${initialCountry?.id ?? "none"}:${selectedRegion?.id ?? "all"}:${selectedCategory?.id ?? "all"}`}
         countries={countries}
@@ -89,7 +90,7 @@ export default async function ToursSearchPage({
       />
 
       {tours.length === 0 ? (
-        <p className="text-sm text-espresso/60">No tours found.</p>
+        <p className="text-sm text-espresso/60">{dict.toursSearchPage.noToursFound}</p>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           {tours.map((tour) => (
@@ -109,7 +110,7 @@ export default async function ToursSearchPage({
               </p>
               <p className="mt-3 text-sm font-medium text-terracotta-700">
                 {formatMoney(tour.basePrice.toString(), tour.currency)}
-                <span className="font-normal text-espresso/50"> · {tour.durationDays}d</span>
+                <span className="font-normal text-espresso/50"> · {tour.durationDays}{dict.toursSearchPage.daySuffix}</span>
                 {tour.tourCategories.map(({ category: tourCategory }) => (
                   <span key={tourCategory.id} className="font-normal text-espresso/50">
                     {" "}· #{tourCategory.slug}

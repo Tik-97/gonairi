@@ -2,18 +2,19 @@ import { createStaffMember } from "@/lib/actions/staff";
 import { requireOwner } from "@/lib/auth/session";
 import { StaffForm } from "@/components/staff-form";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function NewStaffPage() {
-  await requireOwner();
+  const [, { locale, dict }] = await Promise.all([requireOwner(), getDictionary()]);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        eyebrow="Your team"
-        title="New staff member"
-        subtitle="Add an operator, driver, guide, or driver-guide to your team."
+        eyebrow={dict.staffPage.eyebrow}
+        title={dict.newStaffPage.title}
+        subtitle={dict.newStaffPage.subtitle}
       />
-      <StaffForm action={createStaffMember} submitLabel="Add staff member" />
+      <StaffForm action={createStaffMember} submitLabel={dict.newStaffPage.submitLabel} locale={locale} dict={dict} />
     </div>
   );
 }

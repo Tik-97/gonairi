@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import {
   AsYouType,
@@ -10,25 +10,31 @@ import {
   type CountryCode,
 } from "libphonenumber-js";
 import { useClickOutside } from "@/components/use-click-outside";
+import en, { type Dictionary } from "@/lib/i18n/dictionaries/en";
+import type { Locale } from "@/lib/i18n/config";
 
-const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+// Intl.DisplayNames has built-in ICU translations for every country name —
+// no manual dictionary needed, just point it at the app's current locale.
+function regionNamesFor(locale: Locale): Intl.DisplayNames {
+  return new Intl.DisplayNames([locale === "ru" ? "ru" : "en"], { type: "region" });
+}
 
-function countryName(code: string): string {
-  return regionNames.of(code) ?? code;
+function countryNameFor(locale: Locale, code: string): string {
+  return regionNamesFor(locale).of(code) ?? code;
 }
 
 function Flag({ code, className }: { code: string; className?: string }) {
   return <span className={`fi fi-${code.toLowerCase()} ${className ?? ""}`} aria-hidden="true" />;
 }
 
-const COUNTRY_OPTIONS = (() => {
+function buildCountryOptions(locale: Locale) {
   const all = getCountries()
-    .map((code) => ({ code, name: countryName(code), dialCode: getCountryCallingCode(code) }))
+    .map((code) => ({ code, name: countryNameFor(locale, code), dialCode: getCountryCallingCode(code) }))
     .sort((a, b) => a.name.localeCompare(b.name));
   const armenia = all.filter((c) => c.code === "AM");
   const rest = all.filter((c) => c.code !== "AM");
   return [...armenia, ...rest];
-})();
+}
 
 function guessInitialCountry(defaultValue?: string): CountryCode {
   if (defaultValue?.trim().startsWith("+")) {
@@ -47,16 +53,21 @@ function guessInitialRaw(defaultValue: string | undefined, country: CountryCode)
 function CountryPicker({
   country,
   onSelect,
+  locale,
+  dict,
 }: {
   country: CountryCode;
   onSelect: (code: CountryCode) => void;
+  locale: Locale;
+  dict: Dictionary["phoneInput"];
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const containerRef = useClickOutside<HTMLDivElement>(() => setOpen(false));
-  const selected = COUNTRY_OPTIONS.find((c) => c.code === country);
+  const countryOptions = useMemo(() => buildCountryOptions(locale), [locale]);
+  const selected = countryOptions.find((c) => c.code === country);
 
-  const filtered = COUNTRY_OPTIONS.filter(
+  const filtered = countryOptions.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.dialCode.includes(search) ||
@@ -82,13 +93,13 @@ function CountryPicker({
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search country or code…"
+              placeholder={dict.searchPlaceholder}
               className="w-full rounded-[10px] border border-terracotta/20 bg-white px-3 py-2 text-sm"
             />
           </div>
           <div className="max-h-64 overflow-y-auto">
             {filtered.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-espresso-muted">No matches.</p>
+              <p className="px-4 py-3 text-sm text-espresso-muted">{dict.noMatches}</p>
             ) : (
               filtered.map((c) => (
                 <button
@@ -136,10 +147,14 @@ export function PhoneInput({
   name,
   defaultValue,
   placeholder,
+  locale = "en",
+  dict = en.phoneInput,
 }: {
   name: string;
   defaultValue?: string;
   placeholder?: string;
+  locale?: Locale;
+  dict?: Dictionary["phoneInput"];
 }) {
   const [country, setCountry] = useState<CountryCode>(() => guessInitialCountry(defaultValue));
   const [raw, setRaw] = useState(() => guessInitialRaw(defaultValue, guessInitialCountry(defaultValue)));
@@ -150,12 +165,12 @@ export function PhoneInput({
   const parsed = raw.trim() ? parsePhoneNumberFromString(raw, country) : null;
   const isValid = raw.trim() === "" || Boolean(parsed?.isValid());
   const e164 = parsed?.isValid() ? parsed.number : "";
-  const currentCountryName = countryName(country);
+  const currentCountryName = countryNameFor(locale, country);
 
   useEffect(() => {
     if (!inputRef.current) return;
-    inputRef.current.setCustomValidity(touched && !isValid ? `Enter a valid ${currentCountryName} phone number.` : "");
-  }, [touched, isValid, currentCountryName]);
+    inputRef.current.setCustomValidity(touched && !isValid ? `${dict.invalidNumberPrefix} ${currentCountryName} ${dict.invalidNumberSuffix}` : "");
+  }, [touched, isValid, currentCountryName, dict]);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -166,6 +181,8 @@ export function PhoneInput({
             setCountry(code);
             setTouched(true);
           }}
+          locale={locale}
+          dict={dict}
         />
         <input
           ref={inputRef}
@@ -181,7 +198,7 @@ export function PhoneInput({
       <input type="hidden" name={name} value={e164 || raw} />
       {touched && raw.trim() !== "" && !isValid && (
         <p className="text-xs text-danger">
-          That doesn&apos;t look like a complete {currentCountryName} number — check the digit count.
+          {dict.incompleteNumberPrefix} {currentCountryName} {dict.incompleteNumberSuffix}
         </p>
       )}
     </div>

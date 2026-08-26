@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { PaginationControls } from "@/components/pagination-controls";
 import { parsePagination, type PaginationParams } from "@/lib/pagination";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function VehicleDetailPage({
   params,
@@ -17,8 +18,8 @@ export default async function VehicleDetailPage({
   params: Promise<{ vehicleId: string }>;
   searchParams: Promise<PaginationParams>;
 }) {
-  const { vehicleId } = await params;
-  const pagination = parsePagination(await searchParams);
+  const [{ vehicleId }, paginationParams, { dict }] = await Promise.all([params, searchParams, getDictionary()]);
+  const pagination = parsePagination(paginationParams);
   const session = await requirePermission(PERMISSIONS.vehiclesView);
   const canManage = await roleHasPermission(session.user.role, PERMISSIONS.vehiclesManage);
   const db = scopedPrisma(session.user.organizationId);
@@ -43,13 +44,13 @@ export default async function VehicleDetailPage({
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow="Your fleet"
+        eyebrow={dict.vehiclesPage.eyebrow}
         title={vehicle.name}
-        subtitle={[vehicle.type, `${vehicle.capacity} seats`, vehicle.licensePlate].filter(Boolean).join(" · ")}
+        subtitle={[vehicle.type ? (dict.vehicleTypes[vehicle.type] ?? vehicle.type) : null, `${vehicle.capacity} ${dict.departureForm.seatsSuffix}`, vehicle.licensePlate].filter(Boolean).join(" · ")}
         action={
           canManage && (
             <Link href={`/dashboard/vehicles/${vehicle.id}/edit`} className="text-sm text-terracotta-700 underline">
-              Edit
+              {dict.vehicleDetailPage.editLink}
             </Link>
           )
         }
@@ -57,16 +58,16 @@ export default async function VehicleDetailPage({
 
       {!vehicle.isActive && (
         <p className="rounded-lg border border-warning/25 bg-warning/10 p-4 text-sm text-[#8a5c00]">
-          This vehicle is deactivated — it won&apos;t show up as an option when scheduling new departures.
+          {dict.vehicleDetailPage.deactivatedWarning}
         </p>
       )}
 
       <div>
-        <h2 className="mb-4 font-serif text-lg font-medium text-espresso">Upcoming departures</h2>
+        <h2 className="mb-4 font-serif text-lg font-medium text-espresso">{dict.vehicleDetailPage.upcomingDeparturesHeading}</h2>
         {upcomingAssignments.length === 0 ? (
           <EmptyState
-            title="No upcoming departures"
-            message="Departures this vehicle is assigned to will show up here."
+            title={dict.vehicleDetailPage.emptyTitle}
+            message={dict.vehicleDetailPage.emptyMessage}
           />
         ) : (
           <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
@@ -87,10 +88,10 @@ export default async function VehicleDetailPage({
                   <p className="font-medium text-espresso">{departure.tour.title}</p>
                   <p className="text-sm text-espresso-muted">
                     <LocalDateTime value={departure.date.toISOString()} />
-                    {departure.returnAt && <> – back <LocalDateTime value={departure.returnAt.toISOString()} /></>} · {departure.bookedCount}/
-                    {departure.capacity} booked · {departure.status}
-                    {driver && ` · Driver: ${driver.name}`}
-                    {guide && ` · Guide: ${guide.name}`}
+                    {departure.returnAt && <> – {dict.departuresPage.backPrefix} <LocalDateTime value={departure.returnAt.toISOString()} /></>} · {departure.bookedCount}/
+                    {departure.capacity} {dict.departuresPage.bookedSuffix} · {dict.departureStatus[departure.status]}
+                    {driver && ` · ${dict.departureCrew.driver}: ${driver.name}`}
+                    {guide && ` · ${dict.departureCrew.guide}: ${guide.name}`}
                   </p>
                 </div>
               </Link>

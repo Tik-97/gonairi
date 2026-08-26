@@ -5,6 +5,7 @@ import { formatMoney } from "@/lib/format";
 import { LocalDateTime } from "@/components/local-date-time";
 import { PaginationControls } from "@/components/pagination-controls";
 import { parsePagination, type PaginationParams } from "@/lib/pagination";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default async function TourDetailPage({
   params,
@@ -13,8 +14,8 @@ export default async function TourDetailPage({
   params: Promise<{ tourId: string }>;
   searchParams: Promise<PaginationParams>;
 }) {
-  const { tourId } = await params;
-  const pagination = parsePagination(await searchParams);
+  const [{ tourId }, paginationParams, { dict }] = await Promise.all([params, searchParams, getDictionary()]);
+  const pagination = parsePagination(paginationParams);
 
   const tour = await prisma.tour.findFirst({
     where: { id: tourId, isPublished: true, deletedAt: null, organization: { isPublished: true } },
@@ -46,7 +47,7 @@ export default async function TourDetailPage({
       <div>
         <h1 className="font-serif text-4xl font-semibold text-espresso">{tour.title}</h1>
         <p className="mt-2 text-sm text-espresso/60">
-          By{" "}
+          {dict.tourDetailPage.byPrefix}{" "}
           <Link href={`/agencies/${tour.organization.slug}`} className="font-medium text-terracotta-700 underline">
             {tour.organization.name}
           </Link>
@@ -58,9 +59,9 @@ export default async function TourDetailPage({
       )}
 
       <div className="flex flex-wrap gap-3 text-sm">
-        <span className="rounded-full bg-cream-100 px-3 py-1.5 text-espresso/70">{tour.durationDays} day(s)</span>
+        <span className="rounded-full bg-cream-100 px-3 py-1.5 text-espresso/70">{tour.durationDays} {dict.tourDetailPage.daysSuffix}</span>
         <span className="rounded-full bg-cream-100 px-3 py-1.5 font-medium text-terracotta-700">
-          {formatMoney(tour.basePrice.toString(), tour.currency)} / pax
+          {formatMoney(tour.basePrice.toString(), tour.currency)} {dict.tourDetailPage.perPaxSuffix}
         </span>
         {tour.tourCategories.map(({ category }) => (
           <span key={category.id} className="rounded-full bg-cream-100 px-3 py-1.5 text-espresso/70">
@@ -75,9 +76,9 @@ export default async function TourDetailPage({
       </div>
 
       <div>
-        <h2 className="mb-4 font-serif text-xl font-semibold text-espresso">Upcoming departures</h2>
+        <h2 className="mb-4 font-serif text-xl font-semibold text-espresso">{dict.tourDetailPage.upcomingDeparturesHeading}</h2>
         {departures.length === 0 ? (
-          <p className="text-sm text-espresso/60">No upcoming departures scheduled.</p>
+          <p className="text-sm text-espresso/60">{dict.tourDetailPage.noUpcomingDepartures}</p>
         ) : (
           <div className="flex flex-col divide-y divide-terracotta/10 rounded-2xl border border-terracotta/15 bg-white/70">
             {departures.map((departure) => {
@@ -87,7 +88,7 @@ export default async function TourDetailPage({
                   <div>
                     <p className="font-medium text-espresso"><LocalDateTime value={departure.date.toISOString()} /></p>
                     <p className="text-sm text-espresso/60">
-                      {remaining > 0 ? `${remaining} seats left` : "Fully booked"} ·{" "}
+                      {remaining > 0 ? `${remaining} ${dict.tourDetailPage.seatsLeftSuffix}` : dict.tourDetailPage.fullyBooked} ·{" "}
                       {formatMoney((departure.priceOverride ?? tour.basePrice).toString(), tour.currency)}
                     </p>
                   </div>
@@ -96,7 +97,7 @@ export default async function TourDetailPage({
                       href={`/book/${departure.id}`}
                       className="rounded-full bg-terracotta px-5 py-2 text-sm font-medium text-white hover:bg-terracotta-700"
                     >
-                      Book
+                      {dict.tourDetailPage.bookButton}
                     </Link>
                   )}
                 </div>

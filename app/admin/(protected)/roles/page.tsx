@@ -1,26 +1,30 @@
 import { ROLES, PERMISSION_GROUPS, OWNER_ONLY_PERMISSIONS, OWNER_PERMISSION_FLOOR, getAllRolePermissions } from "@/lib/auth/permissions";
 import { updateRolePermissions } from "@/lib/actions/platform-admin";
 import { PageHeader } from "@/components/dashboard/page-header";
-import type { UserRole } from "@/generated/prisma/enums";
+import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { ChevronDown } from "lucide-react";
 
-const ROLE_LABEL: Record<UserRole, string> = {
-  OWNER: "Owner",
-  OPERATOR: "Operator",
-  DRIVER: "Driver",
-  GUIDE: "Guide",
-  DRIVER_GUIDE: "Driver-Guide",
+const GROUP_KEY_BY_LABEL: Record<string, keyof import("@/lib/i18n/dictionaries/en").Dictionary["rolesPage"]["groups"]> = {
+  Tours: "tours",
+  Departures: "departures",
+  Bookings: "bookings",
+  Customers: "customers",
+  Fleet: "fleet",
+  Team: "team",
+  Finances: "finances",
+  Schedule: "schedule",
+  "Agency settings": "agencySettings",
 };
 
 export default async function PlatformAdminRolesPage() {
-  const grants = await getAllRolePermissions();
+  const [grants, { dict }] = await Promise.all([getAllRolePermissions(), getDictionary()]);
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        eyebrow="Access control"
-        title="Roles & permissions"
-        subtitle="Changes here apply platform-wide, to every agency's staff, immediately."
+        eyebrow={dict.rolesPage.eyebrow}
+        title={dict.rolesPage.title}
+        subtitle={dict.rolesPage.subtitle}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -34,9 +38,9 @@ export default async function PlatformAdminRolesPage() {
             >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 marker:hidden">
                 <div>
-                  <h2 className="font-serif text-xl font-semibold text-espresso">{ROLE_LABEL[role] ?? role}</h2>
+                  <h2 className="font-serif text-xl font-semibold text-espresso">{dict.roles[role]}</h2>
                   <p className="mt-1 text-sm text-espresso-muted">
-                    {roleGrants.size} permissions enabled
+                    {roleGrants.size} {dict.rolesPage.permissionsEnabled}
                   </p>
                 </div>
                 <ChevronDown
@@ -53,7 +57,7 @@ export default async function PlatformAdminRolesPage() {
                   {PERMISSION_GROUPS.map((group) => (
                     <div key={group.label}>
                       <p className="mb-1.5 text-xs font-medium tracking-[0.1em] text-espresso-muted uppercase">
-                        {group.label}
+                        {dict.rolesPage.groups[GROUP_KEY_BY_LABEL[group.label]] ?? group.label}
                       </p>
                       <div className="flex flex-col gap-1.5">
                         {group.permissions.map((perm) => {
@@ -72,9 +76,9 @@ export default async function PlatformAdminRolesPage() {
                                 disabled={isFloor || isOwnerOnly}
                                 className="h-4 w-4 rounded border-border accent-terracotta"
                               />
-                              {perm.label}
-                              {isFloor && <span className="text-xs text-espresso-muted">(always on for Owner)</span>}
-                              {isOwnerOnly && <span className="text-xs text-espresso-muted">(Owner only)</span>}
+                              {dict.rolesPage.permissions[perm.key] ?? perm.label}
+                              {isFloor && <span className="text-xs text-espresso-muted">{dict.rolesPage.alwaysOnForOwner}</span>}
+                              {isOwnerOnly && <span className="text-xs text-espresso-muted">{dict.rolesPage.ownerOnly}</span>}
                             </label>
                           );
                         })}
@@ -86,7 +90,7 @@ export default async function PlatformAdminRolesPage() {
                   type="submit"
                   className="self-start rounded-[10px] bg-terracotta px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-terracotta-700"
                 >
-                  Save {ROLE_LABEL[role]} permissions
+                  {dict.rolesPage.saveButtonPrefix} {dict.roles[role]} {dict.rolesPage.saveButtonSuffix}
                 </button>
               </form>
             </details>

@@ -17,85 +17,67 @@ import {
   UserCog,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/auth/permission-keys";
+import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
-const NAV_ITEMS: {
+function navItems(t: Dictionary["nav"]): {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
   permission?: Permission;
-}[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  {
-    href: "/dashboard/tours",
-    label: "Tours",
-    icon: Map,
-    permission: PERMISSIONS.toursView,
-  },
-  {
-    href: "/dashboard/bookings",
-    label: "Bookings",
-    icon: CalendarCheck,
-    permission: PERMISSIONS.bookingsView,
-  },
-  {
-    href: "/dashboard/customers",
-    label: "Customers",
-    icon: Users,
-    permission: PERMISSIONS.customersView,
-  },
-  {
-    href: "/dashboard/vehicles",
-    label: "Vehicles",
-    icon: Bus,
-    permission: PERMISSIONS.vehiclesView,
-  },
-  {
-    href: "/dashboard/staff",
-    label: "Staff",
-    icon: IdCard,
-    permission: PERMISSIONS.staffView,
-  },
-  {
-    href: "/dashboard/finances",
-    label: "Finances",
-    icon: Wallet,
-    permission: PERMISSIONS.financesView,
-  },
-  {
-    href: "/dashboard/settings/organization",
-    label: "Settings",
-    icon: Settings,
-    permission: PERMISSIONS.orgSettingsManage,
-  },
-];
-
-const SCHEDULE_ITEM = {
-  href: "/dashboard/schedule",
-  label: "My schedule",
-  icon: CalendarClock,
-};
-
-const PLATFORM_ITEMS = [
-  { href: "/admin/overview", label: "Platform overview", icon: LayoutDashboard },
-  { href: "/admin/agencies", label: "Agencies", icon: Building2 },
-  { href: "/admin/users", label: "All users", icon: UserCog },
-  { href: "/admin/roles", label: "Role permissions", icon: ShieldCheck },
-];
-
-const PLATFORM_DATA_ITEMS = [
-  { href: "/admin/overview", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/tours", label: "All tours", icon: Map },
-  { href: "/admin/bookings", label: "All bookings", icon: CalendarCheck },
-  { href: "/admin/customers", label: "All customers", icon: Users },
-  { href: "/admin/vehicles", label: "All vehicles", icon: Bus },
-  { href: "/admin/finances", label: "All finances", icon: Wallet },
-];
+}[] {
+  return [
+    { href: "/dashboard", label: t.dashboard, icon: LayoutDashboard },
+    {
+      href: "/dashboard/tours",
+      label: t.tours,
+      icon: Map,
+      permission: PERMISSIONS.toursView,
+    },
+    {
+      href: "/dashboard/bookings",
+      label: t.bookings,
+      icon: CalendarCheck,
+      permission: PERMISSIONS.bookingsView,
+    },
+    {
+      href: "/dashboard/customers",
+      label: t.customers,
+      icon: Users,
+      permission: PERMISSIONS.customersView,
+    },
+    {
+      href: "/dashboard/vehicles",
+      label: t.vehicles,
+      icon: Bus,
+      permission: PERMISSIONS.vehiclesView,
+    },
+    {
+      href: "/dashboard/staff",
+      label: t.staff,
+      icon: IdCard,
+      permission: PERMISSIONS.staffView,
+    },
+    {
+      href: "/dashboard/finances",
+      label: t.finances,
+      icon: Wallet,
+      permission: PERMISSIONS.financesView,
+    },
+    {
+      href: "/dashboard/settings/organization",
+      label: t.settings,
+      icon: Settings,
+      permission: PERMISSIONS.orgSettingsManage,
+    },
+  ];
+}
 
 export function SidebarNav({
   scheduleOnly,
   permissions,
   isPlatformAdmin = false,
   platformOnly = false,
+  dict,
 }: {
   /** True for roles that only see "My schedule" (drivers, guides, driver-guides)
    *  — computed server-side via `!isBackOfficeRole(role)` so this component
@@ -105,27 +87,44 @@ export function SidebarNav({
   permissions: Permission[];
   isPlatformAdmin?: boolean;
   platformOnly?: boolean;
+  dict: Dictionary["nav"];
 }) {
   const pathname = usePathname();
+  const scheduleItem = { href: "/dashboard/schedule", label: dict.mySchedule, icon: CalendarClock };
+  const platformItems = [
+    { href: "/admin/overview", label: dict.platformOverview, icon: LayoutDashboard },
+    { href: "/admin/agencies", label: dict.agencies, icon: Building2 },
+    { href: "/admin/users", label: dict.allUsers, icon: UserCog },
+    { href: "/admin/roles", label: dict.rolePermissions, icon: ShieldCheck },
+  ];
+  const platformDataItems = [
+    { href: "/admin/overview", label: dict.overview, icon: LayoutDashboard },
+    { href: "/admin/tours", label: dict.allTours, icon: Map },
+    { href: "/admin/bookings", label: dict.allBookings, icon: CalendarCheck },
+    { href: "/admin/customers", label: dict.allCustomers, icon: Users },
+    { href: "/admin/vehicles", label: dict.allVehicles, icon: Bus },
+    { href: "/admin/finances", label: dict.allFinances, icon: Wallet },
+  ];
   // Platform admins are not governed by an agency role's permission matrix.
   // The platform layout gets read-only global destinations; after selecting an
   // agency, the dashboard layout gets the normal CRM destinations for that scope.
+  const items = navItems(dict);
   const agencyItems = isPlatformAdmin
-    ? NAV_ITEMS
+    ? items
     : scheduleOnly
-      ? [SCHEDULE_ITEM]
-      : NAV_ITEMS.filter(
+      ? [scheduleItem]
+      : items.filter(
           (item) => !item.permission || permissions.includes(item.permission),
         );
   const sections = isPlatformAdmin
     ? platformOnly
       ? [
-          { label: "Platform data", items: PLATFORM_DATA_ITEMS },
-          { label: "Administration", items: PLATFORM_ITEMS.filter((item) => item.href !== "/admin/overview") },
+          { label: dict.platformDataSection, items: platformDataItems },
+          { label: dict.administrationSection, items: platformItems.filter((item) => item.href !== "/admin/overview") },
         ]
       : [
-          { label: "Agency CRM", items: agencyItems },
-          { label: "Platform", items: PLATFORM_ITEMS },
+          { label: dict.agencyCrmSection, items: agencyItems },
+          { label: dict.platformSection, items: platformItems },
         ]
     : [{ label: null, items: agencyItems }];
 
