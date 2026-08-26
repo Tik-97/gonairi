@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+
   workflow_dispatch:
 
 permissions:
@@ -18,8 +19,10 @@ jobs:
     name: Deploy master to production
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     environment:
       name: production
+
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
       DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
@@ -32,11 +35,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           : "${DEPLOY_HOST:?Missing production secret DEPLOY_HOST}"
           : "${DEPLOY_USER:?Missing production secret DEPLOY_USER}"
           : "${DEPLOY_SSH_PRIVATE_KEY:?Missing production secret DEPLOY_SSH_PRIVATE_KEY}"
           : "${DEPLOY_SSH_KNOWN_HOSTS:?Missing production secret DEPLOY_SSH_KNOWN_HOSTS}"
+
           DEPLOY_PORT="${DEPLOY_PORT:-22}"
+
           [[ "${DEPLOY_PORT}" =~ ^[0-9]+$ ]] || {
             echo "DEPLOY_PORT must be a number."
             exit 1
@@ -46,18 +52,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          install -d -m 700 "${HOME}/.ssh"
-          printf '%s\n' "${DEPLOY_SSH_PRIVATE_KEY}" > "${HOME}/.ssh/gonairi_deploy"
-          printf '%s\n' "${DEPLOY_SSH_KNOWN_HOSTS}" > "${HOME}/.ssh/known_hosts"
-          chmod 600 "${HOME}/.ssh/gonairi_deploy" "${HOME}/.ssh/known_hosts"
 
-      - name: Deploy exact master revision
+          install -d -m 700 "${HOME}/.ssh"
+
+          printf '%s\n' "${DEPLOY_SSH_PRIVATE_KEY}" \
+            > "${HOME}/.ssh/gonairi_deploy"
+
+          printf '%s\n' "${DEPLOY_SSH_KNOWN_HOSTS}" \
+            > "${HOME}/.ssh/known_hosts"
+
+          chmod 600 "${HOME}/.ssh/gonairi_deploy"
+          chmod 600 "${HOME}/.ssh/known_hosts"
+
+      - name: Deploy production
         shell: bash
-        env:
-          RELEASE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+
           DEPLOY_PORT="${DEPLOY_PORT:-22}"
+
           ssh \
             -i "${HOME}/.ssh/gonairi_deploy" \
             -p "${DEPLOY_PORT}" \
@@ -67,4 +80,8 @@ jobs:
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=6 \
             "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "cd /var/www/gonairi && test \"\$(git branch --show-current)\" = master && git fetch --prune origin master && git merge --ff-only '${RELEASE_SHA}' && bash scripts/deploy-production.sh '${RELEASE_SHA}'"
+            'cd /var/www/gonairi &&
+             git fetch --prune origin master &&
+             git checkout master &&
+             git merge --ff-only origin/master &&
+             bash scripts/deploy-production.sh'
