@@ -4,6 +4,7 @@ set -euo pipefail
 
 APP_DIR="/var/www/gonairi"
 PORT="4031"
+NVM_DIR="/mnt/projects/system/nvm"
 
 echo "=== Gonairi production deploy ==="
 
@@ -13,9 +14,9 @@ echo "Commit:"
 git rev-parse HEAD
 
 #
-# Load Node/NVM from 50 GB volume
+# Load Node / NVM
 #
-export NVM_DIR="/mnt/projects/system/nvm"
+export NVM_DIR
 
 if [ -s "${NVM_DIR}/nvm.sh" ]; then
     . "${NVM_DIR}/nvm.sh"
@@ -26,17 +27,12 @@ fi
 
 nvm use 20
 
-echo "Node:"
-node -v
-
-echo "npm:"
-npm -v
-
-echo "PM2:"
-pm2 -v
+echo "Node: $(node -v)"
+echo "npm: $(npm -v)"
+echo "PM2: $(pm2 -v)"
 
 #
-# Verify environment file
+# Verify environment
 #
 if [ ! -f "${APP_DIR}/.env" ]; then
     echo "ERROR: ${APP_DIR}/.env does not exist"
@@ -44,66 +40,94 @@ if [ ! -f "${APP_DIR}/.env" ]; then
 fi
 
 #
-# Install exact production dependencies
+# Install dependencies
 #
 echo "Installing dependencies..."
-npm ci
+
+npm ci --no-audit --no-fund
 
 #
 # Prisma
 #
 echo "Generating Prisma client..."
+
 npx prisma generate
 
 echo "Running database migrations..."
+
 npx prisma migrate deploy
 
 #
-# Build
+# Build Next.js
 #
 echo "Building Next.js..."
-npm run build
+
+NODE_OPTIONS="--max-old-space-size=1536" npm run build
 
 #
-# Verify build before touching running process
+# Verify production build
 #
-if [ ! -f ".next/BUILD_ID" ]; then
+if [ ! -f "${APP_DIR}/.next/BUILD_ID" ]; then
     echo "ERROR: Next.js build did not create .next/BUILD_ID"
     exit 1
 fi
 
+echo "Build successful."
+
 #
-# Restart / create PM2 app
+# Restart / create PM2 process
 #
 echo "Restarting Gonairi..."
 
 if pm2 describe gonairi >/dev/null 2>&1; then
-    PORT="${PORT}" pm2 restart gonairi --update-env
+
+    PORT="${PORT}" \
+    pm2 restart gonairi --update-env
+
 else
-    PORT="${PORT}" pm2 start npm \
+
+    PORT="${PORT}" \
+    pm2 start npm \
         --name gonairi \
         --cwd "${APP_DIR}" \
         -- start
+
 fi
 
 #
-# Give the app a moment, then verify
+# Health check
 #
-sleep 3
+echo "Waiting for Gonairi to start..."
 
-echo "Checking local application..."
+HEALTH_OK=false
 
-if ! curl \
-    --fail \
-    --silent \
-    --show-error \
-    --max-time 10 \
-    "http://127.0.0.1:${PORT}/" \
-    >/dev/null
-then
-    echo "ERROR: Gonairi failed health check"
+for attempt in {1..10}; do
 
-    pm2 logs gonairi --lines 50 --nostream || true
+    if curl \
+        --fail \
+        --silent \
+        --show-error \
+        --max-time 5 \
+        "http://127.0.0.1:${PORT}/" \
+        >/dev/null
+    then
+        HEALTH_OK=true
+        break
+    fi
+
+    echo "Health check attempt ${attempt}/10 failed..."
+    sleep 2
+done
+
+if [ "${HEALTH_OK}" != "true" ]; then
+
+    echo "ERROR: Gonairi failed health check."
+
+    echo "=== PM2 status ==="
+    pm2 list || true
+
+    echo "=== Gonairi logs ==="
+    pm2 logs gonairi --lines 100 --nostream || true
 
     exit 1
 fi
@@ -111,7 +135,7 @@ fi
 echo "Gonairi health check passed."
 
 #
-# Persist PM2 process list
+# Save PM2 configuration
 #
 pm2 save
 
