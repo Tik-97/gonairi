@@ -16,33 +16,22 @@ function conflicts(
   return windowsOverlap(windowA, windowB);
 }
 
-describe("vehicle availability (buffer + overlap)", () => {
-  it("flags a conflict when the raw gap between return and next departure is only 1h", () => {
-    // Trip A: 10:00-12:00. Trip B departs 13:00 — only 1h after A's return.
+describe("vehicle availability (overlap)", () => {
+  it("clears once trip B departs exactly when trip A returns (back-to-back, no overlap)", () => {
+    // Trip A: 10:00-12:00. Trip B departs 12:00 — no gap needed, no overlap.
     expect(
       conflicts(
         { date: "2026-09-01T10:00", returnAt: "2026-09-01T12:00" },
-        { date: "2026-09-01T13:00" },
-      ),
-    ).toBe(true);
-  });
-
-  it("clears once the raw gap is a full 2h (1h buffer consumed by each side)", () => {
-    // Trip A returns 12:00 (+1h buffer -> free at 13:00). Trip B departs 14:00
-    // (-1h buffer -> needs vehicle from 13:00). Back-to-back, no overlap.
-    expect(
-      conflicts(
-        { date: "2026-09-01T10:00", returnAt: "2026-09-01T12:00" },
-        { date: "2026-09-01T14:00" },
+        { date: "2026-09-01T12:00" },
       ),
     ).toBe(false);
   });
 
-  it("still conflicts 1 minute short of the 2h gap", () => {
+  it("still conflicts 1 minute before trip A returns", () => {
     expect(
       conflicts(
         { date: "2026-09-01T10:00", returnAt: "2026-09-01T12:00" },
-        { date: "2026-09-01T13:59" },
+        { date: "2026-09-01T11:59" },
       ),
     ).toBe(true);
   });
@@ -52,7 +41,7 @@ describe("vehicle availability (buffer + overlap)", () => {
     expect(
       conflicts({ date: "2026-09-01T10:00" }, { date: "2026-09-02T09:00" }),
     ).toBe(true);
-    // But two days later is well clear of the 24h hold + buffers.
+    // But two days later is well clear of the 24h hold.
     expect(
       conflicts({ date: "2026-09-01T10:00" }, { date: "2026-09-03T10:00" }),
     ).toBe(false);
