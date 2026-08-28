@@ -46,7 +46,7 @@ export function Topbar({
   const userRoleLabel = isPlatformAdmin ? dict.mobileNav.superAdmin : dict.roles[userRole as UserRole];
 
   return (
-    <div className="mb-6 flex items-center justify-end gap-3 lg:mb-8 lg:gap-4">
+    <div className="mb-6 flex flex-wrap items-center justify-end gap-3 lg:mb-8 lg:flex-nowrap lg:gap-4">
       <LanguageSwitcher locale={locale} dict={dict.languageSwitcher} />
       {agencies.length > 0 && (isPlatformAdmin || agencies.length > 1) && (
         <form action={isPlatformAdmin ? switchOrganizationCrm : switchOwnedOrganization} className="flex items-center gap-2 rounded-[12px] border border-terracotta/25 bg-card px-3 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
@@ -59,7 +59,7 @@ export function Topbar({
             required={!isPlatformAdmin}
             value={activeAgencyId ?? ""}
             onChange={(event) => event.currentTarget.form?.requestSubmit()}
-            className="max-w-44 bg-transparent text-sm font-medium text-espresso outline-none"
+            className="max-w-28 truncate bg-transparent text-sm font-medium text-espresso outline-none sm:max-w-44"
           >
             <option value="" disabled={!isPlatformAdmin}>{isPlatformAdmin ? dict.topbar.allAgencies : dict.topbar.selectAgency}</option>
             {agencies.map((agency) => (
