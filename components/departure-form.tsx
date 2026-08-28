@@ -67,7 +67,10 @@ export function DepartureForm({
   const resolvedSubmitLabel = submitLabel ?? dict.departureForm.addDepartureDefault;
   const [state, formAction, pending] = useActionState(action, undefined);
   const browserTimeZone = useBrowserTimeZone();
-  const [capacity, setCapacity] = useState(defaultValues?.capacity ?? 10);
+  // "" is a transient state while the user is clearing/retyping the field —
+  // clamping on every keystroke used to snap the value back to a default
+  // the instant it went empty, blocking backspacing it out entirely.
+  const [capacity, setCapacity] = useState<number | "">(defaultValues?.capacity ?? 10);
   const capacityTouchedByUser = useRef(defaultValues?.capacity !== undefined);
   const [departureDateValue, setDepartureDateValue] = useState<string>();
   const [returnAtValue, setReturnAtValue] = useState<string>();
@@ -310,8 +313,10 @@ export function DepartureForm({
           value={capacity}
           onChange={(e) => {
             capacityTouchedByUser.current = true;
-            setCapacity(Number(e.target.value) || 1);
+            const raw = e.target.value;
+            setCapacity(raw === "" ? "" : Number(raw));
           }}
+          onBlur={() => setCapacity((prev) => Math.max(1, prev === "" ? 1 : prev))}
           required
           className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
         />
