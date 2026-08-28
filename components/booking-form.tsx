@@ -34,14 +34,24 @@ export function BookingForm({
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
-  const [paxCount, setPaxCount] = useState(1);
+  // Kept as "" while the user is actively clearing/retyping the field —
+  // clamping on every keystroke (the old behavior) snapped the value back
+  // to a default the instant the field went empty, making it impossible to
+  // backspace out a number to type a new one. Clamping only happens onBlur.
+  const [paxCountInput, setPaxCountInput] = useState<number | "">(1);
+  const paxCount = paxCountInput === "" ? 1 : paxCountInput;
   const [travelers, setTravelers] = useState<Traveler[]>([]);
-  const [discountPercent, setDiscountPercent] = useState(0);
+  const [discountPercentInput, setDiscountPercentInput] = useState<number | "">(0);
+  const discountPercent = discountPercentInput === "" ? 0 : discountPercentInput;
 
-  function handlePaxChange(value: number) {
-    const next = Math.max(1, Math.min(maxPax, value || 1));
-    setPaxCount(next);
-    setTravelers((prev) => makeTravelers(next - 1, prev));
+  function handlePaxChange(raw: string) {
+    const next = raw === "" ? "" : Number(raw);
+    setPaxCountInput(next);
+    setTravelers((prev) => makeTravelers((next === "" ? 1 : next) - 1, prev));
+  }
+
+  function handlePaxBlur() {
+    setPaxCountInput((prev) => Math.max(1, Math.min(maxPax, prev === "" ? 1 : prev)));
   }
 
   function updateTraveler(index: number, patch: Partial<Traveler>) {
@@ -96,8 +106,9 @@ export function BookingForm({
           type="number"
           min={1}
           max={maxPax}
-          value={paxCount}
-          onChange={(e) => handlePaxChange(Number(e.target.value))}
+          value={paxCountInput}
+          onChange={(e) => handlePaxChange(e.target.value)}
+          onBlur={handlePaxBlur}
           required
           className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
         />
@@ -157,8 +168,11 @@ export function BookingForm({
           type="number"
           min={0}
           max={100}
-          value={discountPercent}
-          onChange={(e) => setDiscountPercent(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+          value={discountPercentInput}
+          onChange={(e) => setDiscountPercentInput(e.target.value === "" ? "" : Number(e.target.value))}
+          onBlur={() =>
+            setDiscountPercentInput((prev) => Math.max(0, Math.min(100, prev === "" ? 0 : prev)))
+          }
           className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
         />
       </label>

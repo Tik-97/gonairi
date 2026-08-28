@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useClickOutside } from "@/components/use-click-outside";
 import { utcInstantToZonedInput, zonedDateTimeToUtc } from "@/lib/time-zone";
@@ -109,6 +110,22 @@ function DateTimePickerInner({
 }: DateTimePickerInnerProps) {
   const initial = parseDefaultValue(defaultValue);
   const [open, setOpen] = useState(false);
+  // The submitted field below is `type="hidden"`, which the HTML spec bars
+  // from constraint validation — `required` on it is a no-op, so an empty
+  // required date has never actually been enforced. Track validity here
+  // instead and show it on the visible trigger button.
+  const [touched, setTouched] = useState(false);
+  const { pending } = useFormStatus();
+  // Adjusting state during render (React's documented alternative to an
+  // effect for "remember a value changed") instead of useEffect — avoids an
+  // extra post-commit render pass just to flip a boolean once a submit
+  // attempt starts. Uses state rather than a ref since reading/writing a
+  // ref during render isn't allowed.
+  const [prevPending, setPrevPending] = useState(pending);
+  if (pending !== prevPending) {
+    setPrevPending(pending);
+    if (pending) setTouched(true);
+  }
   const [appliedDate, setAppliedDate] = useState<Date | null>(initial.date);
   const [appliedTime, setAppliedTime] = useState(initial.time);
   const [draftDate, setDraftDate] = useState<Date | null>(null);
@@ -181,8 +198,13 @@ function DateTimePickerInner({
         <button
           type="button"
           onClick={openPicker}
+          onBlur={() => setTouched(true)}
           aria-label={ariaLabel}
-          className="flex w-full items-center gap-2.5 rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5 text-left"
+          className={
+            required && touched && !appliedDate
+              ? "flex w-full items-center gap-2.5 rounded-[12px] border border-danger bg-white px-3.5 py-2.5 text-left"
+              : "flex w-full items-center gap-2.5 rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5 text-left"
+          }
         >
           <Calendar
             className="h-4 w-4 shrink-0 text-terracotta-700"

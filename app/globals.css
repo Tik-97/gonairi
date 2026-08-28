@@ -107,3 +107,18 @@
     cursor: pointer;
   }
 }
+
+/* Deliberately unlayered: Tailwind's own border-color utilities (e.g.
+   border-terracotta/25) live in @layer utilities, so a same-or-lower
+   specificity rule inside any @layer would lose to them. Unlayered rules
+   form an implicit final layer that always outranks layered ones,
+   regardless of source order or specificity — the standard way to override
+   Tailwind v4 utilities everywhere without !important.
+   :user-invalid (not :invalid) matches only after the user blurs the field
+   or a submit was attempted, so required-but-empty fields don't look
+   broken on first render. */
+input:not([type="hidden"]):user-invalid,
+select:user-invalid,
+textarea:user-invalid {
+  border-color: var(--color-danger);
+}
