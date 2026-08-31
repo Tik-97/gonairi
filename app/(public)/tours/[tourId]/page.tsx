@@ -6,6 +6,7 @@ import { LocalDateTime } from "@/components/local-date-time";
 import { PaginationControls } from "@/components/pagination-controls";
 import { parsePagination, type PaginationParams } from "@/lib/pagination";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { PUBLIC_TOUR_VISIBILITY } from "@/lib/tours/visibility";
 
 export default async function TourDetailPage({
   params,
@@ -18,7 +19,7 @@ export default async function TourDetailPage({
   const pagination = parsePagination(paginationParams);
 
   const tour = await prisma.tour.findFirst({
-    where: { id: tourId, isPublished: true, deletedAt: null, organization: { isPublished: true } },
+    where: { id: tourId, ...PUBLIC_TOUR_VISIBILITY, organization: { isPublished: true } },
     include: {
       organization: true,
       tourRegions: {

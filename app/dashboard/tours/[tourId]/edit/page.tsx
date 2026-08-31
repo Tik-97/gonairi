@@ -40,6 +40,10 @@ export default async function EditTourPage({
           orderBy: { position: "asc" },
           select: { categoryId: true },
         },
+        tourCustomers: {
+          orderBy: { createdAt: "asc" },
+          select: { customer: { select: { id: true, fullName: true, email: true, phone: true } } },
+        },
       },
     }),
     listCountryOptions(),
@@ -72,6 +76,7 @@ export default async function EditTourPage({
         initialCountryId={initialCountry?.id ?? ""}
         initialRegions={initialRegions}
         selectedRegions={selectedRegions}
+        initialCustomers={tour.tourCustomers.map(({ customer }) => customer)}
         submitLabel={dict.editTourPage.submitLabel}
         dict={dict}
         defaultValues={{
@@ -81,6 +86,7 @@ export default async function EditTourPage({
           durationDays: tour.durationDays,
           basePrice: Number(tour.basePrice),
           isPublished: tour.isPublished,
+          isPrivate: tour.isPrivate,
           images: tour.images,
           regionIds: selectedRegionIds,
         }}

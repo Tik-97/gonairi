@@ -5,6 +5,7 @@ import { GuestBookingForm } from "@/components/guest-booking-form";
 import { formatMoney } from "@/lib/format";
 import { LocalDateTime } from "@/components/local-date-time";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { PUBLIC_TOUR_VISIBILITY } from "@/lib/tours/visibility";
 
 export default async function BookDeparturePage({
   params,
@@ -17,7 +18,7 @@ export default async function BookDeparturePage({
     where: {
       id: departureId,
       organization: { isPublished: true },
-      tour: { isPublished: true, deletedAt: null },
+      tour: PUBLIC_TOUR_VISIBILITY,
     },
     include: { tour: { include: { organization: true } } },
   });

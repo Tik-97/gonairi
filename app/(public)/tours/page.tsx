@@ -12,6 +12,7 @@ import {
 } from "@/lib/geography";
 import { listCategoryOptions } from "@/lib/categories";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { PUBLIC_TOUR_VISIBILITY } from "@/lib/tours/visibility";
 
 export default async function ToursSearchPage({
   searchParams,
@@ -38,8 +39,7 @@ export default async function ToursSearchPage({
     countries[0];
 
   const where = {
-    isPublished: true,
-    deletedAt: null,
+    ...PUBLIC_TOUR_VISIBILITY,
     organization: { isPublished: true },
     ...(selectedCategory
       ? { tourCategories: { some: { categoryId: selectedCategory.id } } }

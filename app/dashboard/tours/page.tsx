@@ -36,6 +36,7 @@ export default async function ToursPage({
             OR: [
               { title: { contains: q, mode: "insensitive" as const } },
               { description: { contains: q, mode: "insensitive" as const } },
+              { tourCustomers: { some: { customer: { fullName: { contains: q, mode: "insensitive" as const } } } } },
             ],
           }
         : {}),
@@ -54,7 +55,12 @@ export default async function ToursPage({
         durationDays: true,
         deletedAt: true,
         isPublished: true,
+        isPrivate: true,
         images: true,
+        tourCustomers: {
+          orderBy: { createdAt: "asc" },
+          select: { customer: { select: { id: true, fullName: true } } },
+        },
         departures: {
           where: { status: { not: "CANCELLED" }, date: { gte: new Date() } },
           orderBy: { date: "asc" },
@@ -76,12 +82,20 @@ export default async function ToursPage({
         subtitle={dict.toursPage.subtitle}
         action={
           canManage && (
-            <Link
-              href="/dashboard/tours/new"
-              className="rounded-[12px] bg-terracotta px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-terracotta-700"
-            >
-              {dict.toursPage.newTourButton}
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/dashboard/tours/new?type=individual"
+                className="rounded-[12px] border border-terracotta/30 px-5 py-2.5 text-sm font-medium text-terracotta-700 transition-colors hover:bg-cream-100"
+              >
+                {dict.toursPage.newIndividualTourButton}
+              </Link>
+              <Link
+                href="/dashboard/tours/new"
+                className="rounded-[12px] bg-terracotta px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-terracotta-700"
+              >
+                {dict.toursPage.newTourButton}
+              </Link>
+            </div>
           )
         }
       />
@@ -145,8 +159,19 @@ export default async function ToursPage({
                     <p className="text-sm text-espresso-muted">
                       {formatMoney(tour.basePrice.toString(), tour.currency)} ·{" "}
                       {tour.durationDays}{dict.toursPage.daySuffix} ·{" "}
-                      {showDeleted ? dict.toursPage.deletedBadge : tour.isPublished ? dict.toursPage.publishedBadge : dict.toursPage.draftBadge}
+                      {showDeleted
+                        ? dict.toursPage.deletedBadge
+                        : tour.isPrivate
+                          ? dict.toursPage.individualBadge
+                          : tour.isPublished
+                            ? dict.toursPage.publishedBadge
+                            : dict.toursPage.draftBadge}
                     </p>
+                    {tour.isPrivate && (
+                      <p className="mt-1 text-xs text-espresso-muted">
+                        {tour.tourCustomers.map(({ customer }) => customer.fullName).join(" · ")}
+                      </p>
+                    )}
                     <p className="mt-1 text-sm font-medium text-terracotta-700">
                       {nextDeparture
                         ? <>{dict.toursPage.nextDeparturePrefix} <LocalDateTime value={nextDeparture.date.toISOString()} /></>

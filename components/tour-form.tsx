@@ -9,6 +9,8 @@ import { RegionPicker } from "@/components/region-picker";
 import type { GeographyCountryOption, GeographyRegionOption } from "@/types/geography";
 import type { CategoryOption } from "@/types/category";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
+import type { CustomerSearchResult } from "@/lib/actions/customers";
+import { CustomerMultiSelect } from "@/components/customer-multi-select";
 
 const MAX_IMAGES = 10;
 
@@ -25,6 +27,7 @@ type TourFormValues = {
   durationDays: number;
   basePrice: number;
   isPublished: boolean;
+  isPrivate: boolean;
   images: string[];
   regionIds: string[];
 };
@@ -36,6 +39,7 @@ export function TourForm({
   initialCountryId,
   initialRegions,
   selectedRegions,
+  initialCustomers = [],
   defaultValues,
   submitLabel,
   dict,
@@ -46,9 +50,10 @@ export function TourForm({
   initialCountryId: string;
   initialRegions: GeographyRegionOption[];
   selectedRegions?: GeographyRegionOption[];
+  initialCustomers?: CustomerSearchResult[];
   defaultValues?: Partial<TourFormValues>;
   submitLabel: string;
-  dict: Pick<Dictionary, "tourForm" | "tourCategories" | "armenianRegions" | "common">;
+  dict: Pick<Dictionary, "tourForm" | "customTour" | "tourCategories" | "armenianRegions" | "common">;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const [slots, setSlots] = useState<ImageSlot[]>(
@@ -56,6 +61,8 @@ export function TourForm({
       ? defaultValues.images.map((url): ImageSlot => ({ status: "done", url }))
       : [{ status: "empty" }],
   );
+  const [isPrivate, setIsPrivate] = useState(defaultValues?.isPrivate ?? false);
+  const [customers, setCustomers] = useState<CustomerSearchResult[]>(initialCustomers);
 
   const anyUploading = slots.some((s) => s.status === "uploading");
 
@@ -91,6 +98,43 @@ export function TourForm({
 
   return (
     <form action={formAction} className="flex max-w-lg flex-col gap-4">
+      <input type="hidden" name="isPrivate" value={isPrivate ? "true" : "false"} />
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-sm">{dict.customTour.accessType}</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => setIsPrivate(false)}
+            aria-pressed={!isPrivate}
+            className={`rounded-[12px] border p-3 text-left transition-colors ${
+              !isPrivate ? "border-terracotta bg-terracotta/5" : "border-terracotta/20 bg-white hover:bg-cream-100"
+            }`}
+          >
+            <span className="block text-sm font-medium text-espresso">{dict.customTour.standard}</span>
+            <span className="mt-1 block text-xs text-espresso-muted">{dict.customTour.standardHint}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsPrivate(true)}
+            aria-pressed={isPrivate}
+            className={`rounded-[12px] border p-3 text-left transition-colors ${
+              isPrivate ? "border-terracotta bg-terracotta/5" : "border-terracotta/20 bg-white hover:bg-cream-100"
+            }`}
+          >
+            <span className="block text-sm font-medium text-espresso">{dict.customTour.individual}</span>
+            <span className="mt-1 block text-xs text-espresso-muted">{dict.customTour.individualHint}</span>
+          </button>
+        </div>
+      </fieldset>
+
+      {isPrivate && (
+        <div className="flex flex-col gap-1 text-sm">
+          <span>{dict.customTour.customers}</span>
+          <CustomerMultiSelect selected={customers} onChange={setCustomers} dict={dict.customTour} />
+          <span className="text-xs text-espresso-muted">{dict.customTour.customersHint}</span>
+        </div>
+      )}
+
       <label className="flex flex-col gap-1 text-sm">
         {dict.tourForm.title}
         <input
@@ -151,6 +195,7 @@ export function TourForm({
           required
           className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
         />
+        {isPrivate && <span className="text-xs text-espresso-muted">{dict.customTour.privatePriceHint}</span>}
       </label>
 
       <div className="flex flex-col gap-2 text-sm">
@@ -228,15 +273,17 @@ export function TourForm({
         )}
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          name="isPublished"
-          type="checkbox"
-          defaultChecked={defaultValues?.isPublished}
-          className="h-4 w-4"
-        />
-        {dict.tourForm.publishedLabel}
-      </label>
+      {!isPrivate && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            name="isPublished"
+            type="checkbox"
+            defaultChecked={defaultValues?.isPublished}
+            className="h-4 w-4"
+          />
+          {dict.tourForm.publishedLabel}
+        </label>
+      )}
       {state?.error && <p className="text-sm text-danger">{state.error}</p>}
       <button
         type="submit"

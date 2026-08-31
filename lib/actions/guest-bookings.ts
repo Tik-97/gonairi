@@ -7,6 +7,7 @@ import { scopedPrisma } from "@/lib/db/scoped";
 import { createBooking, NotEnoughAvailabilityError } from "@/lib/bookings/create-booking";
 import { calculateBookingTotal } from "@/lib/bookings/pricing";
 import { formStateFromZodError, type FormState } from "@/lib/form-state";
+import { PUBLIC_TOUR_VISIBILITY } from "@/lib/tours/visibility";
 
 const GuestBookingSchema = z.object({
   fullName: z.string().trim().min(2, "Name is required."),
@@ -39,7 +40,7 @@ export async function createGuestBooking(
     where: {
       id: departureId,
       organization: { isPublished: true },
-      tour: { isPublished: true, deletedAt: null },
+      tour: PUBLIC_TOUR_VISIBILITY,
     },
     include: { tour: true },
   });

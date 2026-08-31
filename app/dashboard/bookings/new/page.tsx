@@ -12,9 +12,9 @@ import { getDictionary } from "@/lib/i18n/get-dictionary";
 export default async function NewBookingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ departureId?: string }>;
+  searchParams: Promise<{ departureId?: string; customerId?: string }>;
 }) {
-  const [{ departureId }, { locale, dict }] = await Promise.all([searchParams, getDictionary()]);
+  const [{ departureId, customerId }, { locale, dict }] = await Promise.all([searchParams, getDictionary()]);
   if (!departureId) {
     notFound();
   }
@@ -22,10 +22,18 @@ export default async function NewBookingPage({
   const session = await requirePermission(PERMISSIONS.bookingsManage);
   const db = scopedPrisma(session.user.organizationId);
 
-  const departure = await db.departure.findFirst({
-    where: { id: departureId, tour: { deletedAt: null } },
-    include: { tour: true },
-  });
+  const [departure, initialCustomer] = await Promise.all([
+    db.departure.findFirst({
+      where: { id: departureId, tour: { deletedAt: null } },
+      include: { tour: true },
+    }),
+    customerId
+      ? db.customer.findFirst({
+          where: { id: customerId },
+          select: { id: true, fullName: true, email: true, phone: true },
+        })
+      : Promise.resolve(null),
+  ]);
   if (!departure) {
     notFound();
   }
@@ -51,6 +59,7 @@ export default async function NewBookingPage({
           currency={departure.tour.currency}
           locale={locale}
           dict={dict}
+          initialCustomer={initialCustomer}
         />
       )}
     </div>

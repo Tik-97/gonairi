@@ -136,8 +136,11 @@ export async function deleteCustomer(customerId: string): Promise<void> {
 
   // The delete button is only shown when there are zero bookings; this is a
   // defense-in-depth check in case one slipped in between page load and click.
-  const bookingCount = await db.booking.count({ where: { customerId } });
-  if (bookingCount > 0) {
+  const [bookingCount, individualTourCount] = await Promise.all([
+    db.booking.count({ where: { customerId } }),
+    db.tourCustomer.count({ where: { customerId } }),
+  ]);
+  if (bookingCount > 0 || individualTourCount > 0) {
     return;
   }
 

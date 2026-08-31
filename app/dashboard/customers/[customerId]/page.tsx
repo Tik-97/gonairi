@@ -25,9 +25,10 @@ export default async function CustomerDetailPage({
   const pagination = parsePagination(paginationParams);
   const numberLocale = locale === "ru" ? "ru-RU" : "en-US";
   const session = await requirePermission(PERMISSIONS.customersView);
-  const [canManage, canDelete] = await Promise.all([
+  const [canManage, canDelete, canManageTours] = await Promise.all([
     roleHasPermission(session.user.role, PERMISSIONS.customersManage),
     roleHasPermission(session.user.role, PERMISSIONS.customersDelete),
+    roleHasPermission(session.user.role, PERMISSIONS.toursManage),
   ]);
   const db = scopedPrisma(session.user.organizationId);
 
@@ -36,7 +37,7 @@ export default async function CustomerDetailPage({
     notFound();
   }
 
-  const [bookings, bookingStatsRows, totalItems] = await Promise.all([
+  const [bookings, bookingStatsRows, totalItems, individualTours, assignedTourCount] = await Promise.all([
     db.booking.findMany({
       where: { customerId },
       include: { departure: { include: { tour: true } } },
@@ -49,6 +50,12 @@ export default async function CustomerDetailPage({
       select: { status: true, totalPrice: true, currency: true },
     }),
     db.booking.count({ where: { customerId } }),
+    db.tourCustomer.findMany({
+      where: { customerId, tour: { deletedAt: null } },
+      include: { tour: { select: { id: true, title: true, basePrice: true, currency: true, durationDays: true } } },
+      orderBy: { createdAt: "desc" },
+    }),
+    db.tourCustomer.count({ where: { customerId } }),
   ]);
 
   const { totalBookings, confirmedCount, cancelledCount, noShowCount, totalSpent, currency, cancellationRate } =
@@ -69,7 +76,15 @@ export default async function CustomerDetailPage({
                 {dict.customerDetailPage.editLink}
               </Link>
             )}
-            {canDelete && totalItems === 0 && (
+            {canManageTours && (
+              <Link
+                href={`/dashboard/tours/new?type=individual&customerId=${customer.id}`}
+                className="text-sm text-terracotta-700 underline"
+              >
+                {dict.customerDetailPage.createIndividualTour}
+              </Link>
+            )}
+            {canDelete && totalItems === 0 && assignedTourCount === 0 && (
               <form action={deleteCustomer.bind(null, customer.id)}>
                 <button type="submit" className="text-sm text-danger underline">
                   {dict.customerDetailPage.deleteLink}
@@ -106,6 +121,30 @@ export default async function CustomerDetailPage({
           />
         </div>
       )}
+
+      <div>
+        <h2 className="mb-4 font-serif text-lg font-medium text-espresso">
+          {dict.customerDetailPage.individualToursHeading}
+        </h2>
+        {individualTours.length === 0 ? (
+          <p className="text-sm text-espresso-muted">{dict.customerDetailPage.noIndividualTours}</p>
+        ) : (
+          <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+            {individualTours.map(({ tour }) => (
+              <Link
+                key={tour.id}
+                href={`/dashboard/tours/${tour.id}/departures`}
+                className="flex flex-col gap-1 px-4 py-3.5 transition-colors hover:bg-cream-100/70 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4"
+              >
+                <span className="font-medium text-espresso">{tour.title}</span>
+                <span className="text-sm text-espresso-muted">
+                  {tour.durationDays}{dict.toursPage.daySuffix} · {formatMoney(tour.basePrice.toString(), tour.currency)}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div>
         <h2 className="mb-4 font-serif text-lg font-medium text-espresso">{dict.customerDetailPage.bookingsHeading}</h2>

@@ -5,6 +5,7 @@ import { formatMoney } from "@/lib/format";
 import { PaginationControls } from "@/components/pagination-controls";
 import { parsePagination, type PaginationParams } from "@/lib/pagination";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { PUBLIC_TOUR_VISIBILITY } from "@/lib/tours/visibility";
 
 export default async function AgencyProfilePage({
   params,
@@ -22,7 +23,7 @@ export default async function AgencyProfilePage({
   if (!organization) {
     notFound();
   }
-  const tourWhere = { organizationId: organization.id, isPublished: true, deletedAt: null };
+  const tourWhere = { organizationId: organization.id, ...PUBLIC_TOUR_VISIBILITY };
   const [tours, totalItems] = await Promise.all([
     prisma.tour.findMany({ where: tourWhere, orderBy: { createdAt: "desc" }, skip: pagination.skip, take: pagination.take }),
     prisma.tour.count({ where: tourWhere }),

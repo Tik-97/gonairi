@@ -230,11 +230,26 @@ export interface Dictionary {
     selectRegionWarning: string;
     uploadFailed: string;
   };
+  customTour: {
+    accessType: string;
+    standard: string;
+    standardHint: string;
+    individual: string;
+    individualHint: string;
+    customers: string;
+    customersHint: string;
+    searchPlaceholder: string;
+    searching: string;
+    noCustomersFound: string;
+    removeCustomer: string;
+    privatePriceHint: string;
+  };
   toursPage: {
     eyebrow: string;
     title: string;
     subtitle: string;
     newTourButton: string;
+    newIndividualTourButton: string;
     active: string;
     deleted: string;
     searchPlaceholder: string;
@@ -247,6 +262,7 @@ export interface Dictionary {
     deletedBadge: string;
     publishedBadge: string;
     draftBadge: string;
+    individualBadge: string;
     nextDeparturePrefix: string;
     noUpcomingDepartures: string;
     daySuffix: string;
@@ -258,6 +274,9 @@ export interface Dictionary {
   newTourPage: {
     subtitle: string;
     submitLabel: string;
+    individualTitle: string;
+    individualSubtitle: string;
+    individualSubmitLabel: string;
   };
   editTourPage: {
     subtitle: string;
@@ -307,6 +326,7 @@ export interface Dictionary {
     eyebrow: string;
     subtitle: string;
     viewBookings: string;
+    designedFor: string;
     whenUpcoming: string;
     whenPast: string;
     whenAll: string;
@@ -446,6 +466,7 @@ export interface Dictionary {
   customerDetailPage: {
     editLink: string;
     deleteLink: string;
+    createIndividualTour: string;
     totalBookings: string;
     cancelled: string;
     cancellationRateSuffix: string;
@@ -453,6 +474,8 @@ export interface Dictionary {
     totalSpent: string;
     honoredBookingsSuffix: string;
     bookingsHeading: string;
+    individualToursHeading: string;
+    noIndividualTours: string;
   };
   vehiclesPage: {
     eyebrow: string;
@@ -959,11 +982,26 @@ const en: Dictionary = {
     selectRegionWarning: "Select at least one region — this powers the marketplace filter later.",
     uploadFailed: "Upload failed.",
   },
+  customTour: {
+    accessType: "Tour type",
+    standard: "Standard tour",
+    standardHint: "A reusable tour that can be published in your catalogue.",
+    individual: "Individual tour",
+    individualHint: "A private tour designed for specific customers. It is never shown on the public marketplace.",
+    customers: "Customers",
+    customersHint: "Select one customer, then add as many others as this private group needs.",
+    searchPlaceholder: "Search customers by name, email, or phone…",
+    searching: "Searching…",
+    noCustomersFound: "No customers found.",
+    removeCustomer: "Remove customer",
+    privatePriceHint: "This is the agreed price per person. You can still override it for any departure.",
+  },
   toursPage: {
     eyebrow: "Your catalogue",
     title: "Tours",
     subtitle: "The experiences your agency offers, from monastery day trips to multi-day journeys.",
     newTourButton: "+ New tour",
+    newIndividualTourButton: "+ Individual tour",
     active: "Active",
     deleted: "Deleted",
     searchPlaceholder: "Search tours by title or description…",
@@ -976,6 +1014,7 @@ const en: Dictionary = {
     deletedBadge: "Deleted",
     publishedBadge: "Published",
     draftBadge: "Draft",
+    individualBadge: "Individual",
     nextDeparturePrefix: "Next:",
     noUpcomingDepartures: "No upcoming departures",
     daySuffix: "d",
@@ -987,6 +1026,9 @@ const en: Dictionary = {
   newTourPage: {
     subtitle: "Describe the journey — the details become the listing your travelers see.",
     submitLabel: "Create tour",
+    individualTitle: "New individual tour",
+    individualSubtitle: "Build a private journey for one customer or a small customer group.",
+    individualSubmitLabel: "Create individual tour",
   },
   editTourPage: {
     subtitle: "Refine the details of this tour.",
@@ -1036,6 +1078,7 @@ const en: Dictionary = {
     eyebrow: "Your catalogue",
     subtitle: "Scheduled departures and their remaining seats.",
     viewBookings: "View bookings",
+    designedFor: "Designed for",
     whenUpcoming: "Upcoming",
     whenPast: "Past",
     whenAll: "All",
@@ -1175,6 +1218,7 @@ const en: Dictionary = {
   customerDetailPage: {
     editLink: "Edit",
     deleteLink: "Delete",
+    createIndividualTour: "+ Individual tour",
     totalBookings: "Total bookings",
     cancelled: "Cancelled",
     cancellationRateSuffix: "% of bookings",
@@ -1182,6 +1226,8 @@ const en: Dictionary = {
     totalSpent: "Total spent",
     honoredBookingsSuffix: "honored bookings",
     bookingsHeading: "Bookings",
+    individualToursHeading: "Individual tours",
+    noIndividualTours: "No individual tours have been created for this customer yet.",
   },
   vehiclesPage: {
     eyebrow: "Your fleet",

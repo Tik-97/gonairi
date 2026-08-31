@@ -244,6 +244,65 @@ function validateDepartureTimes(date: Date, returnAt: Date | null): string | nul
   return null;
 }
 
+/**
+ * Validates and normalizes the initial departure embedded in the individual
+ * tour form. This performs the same tenant/resource/conflict checks as the
+ * standalone departure flow, while leaving the actual insert to createTour so
+ * the tour and departure can be committed atomically.
+ */
+export async function validateNewDepartureForm(formData: FormData): Promise<
+  | {
+      data: {
+        date: string;
+        returnAt: string | null;
+        capacity: number;
+        priceOverride: number | null;
+        notes: string | null;
+        rows: VehicleAssignmentRow[];
+      };
+    }
+  | { error: string }
+> {
+  const session = await requirePermission(PERMISSIONS.departuresManage);
+  const priceOverrideRaw = formData.get("priceOverride");
+  const parsed = DepartureSchema.safeParse({
+    date: formData.get("date"),
+    returnAt: formData.get("returnAt") || undefined,
+    timeZone: formData.get("timeZone"),
+    capacity: formData.get("capacity"),
+    priceOverride: priceOverrideRaw ? priceOverrideRaw : undefined,
+    notes: formData.get("notes"),
+  });
+  if (!parsed.success) {
+    return formStateFromZodError(parsed.error) as { error: string };
+  }
+
+  const rowCount = Number(formData.get("vehicleRowCount") ?? 0);
+  const rows = parseVehicleAssignments(formData, rowCount);
+  const intraError = findIntraSubmissionConflict(rows);
+  if (intraError) return { error: intraError };
+
+  const departureDate = new Date(parsed.data.date);
+  const returnAt = parsed.data.returnAt ? new Date(parsed.data.returnAt) : null;
+  const timeError = validateDepartureTimes(departureDate, returnAt);
+  if (timeError) return { error: timeError };
+
+  const db = scopedPrisma(session.user.organizationId);
+  const rowsError = await checkAllRows(db, rows, departureDate, returnAt, parsed.data.timeZone);
+  if (rowsError) return { error: rowsError };
+
+  return {
+    data: {
+      date: departureDate.toISOString(),
+      returnAt: returnAt?.toISOString() ?? null,
+      capacity: parsed.data.capacity,
+      priceOverride: parsed.data.priceOverride ?? null,
+      notes: parsed.data.notes || null,
+      rows,
+    },
+  };
+}
+
 export async function createDeparture(
   tourId: string,
   _prevState: FormState,

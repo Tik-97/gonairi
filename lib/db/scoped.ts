@@ -15,6 +15,7 @@ export const TENANT_SCOPED_MODELS = new Set([
   "User",
   "Customer",
   "Tour",
+  "TourCustomer",
   "Departure",
   "DepartureVehicle",
   "Booking",

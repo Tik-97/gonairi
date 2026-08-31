@@ -3,6 +3,7 @@ import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { formatMoney } from "@/lib/format";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { PUBLIC_TOUR_VISIBILITY } from "@/lib/tours/visibility";
 
 // Featured tours must reflect current publish/availability state, not a build-time snapshot.
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const [featuredTours, { dict }] = await Promise.all([
     prisma.tour.findMany({
-      where: { isPublished: true, deletedAt: null, organization: { isPublished: true } },
+      where: { ...PUBLIC_TOUR_VISIBILITY, organization: { isPublished: true } },
       include: { organization: true },
       orderBy: { createdAt: "desc" },
       take: 4,

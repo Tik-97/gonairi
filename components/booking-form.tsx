@@ -24,6 +24,7 @@ export function BookingForm({
   currency,
   locale,
   dict,
+  initialCustomer = null,
 }: {
   action: (state: FormState, formData: FormData) => Promise<FormState>;
   maxPax: number;
@@ -31,6 +32,7 @@ export function BookingForm({
   currency: string;
   locale: Locale;
   dict: Pick<Dictionary, "bookingForm" | "customerCombobox" | "phoneInput">;
+  initialCustomer?: CustomerSearchResult | null;
 }) {
   const PRICE_TYPE_OPTIONS: { value: TravelerPriceType; label: string }[] = [
     { value: "FULL", label: dict.bookingForm.fullPrice },
@@ -38,7 +40,7 @@ export function BookingForm({
     { value: "FREE", label: dict.bookingForm.free },
   ];
   const [state, formAction, pending] = useActionState(action, undefined);
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(initialCustomer);
   const [paxCount, setPaxCount] = useState(1);
   const [travelers, setTravelers] = useState<Traveler[]>([]);
   const [discountPercent, setDiscountPercent] = useState(0);
