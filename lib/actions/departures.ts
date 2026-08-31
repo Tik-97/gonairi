@@ -76,9 +76,9 @@ function formatTime(date: Date, timeZone: string): string {
 }
 
 /** A vehicle can cover two short departures the same day as long as there's
- *  real turnaround time between them — see vehicleWindow's buffer/default
- *  above. Unlike drivers/guides this is time-windowed, not whole-day, since a
- *  vehicle (unlike a person) can reasonably shuttle between two trips. */
+ *  no overlap between them — see vehicleWindow's default hold above. Unlike
+ *  drivers/guides this is time-windowed, not whole-day, since a vehicle
+ *  (unlike a person) can reasonably shuttle between two trips. */
 async function findVehicleConflict(
   db: ReturnType<typeof scopedPrisma>,
   vehicleId: string,
@@ -153,7 +153,7 @@ async function checkVehicleRow(
     const conflict = await findVehicleConflict(db, row.vehicleId, date, returnAt, excludeDepartureId);
     if (conflict) {
       const conflictEnd = vehicleWindow(conflict.date, conflict.returnAt).end;
-      return `${label}: ${vehicle.name} is still tied up with "${conflict.tour.title}" until ~${formatTime(conflictEnd, timeZone)} (return time + 1h buffer) — pick a later departure or a different vehicle.`;
+      return `${label}: ${vehicle.name} is still tied up with "${conflict.tour.title}" until ~${formatTime(conflictEnd, timeZone)} — pick a later departure or a different vehicle.`;
     }
   }
 
@@ -232,7 +232,7 @@ export async function checkVehicleAvailability(
   }
   const conflictEnd = vehicleWindow(conflict.date, conflict.returnAt).end;
   return {
-    conflict: `${vehicle.name} is tied up with "${conflict.tour.title}" until ~${formatTime(conflictEnd, timeZone)} (return time + 1h buffer).`,
+    conflict: `${vehicle.name} is tied up with "${conflict.tour.title}" until ~${formatTime(conflictEnd, timeZone)}.`,
   };
 }
 

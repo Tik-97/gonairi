@@ -57,7 +57,9 @@ export function DepartureFields({
   onBlockingChange?: (blocked: boolean) => void;
 }) {
   const browserTimeZone = useBrowserTimeZone();
-  const [capacity, setCapacity] = useState(defaultValues?.capacity ?? 10);
+  // Keep an empty transient value while the user clears/retypes the field;
+  // clamp only on blur so backspacing does not immediately restore a number.
+  const [capacity, setCapacity] = useState<number | "">(defaultValues?.capacity ?? 10);
   const capacityTouchedByUser = useRef(defaultValues?.capacity !== undefined);
   const [departureDateValue, setDepartureDateValue] = useState<string>();
   const [returnAtValue, setReturnAtValue] = useState<string>();
@@ -273,8 +275,10 @@ export function DepartureFields({
           value={capacity}
           onChange={(event) => {
             capacityTouchedByUser.current = true;
-            setCapacity(Number(event.target.value) || 1);
+            const raw = event.target.value;
+            setCapacity(raw === "" ? "" : Number(raw));
           }}
+          onBlur={() => setCapacity((previous) => Math.max(1, previous === "" ? 1 : previous))}
           required
           className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5"
         />
