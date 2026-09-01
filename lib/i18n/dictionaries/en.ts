@@ -672,6 +672,156 @@ export interface Dictionary {
     globalWithRefSuffix: string;
     globalNoRef: string;
   };
+  marketing: {
+    header: {
+      howItWorks: string;
+      solutions: string;
+      pricing: string;
+      contact: string;
+      login: string;
+      tryDemo: string;
+      openMenu: string;
+      closeMenu: string;
+    };
+    footer: {
+      rightsReservedSuffix: string;
+    };
+    home: {
+      heroTitle: string;
+      heroSubtitle: string;
+      seePricing: string;
+      solutionsTitle: string;
+      solutionsSubtitle: string;
+      ctaTitle: string;
+      ctaSubtitle: string;
+    };
+    featureRows: {
+      tours: { title: string; description: string };
+      departures: { title: string; description: string };
+      bookings: { title: string; description: string };
+      fleet: { title: string; description: string };
+    };
+    moreFeatures: {
+      financial: { title: string; description: string };
+      bilingual: { title: string; description: string };
+      permissions: { title: string; description: string };
+    };
+    pricing: {
+      title: string;
+      subtitle: string;
+      monthly: string;
+      annual: string;
+      annualNote: string;
+      perMonth: string;
+      perYear: string;
+      free: { title: string; subtitle: string; cta: string };
+      premium: { title: string; subtitle: string; cta: string };
+      freeFeatures: {
+        tourCatalog: string;
+        departureScheduling: string;
+        oneTeamMember: string;
+        emailSupport: string;
+      };
+      premiumFeatures: {
+        everythingInFree: string;
+        bookingsCrm: string;
+        fleetStaffScheduling: string;
+        unlimitedTeamMembers: string;
+        financialTracking: string;
+        bilingualDashboard: string;
+        prioritySupport: string;
+      };
+    };
+    tryDemoDialog: {
+      title: string;
+      subtitle: string;
+      agencyNameLabel: string;
+      agencyNamePlaceholder: string;
+      businessEmailLabel: string;
+      businessEmailPlaceholder: string;
+      phoneNumberLabel: string;
+      employeesLabel: string;
+      whatLookingForLabel: string;
+      whatLookingForPlaceholder: string;
+      submit: string;
+      consent: string;
+      thankYouTitle: string;
+      thankYouBody: string;
+    };
+    contactForm: {
+      nameLabel: string;
+      namePlaceholder: string;
+      emailLabel: string;
+      emailPlaceholder: string;
+      messageLabel: string;
+      messagePlaceholder: string;
+      submit: string;
+      sentTitle: string;
+      sentBody: string;
+    };
+    contactUsPage: {
+      title: string;
+      subtitle: string;
+    };
+    howItWorksPage: {
+      title: string;
+      subtitle: string;
+      stepLabel: string;
+      ctaTitle: string;
+      ctaSubtitle: string;
+      steps: {
+        setupAgency: { title: string; description: string };
+        addTours: { title: string; description: string };
+        scheduleDepartures: { title: string; description: string };
+        takeBookings: { title: string; description: string };
+        runAsTeam: { title: string; description: string };
+      };
+    };
+    privacyPolicyPage: {
+      title: string;
+      lastUpdated: string;
+      sections: {
+        overview: { title: string; body: string };
+        informationWeCollect: { title: string; body: string };
+        dataOnBehalf: { title: string; body: string };
+        cookies: { title: string; body: string };
+        howWeUse: { title: string; body: string };
+        dataSharing: { title: string; body: string };
+        dataSecurity: { title: string; body: string };
+        dataRetention: { title: string; body: string };
+        yourRights: { title: string; body: string };
+        childrensPrivacy: { title: string; body: string };
+        changes: { title: string; body: string };
+      };
+      contactTitle: string;
+      contactBodyPrefix: string;
+      contactBodyMiddle: string;
+      contactPageLinkText: string;
+      contactBodySuffix: string;
+    };
+    termsOfServicePage: {
+      title: string;
+      lastUpdated: string;
+      sections: {
+        acceptance: { title: string; body: string };
+        description: { title: string; body: string };
+        accounts: { title: string; body: string };
+        subscriptionPayment: { title: string; body: string };
+        yourContent: { title: string; body: string };
+        acceptableUse: { title: string; body: string };
+        availability: { title: string; body: string };
+        liability: { title: string; body: string };
+        termination: { title: string; body: string };
+        changes: { title: string; body: string };
+        governingLaw: { title: string; body: string };
+      };
+      contactTitle: string;
+      contactBodyPrefix: string;
+      contactBodyMiddle: string;
+      contactPageLinkText: string;
+      contactBodySuffix: string;
+    };
+  };
 }
 
 const en: Dictionary = {
@@ -1400,6 +1550,259 @@ const en: Dictionary = {
     globalWithRefPrefix: "The app hit an unexpected error (ref:",
     globalWithRefSuffix: ").",
     globalNoRef: "The app hit an unexpected error.",
+  },
+  marketing: {
+    header: {
+      howItWorks: "How It Works",
+      solutions: "Solutions",
+      pricing: "Pricing",
+      contact: "Contact",
+      login: "Log in",
+      tryDemo: "Try Demo",
+      openMenu: "Open menu",
+      closeMenu: "Close menu",
+    },
+    footer: {
+      rightsReservedSuffix: "All rights reserved.",
+    },
+    home: {
+      heroTitle: "The back office for modern travel agencies",
+      heroSubtitle:
+        "GoNairi brings your tours, departures, bookings, fleet, and staff into one CRM — so you spend less time juggling spreadsheets and more time running trips.",
+      seePricing: "See pricing",
+      solutionsTitle: "Everything your agency needs",
+      solutionsSubtitle: "One dashboard for the day-to-day work of running a travel agency.",
+      ctaTitle: "Ready to see it in action?",
+      ctaSubtitle: "Schedule a short demo and we'll walk you through how GoNairi fits your agency.",
+    },
+    featureRows: {
+      tours: {
+        title: "Tour & itinerary management",
+        description: "Build your tour catalog with pricing, durations, hashtags, and destinations, then publish it whenever it's ready.",
+      },
+      departures: {
+        title: "Departure scheduling",
+        description: "Schedule departures with automatic conflict checks, so a vehicle, driver, or guide is never double-booked across two trips.",
+      },
+      bookings: {
+        title: "Bookings & customer CRM",
+        description: "Track bookings, payment status, and customer history in one place instead of scattered spreadsheets.",
+      },
+      fleet: {
+        title: "Fleet & staff management",
+        description: "Keep your buses, jeeps, and cars organized and see exactly which ones are free before you schedule around them.",
+      },
+    },
+    moreFeatures: {
+      financial: {
+        title: "Financial tracking",
+        description: "Keep an eye on revenue and outstanding payments across every tour and departure.",
+      },
+      bilingual: {
+        title: "Bilingual dashboard",
+        description: "English and Russian out of the box, so your whole team can work in it.",
+      },
+      permissions: {
+        title: "Role-based permissions",
+        description: "Owners, operators, drivers, and guides each see exactly what they need.",
+      },
+    },
+    pricing: {
+      title: "Simple, transparent pricing",
+      subtitle: "Start free. Upgrade when your agency is ready for the full toolkit.",
+      monthly: "Monthly",
+      annual: "Annual",
+      annualNote: "(2 months free)",
+      perMonth: "/month",
+      perYear: "/year",
+      free: { title: "Free", subtitle: "Get your agency's tours online.", cta: "Get started free" },
+      premium: { title: "Premium", subtitle: "The full toolkit to run your agency's back office.", cta: "Schedule my demo" },
+      freeFeatures: {
+        tourCatalog: "Tour catalog management",
+        departureScheduling: "Departure scheduling",
+        oneTeamMember: "1 team member per agency",
+        emailSupport: "Email support",
+      },
+      premiumFeatures: {
+        everythingInFree: "Everything in Free",
+        bookingsCrm: "Bookings & customer CRM",
+        fleetStaffScheduling: "Fleet & staff scheduling with conflict detection",
+        unlimitedTeamMembers: "Unlimited team members with role-based permissions",
+        financialTracking: "Financial tracking & reports",
+        bilingualDashboard: "Multi-language dashboard (English & Russian)",
+        prioritySupport: "Priority support",
+      },
+    },
+    tryDemoDialog: {
+      title: "Schedule your demo",
+      subtitle: "Tell us a bit about your agency and we'll be in touch.",
+      agencyNameLabel: "Agency name*",
+      agencyNamePlaceholder: "Your agency",
+      businessEmailLabel: "Business email*",
+      businessEmailPlaceholder: "name@company.com",
+      phoneNumberLabel: "Phone number*",
+      employeesLabel: "Number of employees*",
+      whatLookingForLabel: "What are you looking for with GoNairi?",
+      whatLookingForPlaceholder: "I am looking for a CRM to manage tours, bookings and vehicles...",
+      submit: "Schedule my demo",
+      consent: "I agree that my information will be used by GoNairi to get in touch about this request.",
+      thankYouTitle: "Thanks for reaching out!",
+      thankYouBody: "We've received your request and will contact you shortly to help set up your agency's account.",
+    },
+    contactForm: {
+      nameLabel: "Name*",
+      namePlaceholder: "Your name",
+      emailLabel: "Email*",
+      emailPlaceholder: "name@company.com",
+      messageLabel: "Message*",
+      messagePlaceholder: "How can we help?",
+      submit: "Send message",
+      sentTitle: "Message sent",
+      sentBody: "Thanks for reaching out — we'll get back to you shortly.",
+    },
+    contactUsPage: {
+      title: "Contact us",
+      subtitle: "Questions about GoNairi, pricing, or your agency's account? Send us a message and we'll get back to you.",
+    },
+    howItWorksPage: {
+      title: "How GoNairi works",
+      subtitle: "From setup to your first booking, in five steps.",
+      stepLabel: "Step",
+      ctaTitle: "See it with your own tours",
+      ctaSubtitle: "Schedule a short demo and we'll walk you through setting it up for your agency.",
+      steps: {
+        setupAgency: {
+          title: "Set up your agency",
+          description: "Create your account, add your agency's details, and invite your team — owners, operators, drivers, and guides.",
+        },
+        addTours: {
+          title: "Add your tours",
+          description: "Build your tour catalog with pricing, durations, destinations, and hashtags, then publish the ones that are ready.",
+        },
+        scheduleDepartures: {
+          title: "Schedule departures",
+          description: "Pick dates, assign a vehicle, driver, and guide — GoNairi flags conflicts automatically so nothing gets double-booked.",
+        },
+        takeBookings: {
+          title: "Take bookings & get paid",
+          description: "Record bookings as they come in, track payment status, and keep a running history for every customer.",
+        },
+        runAsTeam: {
+          title: "Run it as a team",
+          description: "Everyone sees what's relevant to their role — drivers and guides get their own schedule, owners see everything.",
+        },
+      },
+    },
+    privacyPolicyPage: {
+      title: "Privacy Policy",
+      lastUpdated: "Last updated: September 1, 2026",
+      sections: {
+        overview: {
+          title: "Overview",
+          body: "This policy explains what information GoNairi collects, how we use it, and the choices you have. It applies to the GoNairi marketing site and the GoNairi CRM application (crm.gonairi.com).",
+        },
+        informationWeCollect: {
+          title: "Information we collect",
+          body: "Account & agency information: when you sign up or we set up your agency's account, we collect names, email addresses, phone numbers, and your agency's business details (name, address, currency, timezone).\n\nDemo & contact requests: if you fill out the \"Try Demo\" or \"Contact us\" forms, we collect the information you provide — agency name, business email, phone number, and your message — so we can respond to you.\n\nData you store using GoNairi: as part of running your agency, you may enter information about your own customers and travelers (names, contact details, booking and payment records) into the CRM. We process this data on your behalf, as described below.",
+        },
+        dataOnBehalf: {
+          title: "Data you store on behalf of your agency",
+          body: "For customer and traveler data your team enters into GoNairi (bookings, contact details, notes), your agency is the data controller and GoNairi acts as a processor — we store and process it only to provide the service to you, not for our own purposes. Your agency is responsible for having the appropriate basis to collect and store that information about your customers.",
+        },
+        cookies: {
+          title: "Cookies",
+          body: "We use cookies that are strictly necessary for the service to work: to keep you signed in, to remember your selected agency (for platform administrators managing multiple agencies), and to remember your language preference. We do not currently use third-party advertising or analytics cookies.",
+        },
+        howWeUse: {
+          title: "How we use information",
+          body: "We use the information above to provide and maintain the CRM, respond to demo and contact requests, secure accounts, and communicate with you about your account or requested information. We do not sell personal information.",
+        },
+        dataSharing: {
+          title: "Data sharing",
+          body: "We share information only with service providers who help us run GoNairi (such as hosting and database infrastructure), under obligations to protect it, or where required by law. We do not share your agency's or customers' data with third parties for their own marketing purposes.",
+        },
+        dataSecurity: {
+          title: "Data security",
+          body: "We use reasonable technical and organizational measures to protect information stored in GoNairi, including encrypted connections and access controls. No method of storage or transmission is completely secure, and we cannot guarantee absolute security.",
+        },
+        dataRetention: {
+          title: "Data retention",
+          body: "We retain account and agency data for as long as your account is active, and for a reasonable period afterward to comply with legal obligations or resolve disputes. You can request deletion of your account and associated data by contacting us.",
+        },
+        yourRights: {
+          title: "Your rights",
+          body: "Depending on where you're located, you may have rights to access, correct, or delete your personal information. To exercise these rights, contact us at the address below.",
+        },
+        childrensPrivacy: {
+          title: "Children's privacy",
+          body: "GoNairi is a business tool intended for use by travel agency staff and is not directed at children. We do not knowingly collect personal information from children.",
+        },
+        changes: {
+          title: "Changes to this policy",
+          body: "We may update this policy from time to time. If we make material changes, we'll update the date below and, where appropriate, notify account owners.",
+        },
+      },
+      contactTitle: "Contact us",
+      contactBodyPrefix: "Questions about this policy or a request regarding your data? Email us at ",
+      contactBodyMiddle: " or use our ",
+      contactPageLinkText: "contact page",
+      contactBodySuffix: ".",
+    },
+    termsOfServicePage: {
+      title: "Terms of Service",
+      lastUpdated: "Last updated: September 1, 2026",
+      sections: {
+        acceptance: {
+          title: "Acceptance of terms",
+          body: "By creating a GoNairi account or using the GoNairi CRM, you agree to these Terms of Service. If you're accepting on behalf of a travel agency or other organization, you confirm you have the authority to do so.",
+        },
+        description: {
+          title: "Description of service",
+          body: "GoNairi is a back-office CRM for travel agencies — tour catalog management, departure scheduling, bookings, fleet and staff management, and related tools, offered on Free and Premium plans.",
+        },
+        accounts: {
+          title: "Accounts & registration",
+          body: "You're responsible for the accuracy of the information you provide when setting up your agency and for maintaining the security of your account credentials. Notify us promptly if you suspect unauthorized access to your account.",
+        },
+        subscriptionPayment: {
+          title: "Subscription plans & payment",
+          body: "The Free plan is limited to a single team member and core tour/departure features, at no cost. The Premium plan unlocks the full toolkit and is billed monthly or annually as shown on our pricing page. Prices and included features may change; we'll give notice of changes affecting your current subscription.\n\nYou can cancel a paid subscription at any time; cancellation takes effect at the end of the current billing period.",
+        },
+        yourContent: {
+          title: "Your content & data",
+          body: "You and your agency retain ownership of the tour, booking, customer, and other data you enter into GoNairi (\"Your Content\"). You grant GoNairi a license to host, store, and process Your Content solely to provide and improve the service to you.\n\nYou're responsible for Your Content and for having the right to store any customer or traveler information you enter.",
+        },
+        acceptableUse: {
+          title: "Acceptable use",
+          body: "You agree not to use GoNairi to store or transmit unlawful content, to attempt to gain unauthorized access to other agencies' data, or to interfere with the normal operation of the service.",
+        },
+        availability: {
+          title: "Service availability",
+          body: "We aim to keep GoNairi available and reliable, but the service is provided on an \"as is\" and \"as available\" basis. We don't guarantee uninterrupted or error-free operation, and we may perform maintenance that temporarily affects availability.",
+        },
+        liability: {
+          title: "Limitation of liability",
+          body: "To the maximum extent permitted by law, GoNairi is not liable for indirect, incidental, or consequential damages arising from your use of the service. Our total liability for any claim is limited to the amount you paid us in the twelve months before the claim arose.",
+        },
+        termination: {
+          title: "Termination",
+          body: "You may stop using GoNairi and close your account at any time. We may suspend or terminate accounts that violate these Terms or applicable law, with notice where reasonably possible.",
+        },
+        changes: {
+          title: "Changes to these terms",
+          body: "We may update these Terms from time to time. If we make material changes, we'll update the date below and, where appropriate, notify account owners.",
+        },
+        governingLaw: {
+          title: "Governing law",
+          body: "These Terms are governed by the laws applicable to GoNairi's place of business, without regard to conflict-of-law principles.",
+        },
+      },
+      contactTitle: "Contact us",
+      contactBodyPrefix: "Questions about these Terms? Email us at ",
+      contactBodyMiddle: " or use our ",
+      contactPageLinkText: "contact page",
+      contactBodySuffix: ".",
+    },
   },
 };
 

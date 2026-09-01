@@ -9,11 +9,35 @@ import { auth } from "@/auth";
 // query, so flipping this on is safe even before a deliberate "launch" pass.
 const MARKETPLACE_ENABLED = process.env.MARKETPLACE_ENABLED === "true";
 
+// SaaS marketing site (gonairi.com apex) vs. the actual product
+// (crm.gonairi.com). Only these paths render on the apex domain — everything
+// else (app routes, marketplace routes) belongs on the crm subdomain.
+const CRM_HOST = "crm.gonairi.com";
+const APEX_HOSTS = new Set(["gonairi.com", "www.gonairi.com"]);
+const MARKETING_PATHS = new Set([
+  "/",
+  "/contact-us",
+  "/how-it-works",
+  "/privacy-policy",
+  "/terms-of-service",
+  "/robots.txt",
+  "/sitemap.xml",
+]);
+
 // Optimistic route protection only (reads the session cookie, no DB hit).
 // Real authorization still happens in requireSession()/requireRole() close to the data.
 export async function proxy(request: NextRequest) {
+  const host = request.headers.get("host")?.split(":")[0] ?? "";
+  const { pathname, search } = request.nextUrl;
+
+  if (APEX_HOSTS.has(host) && !MARKETING_PATHS.has(pathname)) {
+    return NextResponse.redirect(`https://${CRM_HOST}${pathname}${search}`, 307);
+  }
+  if (host === CRM_HOST && pathname === "/") {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
   const session = await auth();
-  const { pathname } = request.nextUrl;
 
   const isDashboardRoute = pathname.startsWith("/dashboard");
   const isLoginRoute = pathname === "/login";
@@ -23,10 +47,9 @@ export async function proxy(request: NextRequest) {
   const isAdminRoute = pathname.startsWith("/admin");
   const isPlatformAdminSession = Boolean(session?.platformAdmin);
 
-  // The public marketplace (marketing homepage, tour browsing, guest booking) is
-  // temporarily closed — only the back-office and authentication routes are live.
+  // The public marketplace (tour browsing, guest booking) is temporarily
+  // closed — only the back-office, authentication, and marketing routes are live.
   const isMarketplaceRoute =
-    pathname === "/" ||
     pathname.startsWith("/tours") ||
     pathname.startsWith("/agencies") ||
     pathname.startsWith("/book/") ||

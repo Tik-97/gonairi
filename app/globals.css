@@ -108,6 +108,25 @@
   }
 }
 
+/* Thin, theme-colored scrollbar for panels that scroll internally (e.g. the
+   Try Demo dialog on short viewports) — the browser default is a wide gray
+   gutter that clashes with the rest of the design. */
+@utility scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-terracotta) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--color-terracotta) 40%, transparent);
+    border-radius: 999px;
+  }
+}
+
 /* Deliberately unlayered: Tailwind's own border-color utilities (e.g.
    border-terracotta/25) live in @layer utilities, so a same-or-lower
    specificity rule inside any @layer would lose to them. Unlayered rules
