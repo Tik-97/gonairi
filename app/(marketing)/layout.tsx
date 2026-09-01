@@ -1,7 +1,24 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Wordmark } from "@/components/wordmark";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+
+const TITLE_DEFAULT = "GoNairi — CRM & Booking Software for Travel Agencies";
+const DESCRIPTION =
+  "GoNairi is the all-in-one CRM for travel agencies: manage your tour catalog, schedule departures with automatic conflict checks, track bookings and payments, and coordinate your fleet and staff — all in one dashboard.";
+
+export const metadata: Metadata = {
+  title: { default: TITLE_DEFAULT, template: "%s | GoNairi" },
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE_DEFAULT,
+    description: DESCRIPTION,
+    url: "https://gonairi.com",
+    siteName: "GoNairi",
+    type: "website",
+  },
+};
 
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   const { locale, dict } = await getDictionary();

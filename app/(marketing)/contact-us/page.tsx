@@ -1,6 +1,12 @@
 import { Mail } from "lucide-react";
+import type { Metadata } from "next";
 import { ContactForm } from "@/components/marketing/contact-form";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+
+export const metadata: Metadata = {
+  title: "Contact Us",
+  description: "Questions about GoNairi's CRM for travel agencies, pricing, or your account? Get in touch and we'll get back to you.",
+};
 
 export default async function ContactUsPage() {
   const { dict } = await getDictionary();

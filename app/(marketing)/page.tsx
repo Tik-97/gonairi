@@ -21,8 +21,27 @@ export default async function MarketingHomePage() {
     { icon: ShieldCheck, ...m.moreFeatures.permissions },
   ];
 
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "GoNairi",
+    applicationCategory: "BusinessApplication",
+    applicationSubCategory: "CRM software for travel agencies",
+    operatingSystem: "Web",
+    description: m.home.heroSubtitle,
+    url: "https://gonairi.com",
+    offers: [
+      { "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD" },
+      { "@type": "Offer", name: "Premium", price: "70", priceCurrency: "USD" },
+    ],
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       <section className="relative overflow-hidden px-6 pt-16 pb-20 sm:pt-20">
         <div
           aria-hidden

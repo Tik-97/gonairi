@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+
+export const metadata: Metadata = { title: "Terms of Service" };
 
 export default async function TermsOfServicePage() {
   const { dict } = await getDictionary();

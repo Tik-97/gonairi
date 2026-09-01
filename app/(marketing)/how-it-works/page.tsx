@@ -1,7 +1,14 @@
 import { Building2, Map, CalendarClock, CreditCard, Users2 } from "lucide-react";
+import type { Metadata } from "next";
 import { TryDemoDialog } from "@/components/marketing/try-demo-dialog";
 import { BrowserFrame } from "@/components/marketing/browser-frame";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+
+export const metadata: Metadata = {
+  title: "How It Works",
+  description:
+    "See how travel agencies set up GoNairi: add your tours, schedule departures with automatic conflict checks, take bookings, and run it as a team — in five steps.",
+};
 
 export default async function HowItWorksPage() {
   const { dict } = await getDictionary();

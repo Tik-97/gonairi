@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+
+export const metadata: Metadata = { title: "Privacy Policy" };
 
 export default async function PrivacyPolicyPage() {
   const { dict } = await getDictionary();
