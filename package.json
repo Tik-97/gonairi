@@ -16,6 +16,7 @@
     "seed:categories": "node scripts/seed-categories.cjs",
     "seed:geography": "node scripts/seed-geography.cjs",
     "seed:demo": "node scripts/seed-demo-data.cjs",
+    "seed:marketing-demo": "node scripts/seed-marketing-demo.cjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
