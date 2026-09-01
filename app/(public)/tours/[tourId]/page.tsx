@@ -1,3 +1,5 @@
+import { cache } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -8,17 +10,10 @@ import { parsePagination, type PaginationParams } from "@/lib/pagination";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { PUBLIC_TOUR_VISIBILITY } from "@/lib/tours/visibility";
 
-export default async function TourDetailPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ tourId: string }>;
-  searchParams: Promise<PaginationParams>;
-}) {
-  const [{ tourId }, paginationParams, { dict }] = await Promise.all([params, searchParams, getDictionary()]);
-  const pagination = parsePagination(paginationParams);
-
-  const tour = await prisma.tour.findFirst({
+// Deduped with React's cache() so generateMetadata and the page body share a
+// single query per request instead of fetching the same tour twice.
+const getTour = cache(async (tourId: string) => {
+  return prisma.tour.findFirst({
     where: { id: tourId, ...PUBLIC_TOUR_VISIBILITY, organization: { isPublished: true } },
     include: {
       organization: true,
@@ -34,6 +29,36 @@ export default async function TourDetailPage({
       },
     },
   });
+});
+
+export async function generateMetadata({ params }: { params: Promise<{ tourId: string }> }): Promise<Metadata> {
+  const { tourId } = await params;
+  const tour = await getTour(tourId);
+  if (!tour) return {};
+
+  const title = `${tour.title} — ${tour.organization.name} | GoNairi`;
+  const description =
+    tour.description?.slice(0, 160) ??
+    `${tour.durationDays}-day tour with ${tour.organization.name}, bookable on GoNairi.`;
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, images: tour.images.length > 0 ? [tour.images[0]] : undefined },
+  };
+}
+
+export default async function TourDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ tourId: string }>;
+  searchParams: Promise<PaginationParams>;
+}) {
+  const [{ tourId }, paginationParams, { dict }] = await Promise.all([params, searchParams, getDictionary()]);
+  const pagination = parsePagination(paginationParams);
+
+  const tour = await getTour(tourId);
   if (!tour) {
     notFound();
   }

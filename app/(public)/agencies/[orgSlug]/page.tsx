@@ -1,3 +1,5 @@
+import { cache } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -6,6 +8,23 @@ import { PaginationControls } from "@/components/pagination-controls";
 import { parsePagination, type PaginationParams } from "@/lib/pagination";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 import { PUBLIC_TOUR_VISIBILITY } from "@/lib/tours/visibility";
+
+// Deduped with React's cache() so generateMetadata and the page body share a
+// single query per request instead of fetching the same organization twice.
+const getOrganization = cache(async (orgSlug: string) => {
+  return prisma.organization.findFirst({ where: { slug: orgSlug, isPublished: true } });
+});
+
+export async function generateMetadata({ params }: { params: Promise<{ orgSlug: string }> }): Promise<Metadata> {
+  const { orgSlug } = await params;
+  const organization = await getOrganization(orgSlug);
+  if (!organization) return {};
+
+  const title = `${organization.name} | GoNairi`;
+  const description = organization.description?.slice(0, 160) ?? `Tours from ${organization.name}, bookable on GoNairi.`;
+
+  return { title, description, openGraph: { title, description } };
+}
 
 export default async function AgencyProfilePage({
   params,
@@ -17,9 +36,7 @@ export default async function AgencyProfilePage({
   const [{ orgSlug }, paginationParams, { dict }] = await Promise.all([params, searchParams, getDictionary()]);
   const pagination = parsePagination(paginationParams);
 
-  const organization = await prisma.organization.findFirst({
-    where: { slug: orgSlug, isPublished: true },
-  });
+  const organization = await getOrganization(orgSlug);
   if (!organization) {
     notFound();
   }

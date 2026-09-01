@@ -9,22 +9,19 @@ import { auth } from "@/auth";
 // query, so flipping this on is safe even before a deliberate "launch" pass.
 const MARKETPLACE_ENABLED = process.env.MARKETPLACE_ENABLED === "true";
 
-// SaaS marketing site (gonairi.com apex) vs. the actual product
-// (crm.gonairi.com). Only these paths render on the apex domain — everything
-// else (app routes, marketplace routes) belongs on the crm subdomain.
+// SaaS marketing site + public marketplace (gonairi.com apex) vs. the
+// private back office (crm.gonairi.com). Only these path prefixes redirect
+// away from the apex domain — everything else (marketing pages, and the
+// customer-facing marketplace: /tours, /agencies, /book, /bookings) is public
+// and stays on gonairi.com, where it's crawlable. crm.gonairi.com is fully
+// noindex'd (see robots.ts) since it's authenticated staff tooling only.
 const CRM_HOST = "crm.gonairi.com";
 const APEX_HOSTS = new Set(["gonairi.com", "www.gonairi.com"]);
-const MARKETING_PATHS = new Set([
-  "/",
-  "/contact-us",
-  "/how-it-works",
-  "/privacy-policy",
-  "/terms-of-service",
-  "/robots.txt",
-  "/sitemap.xml",
-  // Google Search Console domain-ownership verification file.
-  "/googleb8a638c8a5fe8cac.html",
-]);
+const CRM_ONLY_PREFIXES = ["/dashboard", "/admin", "/login", "/register", "/select-role"];
+
+function isCrmOnlyPath(pathname: string): boolean {
+  return CRM_ONLY_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
 
 // Optimistic route protection only (reads the session cookie, no DB hit).
 // Real authorization still happens in requireSession()/requireRole() close to the data.
@@ -32,7 +29,7 @@ export async function proxy(request: NextRequest) {
   const host = request.headers.get("host")?.split(":")[0] ?? "";
   const { pathname, search } = request.nextUrl;
 
-  if (APEX_HOSTS.has(host) && !MARKETING_PATHS.has(pathname)) {
+  if (APEX_HOSTS.has(host) && isCrmOnlyPath(pathname)) {
     return NextResponse.redirect(`https://${CRM_HOST}${pathname}${search}`, 307);
   }
   if (host === CRM_HOST && pathname === "/") {
@@ -59,7 +56,9 @@ export async function proxy(request: NextRequest) {
   const isClosedMarketplaceRoute = isMarketplaceRoute && !MARKETPLACE_ENABLED;
 
   if (isClosedMarketplaceRoute) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return APEX_HOSTS.has(host)
+      ? NextResponse.redirect(`https://${CRM_HOST}/login`)
+      : NextResponse.redirect(new URL("/login", request.url));
   }
 
   if (isDashboardRoute && !isTenantSession && !isPlatformAdminSession) {
