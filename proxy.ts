@@ -22,6 +22,8 @@ const MARKETING_PATHS = new Set([
   "/terms-of-service",
   "/robots.txt",
   "/sitemap.xml",
+  // Google Search Console domain-ownership verification file.
+  "/googleb8a638c8a5fe8cac.html",
 ]);
 
 // Optimistic route protection only (reads the session cookie, no DB hit).
