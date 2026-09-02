@@ -14,8 +14,12 @@ import { prisma } from "@/lib/db";
 export const TENANT_SCOPED_MODELS = new Set([
   "User",
   "Customer",
+  "CustomerDocument",
+  "CustomerStatusHistory",
   "Tour",
   "TourCustomer",
+  "TourHotel",
+  "TourPriceItem",
   "Departure",
   "DepartureVehicle",
   "Booking",

@@ -184,7 +184,7 @@ export default async function FinancesPage({ searchParams }: { searchParams: Pro
                       {payment.booking.customer.fullName}
                     </Link>
                     <p className="text-espresso-muted">
-                      {payment.booking.departure.tour.title} ·{" "}
+                      {payment.booking.departure?.tour.title ?? payment.booking.individualTitle} ·{" "}
                       {dict.paymentMethod[payment.method]} ·{" "}
                       <LocalDateTime value={payment.paidAt.toISOString()} />
                     </p>

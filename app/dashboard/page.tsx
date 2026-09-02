@@ -120,7 +120,9 @@ export default async function DashboardOverviewPage() {
                       <div>
                         <p className="font-medium text-espresso">{booking.customer.fullName}</p>
                         <p className="text-espresso-muted">
-                          {booking.departure.tour.title} · <LocalDateTime value={booking.departure.date.toISOString()} />
+                          {booking.departure?.tour.title ?? booking.individualTitle} · {booking.departure
+                            ? <LocalDateTime value={booking.departure.date.toISOString()} />
+                            : booking.travelStartDate?.toLocaleDateString(locale === "ru" ? "ru-RU" : "en-US", { timeZone: "UTC" })}
                         </p>
                       </div>
                     </div>

@@ -79,6 +79,39 @@ enum TravelerPriceType {
   FREE
 }
 
+enum CustomerStatus {
+  REGISTERED
+  DOCUMENTS_PENDING
+  VISA_PENDING
+  VISA_CONFIRMED
+  VISA_REJECTED
+  WAITING_TRAVEL
+  TRAVELLING
+  TRAVEL_COMPLETED
+  CANCELLED
+}
+
+enum VisaStatus {
+  NOT_REQUIRED
+  NOT_STARTED
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum TourPriceCategory {
+  TICKET
+  HOTEL
+  TRANSFER
+  VISA
+  INSURANCE
+  GUIDE
+  MEALS
+  ACTIVITIES
+  OTHER
+}
+
 /// A platform-level operator account — not tied to any tenant Organization.
 /// Logs in through the shared /login page and manages the whole platform.
 model PlatformAdmin {
@@ -125,17 +158,21 @@ model Organization {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
-  users             User[]             @relation("OrganizationMembers")
-  customers         Customer[]
-  tours             Tour[]
-  departures        Departure[]
-  departureVehicles DepartureVehicle[]
-  vehicles          Vehicle[]
-  bookings          Booking[]
-  payments          Payment[]
-  bookingTravelers  BookingTraveler[]
-  attendanceRecords Attendance[]
-  tourCustomers     TourCustomer[]
+  users                 User[]                  @relation("OrganizationMembers")
+  customers             Customer[]
+  tours                 Tour[]
+  departures            Departure[]
+  departureVehicles     DepartureVehicle[]
+  vehicles              Vehicle[]
+  bookings              Booking[]
+  payments              Payment[]
+  bookingTravelers      BookingTraveler[]
+  attendanceRecords     Attendance[]
+  tourCustomers         TourCustomer[]
+  customerDocuments     CustomerDocument[]
+  customerStatusHistory CustomerStatusHistory[]
+  tourHotels            TourHotel[]
+  tourPriceItems        TourPriceItem[]
 
   @@index([ownerId])
 }
@@ -160,11 +197,12 @@ model User {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
-  createdBookings         Booking[]          @relation("BookingCreatedByUser")
-  guidedDepartureVehicles DepartureVehicle[] @relation("DepartureVehicleGuide")
-  drivenDepartureVehicles DepartureVehicle[] @relation("DepartureVehicleDriver")
+  createdBookings         Booking[]               @relation("BookingCreatedByUser")
+  guidedDepartureVehicles DepartureVehicle[]      @relation("DepartureVehicleGuide")
+  drivenDepartureVehicles DepartureVehicle[]      @relation("DepartureVehicleDriver")
   attendanceRecords       Attendance[]
-  ownedOrganizations      Organization[]     @relation("OrganizationOwner")
+  customerStatusChanges   CustomerStatusHistory[]
+  ownedOrganizations      Organization[]          @relation("OrganizationOwner")
 
   @@index([organizationId])
   @@index([roles], type: Gin)
@@ -202,14 +240,67 @@ model Customer {
   notes       String?
   source      BookingSource @default(MANUAL)
 
+  birthDate           DateTime?      @db.Date
+  passportNumber      String?
+  passportIssuedBy    String?
+  passportIssueDate   DateTime?      @db.Date
+  passportExpiryDate  DateTime?      @db.Date
+  whatsapp            String?
+  telegram            String?
+  visaStatus          VisaStatus     @default(NOT_STARTED)
+  visaCountry         String?
+  visaType            String?
+  visaApplicationDate DateTime?      @db.Date
+  visaDecisionDate    DateTime?      @db.Date
+  visaExpiryDate      DateTime?      @db.Date
+  status              CustomerStatus @default(REGISTERED)
+
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   bookings      Booking[]
   tourCustomers TourCustomer[]
+  documents     CustomerDocument[]
+  statusHistory CustomerStatusHistory[]
 
   @@index([organizationId])
   @@index([organizationId, email])
+}
+
+model CustomerDocument {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customerId     String
+  customer       Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  name     String
+  url      String
+  mimeType String?
+  size     Int?
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([customerId, url])
+  @@index([organizationId, customerId])
+}
+
+model CustomerStatusHistory {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customerId      String
+  customer        Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  changedByUserId String?
+  changedByUser   User?        @relation(fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  fromStatus CustomerStatus?
+  toStatus   CustomerStatus
+  note       String?
+  createdAt  DateTime        @default(now()) @db.Timestamptz(3)
+
+  @@index([organizationId, customerId, createdAt])
+  @@index([changedByUserId])
 }
 
 /// ISO 3166-1 country reference data shared by every tenant. Countries are
@@ -285,18 +376,20 @@ model Tour {
   title            String
   slug             String
   description      String?
-  durationDays     Int      @default(1)
+  durationDays     Int       @default(1)
   languagesOffered String[]
   images           String[]
   itinerary        Json?
   included         String?
   excluded         String?
-  basePrice        Decimal  @db.Decimal(10, 2)
-  currency         String   @default("AMD")
-  isPublished      Boolean  @default(false)
+  basePrice        Decimal   @db.Decimal(10, 2)
+  currency         String    @default("AMD")
+  isPublished      Boolean   @default(false)
   /// Customer-specific tours remain fully operational in the back office but
   /// can never be exposed through the public marketplace.
-  isPrivate        Boolean  @default(false)
+  isPrivate        Boolean   @default(false)
+  startDate        DateTime? @db.Date
+  endDate          DateTime? @db.Date
 
   createdAt DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @db.Timestamptz(3)
@@ -306,11 +399,53 @@ model Tour {
   tourRegions    TourRegion[]
   tourCategories TourCategory[]
   tourCustomers  TourCustomer[]
+  hotels         TourHotel[]
+  priceItems     TourPriceItem[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
   @@index([organizationId, isPublished])
   @@index([organizationId, deletedAt])
+}
+
+model TourHotel {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tourId         String
+  tour           Tour         @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  name               String
+  checkIn            DateTime @db.Date
+  checkOut           DateTime @db.Date
+  address            String?
+  roomType           String?
+  confirmationNumber String?
+  notes              String?
+  position           Int      @default(0)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([tourId, position])
+  @@index([organizationId, tourId])
+}
+
+model TourPriceItem {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tourId         String
+  tour           Tour         @relation(fields: [tourId], references: [id], onDelete: Cascade)
+
+  category    TourPriceCategory
+  description String?
+  amount      Decimal           @db.Decimal(10, 2)
+  position    Int               @default(0)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([tourId, position])
+  @@index([organizationId, tourId])
 }
 
 /// Explicit audience for a private/individual tour. Keeping this separate
@@ -430,8 +565,8 @@ model Booking {
   id             String       @id @default(cuid())
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  departureId    String
-  departure      Departure    @relation(fields: [departureId], references: [id], onDelete: Cascade)
+  departureId    String?
+  departure      Departure?   @relation(fields: [departureId], references: [id], onDelete: Cascade)
   customerId     String
   customer       Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
@@ -445,6 +580,11 @@ model Booking {
   createdByUserId String?
   createdByUser   User?         @relation("BookingCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
   specialRequests String?
+  individualTitle String?
+  travelStartDate DateTime?     @db.Date
+  travelEndDate   DateTime?     @db.Date
+  hotels          Json?
+  priceBreakdown  Json?
   lookupToken     String        @unique @default(cuid())
 
   createdAt DateTime @default(now()) @db.Timestamptz(3)

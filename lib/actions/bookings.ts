@@ -23,6 +23,88 @@ const BookingSchema = z.object({
   specialRequests: z.string().trim().optional(),
 });
 
+const IndividualBookingSchema = z.object({
+  customerId: z.string().trim().min(1),
+  individualTitle: z.string().trim().min(2),
+  travelStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  travelEndDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  paxCount: z.coerce.number().int().min(1).max(100),
+  specialRequests: z.string().trim().optional(),
+  priceBreakdown: z.array(z.object({
+    category: z.enum(["TICKET", "HOTEL", "TRANSFER", "VISA", "INSURANCE", "GUIDE", "MEALS", "ACTIVITIES", "OTHER"]),
+    description: z.string().trim().max(200).optional(),
+    amount: z.coerce.number().min(0),
+  })).min(3).max(30),
+  hotels: z.array(z.object({
+    name: z.string().trim().min(1).max(200),
+    checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    address: z.string().trim().max(300).optional(),
+    roomType: z.string().trim().max(100).optional(),
+  })).max(30),
+}).superRefine((data, context) => {
+  if (data.travelEndDate < data.travelStartDate) {
+    context.addIssue({ code: "custom", path: ["travelEndDate"], message: "Finish date must be on or after the start date." });
+  }
+  const categories = new Set(data.priceBreakdown.map((line) => line.category));
+  if (!(["TICKET", "HOTEL", "TRANSFER"] as const).every((category) => categories.has(category))) {
+    context.addIssue({ code: "custom", path: ["priceBreakdown"], message: "Ticket, hotel, and transfer price lines are required." });
+  }
+  if (data.hotels.some((hotel) => hotel.checkOut <= hotel.checkIn)) {
+    context.addIssue({ code: "custom", path: ["hotels"], message: "Hotel check-out must be after check-in." });
+  }
+});
+
+function jsonField(formData: FormData, name: string) {
+  try { return JSON.parse(formData.get(name)?.toString() ?? "[]"); }
+  catch { return null; }
+}
+
+export async function createIndividualBooking(_state: FormState, formData: FormData): Promise<FormState> {
+  const session = await requirePermission(PERMISSIONS.bookingsManage);
+  const parsed = IndividualBookingSchema.safeParse({
+    customerId: formData.get("customerId"),
+    individualTitle: formData.get("individualTitle"),
+    travelStartDate: formData.get("travelStartDate"),
+    travelEndDate: formData.get("travelEndDate"),
+    paxCount: formData.get("paxCount"),
+    specialRequests: formData.get("specialRequests"),
+    priceBreakdown: jsonField(formData, "priceBreakdown"),
+    hotels: jsonField(formData, "hotels"),
+  });
+  if (!parsed.success) return formStateFromZodError(parsed.error);
+
+  const db = scopedPrisma(session.user.organizationId);
+  const [customer, organization] = await Promise.all([
+    db.customer.findFirst({ where: { id: parsed.data.customerId }, select: { id: true } }),
+    db.organization.findFirst({ where: { id: session.user.organizationId }, select: { currency: true } }),
+  ]);
+  if (!customer || !organization) return { error: "Customer or organization not found." };
+
+  const totalPrice = parsed.data.priceBreakdown.reduce((sum, line) => sum + line.amount, 0);
+  const booking = await db.booking.create({
+    data: {
+      organizationId: session.user.organizationId,
+      customerId: customer.id,
+      departureId: null,
+      individualTitle: parsed.data.individualTitle,
+      travelStartDate: new Date(`${parsed.data.travelStartDate}T00:00:00.000Z`),
+      travelEndDate: new Date(`${parsed.data.travelEndDate}T00:00:00.000Z`),
+      paxCount: parsed.data.paxCount,
+      totalPrice,
+      currency: organization.currency,
+      source: "MANUAL",
+      createdByUserId: session.platformAdmin ? null : session.user.id,
+      specialRequests: parsed.data.specialRequests || null,
+      hotels: parsed.data.hotels,
+      priceBreakdown: parsed.data.priceBreakdown,
+      status: "PENDING",
+      paymentStatus: "UNPAID",
+    },
+  });
+  redirect(`/dashboard/bookings/${booking.id}`);
+}
+
 /** Reads traveler_{i}_name/isChild/priceType fields for pax 2..N. Blank names are skipped —
  *  those slots are priced as unnamed full-price pax rather than forcing every seat to be named. */
 function parseTravelers(formData: FormData, paxCount: number) {
@@ -92,6 +174,15 @@ export async function createManualBooking(
           email: parsed.data.newCustomerEmail || null,
           phone: parsed.data.newCustomerPhone || null,
           source: "MANUAL",
+          status: "DOCUMENTS_PENDING",
+          statusHistory: {
+            create: {
+              organizationId: session.user.organizationId,
+              changedByUserId: session.platformAdmin ? null : session.user.id,
+              toStatus: "DOCUMENTS_PENDING",
+              note: "Customer created during booking; travel documents are pending",
+            },
+          },
         },
       });
       customerId = customer.id;
@@ -117,7 +208,7 @@ export async function createManualBooking(
       discountPercent,
       currency: departure.tour.currency,
       source: "MANUAL",
-      createdByUserId: session.user.id,
+      createdByUserId: session.platformAdmin ? undefined : session.user.id,
       specialRequests: parsed.data.specialRequests,
       travelers,
     });
@@ -131,18 +222,22 @@ export async function createManualBooking(
   redirect(`/dashboard/tours/${departure.tourId}/departures`);
 }
 
-export async function updateBookingStatus(bookingId: string, status: BookingStatus): Promise<void> {
+async function updateBookingStatus(bookingId: string, status: BookingStatus): Promise<void> {
   const session = await requirePermission(PERMISSIONS.bookingsManage);
   const db = scopedPrisma(session.user.organizationId);
   const booking = await db.booking.findFirst({ where: { id: bookingId } });
   if (!booking) {
     return;
   }
+  if (booking.status === "CANCELLED" && status !== "CANCELLED") {
+    return;
+  }
 
-  if (status === "CANCELLED" && booking.status !== "CANCELLED") {
+  if (status === "CANCELLED" && booking.status !== "CANCELLED" && booking.departureId) {
+    const departureId = booking.departureId;
     await db.$transaction(async (tx) => {
       await tx.departure.update({
-        where: { id: booking.departureId },
+        where: { id: departureId },
         data: { bookedCount: { decrement: booking.paxCount } },
       });
       await tx.booking.update({ where: { id: bookingId }, data: { status } });
@@ -152,6 +247,14 @@ export async function updateBookingStatus(bookingId: string, status: BookingStat
   }
 
   redirect(`/dashboard/bookings/${bookingId}`);
+}
+
+export async function updateBookingStatusFromForm(bookingId: string, formData: FormData): Promise<void> {
+  const parsed = z.enum(["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW"]).safeParse(
+    formData.get("status"),
+  );
+  if (!parsed.success) return;
+  await updateBookingStatus(bookingId, parsed.data);
 }
 
 export async function updateBookingPaymentStatus(bookingId: string, paymentStatus: PaymentStatus): Promise<void> {

@@ -59,6 +59,14 @@ export async function createGuestBooking(
         email: parsed.data.email,
         phone: parsed.data.phone || null,
         source: "ONLINE",
+        status: "DOCUMENTS_PENDING",
+        statusHistory: {
+          create: {
+            organizationId: departure.organizationId,
+            toStatus: "DOCUMENTS_PENDING",
+            note: "Customer registered online; travel documents are pending",
+          },
+        },
       },
     });
   }

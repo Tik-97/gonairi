@@ -82,6 +82,9 @@ export default async function CustomersPage({
                     .join(" · ") || dict.customersPage.noContactInfo}
                 </p>
               </div>
+              <span className="w-fit rounded-full bg-cream-100 px-3 py-1 text-xs font-medium text-terracotta-700">
+                {dict.customerStatus[customer.status]}
+              </span>
             </Link>
           ))}
         </div>
