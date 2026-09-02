@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { PhoneInput } from "@/components/phone-input";
+import { submitTryDemoRequest, type TryDemoState } from "@/lib/actions/try-demo";
 import { cn } from "@/lib/utils";
 import type { Dictionary } from "@/lib/i18n/dictionaries/en";
 
@@ -24,27 +25,26 @@ export function TryDemoDialog({
   dict: Dictionary["marketing"]["tryDemoDialog"];
 }) {
   const [open, setOpen] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const [employees, setEmployees] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
+  const [state, formAction, pending] = useActionState<TryDemoState | undefined, FormData>(submitTryDemoRequest, undefined);
 
-  function handleOpenChange(next: boolean) {
-    setOpen(next);
-    if (!next) {
+  useEffect(() => {
+    if (!open) {
       // Reset after the close animation so a second open starts fresh.
-      setTimeout(() => {
-        setSubmitted(false);
+      const timeout = setTimeout(() => {
         setEmployees(null);
         setConsent(false);
       }, 200);
+      return () => clearTimeout(timeout);
     }
-  }
+  }, [open]);
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
-        {submitted ? (
+        {state?.success ? (
           <div className="flex flex-col items-center gap-3 py-4 text-center">
             <CheckCircle2 className="h-10 w-10 text-success" strokeWidth={1.5} />
             <DialogTitle>{dict.thankYouTitle}</DialogTitle>
@@ -56,13 +56,7 @@ export function TryDemoDialog({
               <DialogTitle>{dict.title}</DialogTitle>
               <DialogDescription>{dict.subtitle}</DialogDescription>
             </DialogHeader>
-            <form
-              className="flex flex-col gap-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setSubmitted(true);
-              }}
-            >
+            <form className="flex flex-col gap-4" action={formAction}>
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="demo-agency" className="text-sm font-medium text-espresso">
                   {dict.agencyNameLabel}
@@ -130,11 +124,14 @@ export function TryDemoDialog({
                 />
               </div>
 
+              {state?.error && <p className="text-sm text-danger">{state.error || dict.genericError}</p>}
+
               <button
                 type="submit"
-                className="rounded-full bg-terracotta px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-terracotta-700"
+                disabled={pending}
+                className="rounded-full bg-terracotta px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors disabled:opacity-50 hover:bg-terracotta-700"
               >
-                {dict.submit}
+                {pending ? dict.submitting : dict.submit}
               </button>
 
               <label className="flex items-start gap-2 text-xs text-espresso-muted">
