@@ -22,7 +22,7 @@ export default async function PlatformBookingsPage({ searchParams }: { searchPar
       ...(organizationId ? { organizationId } : {}),
       ...(status && BOOKING_STATUSES.has(status) ? { status: status as BookingStatus } : {}),
       ...(payment && PAYMENT_STATUSES.has(payment) ? { paymentStatus: payment as PaymentStatus } : {}),
-      ...(q ? { OR: [{ customer: { fullName: { contains: q, mode: "insensitive" as const } } }, { departure: { tour: { title: { contains: q, mode: "insensitive" as const } } } }, { organization: { name: { contains: q, mode: "insensitive" as const } } }] } : {}),
+      ...(q ? { OR: [{ customer: { fullName: { contains: q, mode: "insensitive" as const } } }, { individualTitle: { contains: q, mode: "insensitive" as const } }, { departure: { tour: { title: { contains: q, mode: "insensitive" as const } } } }, { organization: { name: { contains: q, mode: "insensitive" as const } } }] } : {}),
   } as const;
   const [organizations, totalItems, bookings] = await Promise.all([
     prisma.organization.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -50,8 +50,8 @@ export default async function PlatformBookingsPage({ searchParams }: { searchPar
           {bookings.map((booking) => (
             <div key={booking.id} className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div>
-                <p className="font-medium text-espresso">{booking.customer.fullName} · {booking.departure.tour.title}</p>
-                <p className="text-sm text-espresso-muted">{booking.organization.name} · <LocalDateTime value={booking.departure.date.toISOString()} /> · {booking.paxCount} pax · {formatMoney(booking.totalPrice.toString(), booking.currency)}</p>
+                <p className="font-medium text-espresso">{booking.customer.fullName} · {booking.departure?.tour.title ?? booking.individualTitle}</p>
+                <p className="text-sm text-espresso-muted">{booking.organization.name} · {booking.departure ? <LocalDateTime value={booking.departure.date.toISOString()} /> : booking.travelStartDate?.toLocaleDateString("en-US", { timeZone: "UTC" })} · {booking.paxCount} pax · {formatMoney(booking.totalPrice.toString(), booking.currency)}</p>
               </div>
               <span className="text-sm text-espresso-muted">{booking.status} · {booking.paymentStatus} · {booking.source}</span>
             </div>

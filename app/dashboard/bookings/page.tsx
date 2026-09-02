@@ -81,9 +81,11 @@ export default async function BookingsPage({
     ...(status !== "ALL" ? { status: status as BookingStatus } : {}),
     ...(payment !== "ALL" ? { paymentStatus: payment as PaymentStatus } : {}),
     ...(departureId ? { departureId } : {}),
-    ...(tourId || dayRange
-      ? { departure: { ...(tourId ? { tourId } : {}), ...(dayRange ? { date: dayRange } : {}) } }
-      : {}),
+    ...(tourId
+      ? { departure: { tourId, ...(dayRange ? { date: dayRange } : {}) } }
+      : dayRange
+        ? { OR: [{ departure: { date: dayRange } }, { travelStartDate: dayRange }] }
+        : {}),
   };
   const [bookings, totalItems, tour, departure] = await Promise.all([
     db.booking.findMany({
@@ -152,10 +154,12 @@ export default async function BookingsPage({
               <div className="flex flex-1 flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
                 <div>
                   <p className="font-medium text-espresso">
-                    {booking.customer.fullName} · {booking.departure.tour.title}
+                    {booking.customer.fullName} · {booking.departure?.tour.title ?? booking.individualTitle}
                   </p>
                   <p className="text-sm text-espresso-muted">
-                    <LocalDateTime value={booking.departure.date.toISOString()} /> · {booking.paxCount} {dict.bookingsPage.paxSuffix} ·{" "}
+                    {booking.departure
+                      ? <LocalDateTime value={booking.departure.date.toISOString()} />
+                      : booking.travelStartDate?.toLocaleDateString("ru-RU", { timeZone: "UTC" })} · {booking.paxCount} {dict.bookingsPage.paxSuffix} ·{" "}
                     {formatMoney(booking.totalPrice.toString(), booking.currency)}
                   </p>
                 </div>

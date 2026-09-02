@@ -229,7 +229,24 @@ export interface Dictionary {
     crossBorder: string;
     selectRegionWarning: string;
     uploadFailed: string;
+    startDate: string;
+    endDate: string;
+    priceBreakdown: string;
+    priceDescription: string;
+    addPriceLine: string;
+    removeLine: string;
+    total: string;
+    hotels: string;
+    hotelName: string;
+    hotelAddress: string;
+    checkIn: string;
+    checkOut: string;
+    roomType: string;
+    confirmationNumber: string;
+    addHotel: string;
+    removeHotel: string;
   };
+  tourPriceCategory: Record<"TICKET" | "HOTEL" | "TRANSFER" | "VISA" | "INSURANCE" | "GUIDE" | "MEALS" | "ACTIVITIES" | "OTHER", string>;
   customTour: {
     accessType: string;
     standard: string;
@@ -376,6 +393,11 @@ export interface Dictionary {
     seatsLeftSuffix: string;
     perPaxSuffix: string;
     fullyBooked: string;
+    selectDeparture: string;
+    selectDepartureHint: string;
+    bookingFor: string;
+    noAvailableDepartures: string;
+    individualBooking: string;
   };
   bookingForm: {
     customer: string;
@@ -396,6 +418,8 @@ export interface Dictionary {
     specialRequests: string;
     booking: string;
     createBooking: string;
+    individualTitle: string;
+    paxCount: string;
   };
   customerCombobox: {
     clearSelected: string;
@@ -424,6 +448,8 @@ export interface Dictionary {
     payments: string;
     noPaymentsYet: string;
     void: string;
+    changeStatus: string;
+    saveStatus: string;
   };
   paymentForm: {
     amountPrefix: string;
@@ -454,7 +480,35 @@ export interface Dictionary {
     selectNationality: string;
     notes: string;
     saving: string;
+    personalDetails: string;
+    birthDate: string;
+    status: string;
+    passportDetails: string;
+    passportNumber: string;
+    passportIssuedBy: string;
+    passportIssueDate: string;
+    passportExpiryDate: string;
+    socialNetworks: string;
+    whatsapp: string;
+    sameAsPhone: string;
+    telegram: string;
+    visaDetails: string;
+    visaStatus: string;
+    visaCountry: string;
+    visaType: string;
+    visaApplicationDate: string;
+    visaDecisionDate: string;
+    visaExpiryDate: string;
+    documents: string;
+    documentsHint: string;
+    addDocument: string;
+    uploadingDocument: string;
+    removeDocument: string;
+    uploadFailed: string;
+    statusNote: string;
   };
+  customerStatus: Record<"REGISTERED" | "DOCUMENTS_PENDING" | "VISA_PENDING" | "VISA_CONFIRMED" | "VISA_REJECTED" | "WAITING_TRAVEL" | "TRAVELLING" | "TRAVEL_COMPLETED" | "CANCELLED", string>;
+  visaStatus: Record<"NOT_REQUIRED" | "NOT_STARTED" | "IN_PROGRESS" | "APPROVED" | "REJECTED" | "EXPIRED", string>;
   newCustomerPage: {
     subtitle: string;
     submitLabel: string;
@@ -476,6 +530,16 @@ export interface Dictionary {
     bookingsHeading: string;
     individualToursHeading: string;
     noIndividualTours: string;
+    profileHeading: string;
+    passportHeading: string;
+    visaHeading: string;
+    documentsHeading: string;
+    historyHeading: string;
+    noDocuments: string;
+    issuedBy: string;
+    expires: string;
+    changedBy: string;
+    createBooking: string;
   };
   vehiclesPage: {
     eyebrow: string;
@@ -1133,6 +1197,33 @@ const en: Dictionary = {
     crossBorder: "Cross-border:",
     selectRegionWarning: "Select at least one region — this powers the marketplace filter later.",
     uploadFailed: "Upload failed.",
+    startDate: "Start date",
+    endDate: "Finish date",
+    priceBreakdown: "Price breakdown",
+    priceDescription: "Description (optional)",
+    addPriceLine: "+ Add price line",
+    removeLine: "Remove price line",
+    total: "Total",
+    hotels: "Hotels",
+    hotelName: "Hotel name",
+    hotelAddress: "Address (optional)",
+    checkIn: "Check-in",
+    checkOut: "Check-out",
+    roomType: "Room type (optional)",
+    confirmationNumber: "Confirmation number (optional)",
+    addHotel: "+ Add hotel",
+    removeHotel: "Remove hotel",
+  },
+  tourPriceCategory: {
+    TICKET: "Ticket",
+    HOTEL: "Hotel",
+    TRANSFER: "Transfer",
+    VISA: "Visa",
+    INSURANCE: "Insurance",
+    GUIDE: "Guide",
+    MEALS: "Meals",
+    ACTIVITIES: "Activities",
+    OTHER: "Other",
   },
   customTour: {
     accessType: "Tour type",
@@ -1280,6 +1371,11 @@ const en: Dictionary = {
     seatsLeftSuffix: "seats left",
     perPaxSuffix: "/ pax",
     fullyBooked: "This departure is fully booked.",
+    selectDeparture: "Select a departure",
+    selectDepartureHint: "Choose the scheduled departure for this booking.",
+    bookingFor: "New booking for",
+    noAvailableDepartures: "There are no available upcoming departures. Create a tour departure first.",
+    individualBooking: "New individual booking",
   },
   bookingForm: {
     customer: "Customer",
@@ -1300,6 +1396,8 @@ const en: Dictionary = {
     specialRequests: "Special requests",
     booking: "Booking…",
     createBooking: "Create booking",
+    individualTitle: "Trip name",
+    paxCount: "Number of travelers",
   },
   customerCombobox: {
     clearSelected: "Clear selected customer",
@@ -1328,6 +1426,8 @@ const en: Dictionary = {
     payments: "Payments",
     noPaymentsYet: "No payments recorded yet.",
     void: "Void",
+    changeStatus: "Change booking status",
+    saveStatus: "Save status",
   },
   paymentForm: {
     amountPrefix: "Amount",
@@ -1358,6 +1458,51 @@ const en: Dictionary = {
     selectNationality: "Select nationality…",
     notes: "Notes",
     saving: "Saving…",
+    personalDetails: "Personal details",
+    birthDate: "Date of birth",
+    status: "Customer status",
+    passportDetails: "Passport details",
+    passportNumber: "Passport number",
+    passportIssuedBy: "Issued by",
+    passportIssueDate: "Issue date",
+    passportExpiryDate: "Expiry date",
+    socialNetworks: "Social networks",
+    whatsapp: "WhatsApp",
+    sameAsPhone: "Same as customer phone",
+    telegram: "Telegram",
+    visaDetails: "Visa details",
+    visaStatus: "Visa status",
+    visaCountry: "Destination country",
+    visaType: "Visa type",
+    visaApplicationDate: "Application date",
+    visaDecisionDate: "Decision date",
+    visaExpiryDate: "Visa expiry date",
+    documents: "Scanned documents",
+    documentsHint: "PDF or image, up to 10 MB each. Add passport scans, visa files, tickets, and confirmations.",
+    addDocument: "+ Add file",
+    uploadingDocument: "Uploading…",
+    removeDocument: "Remove document",
+    uploadFailed: "Upload failed.",
+    statusNote: "Status change note (optional)",
+  },
+  customerStatus: {
+    REGISTERED: "Registered",
+    DOCUMENTS_PENDING: "Documents pending",
+    VISA_PENDING: "Visa pending",
+    VISA_CONFIRMED: "Visa confirmed",
+    VISA_REJECTED: "Visa rejected",
+    WAITING_TRAVEL: "Waiting for travel",
+    TRAVELLING: "Travelling",
+    TRAVEL_COMPLETED: "Travel completed",
+    CANCELLED: "Cancelled",
+  },
+  visaStatus: {
+    NOT_REQUIRED: "Not required",
+    NOT_STARTED: "Not started",
+    IN_PROGRESS: "In progress",
+    APPROVED: "Approved",
+    REJECTED: "Rejected",
+    EXPIRED: "Expired",
   },
   newCustomerPage: {
     subtitle: "A few details now save you a search later.",
@@ -1380,6 +1525,16 @@ const en: Dictionary = {
     bookingsHeading: "Bookings",
     individualToursHeading: "Individual tours",
     noIndividualTours: "No individual tours have been created for this customer yet.",
+    profileHeading: "Contact & social",
+    passportHeading: "Passport",
+    visaHeading: "Visa",
+    documentsHeading: "Documents",
+    historyHeading: "Customer history",
+    noDocuments: "No scanned documents uploaded yet.",
+    issuedBy: "Issued by",
+    expires: "Expires",
+    changedBy: "Changed by",
+    createBooking: "+ Create booking",
   },
   vehiclesPage: {
     eyebrow: "Your fleet",

@@ -64,8 +64,8 @@ export default async function PlatformOverviewPage() {
               {recentBookings.map((booking) => (
                 <div key={booking.id} className="flex flex-col gap-1 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="font-medium text-espresso">{booking.customer.fullName} · {booking.departure.tour.title}</p>
-                    <p className="text-espresso-muted">{booking.organization.name} · <LocalDateTime value={booking.departure.date.toISOString()} /></p>
+                    <p className="font-medium text-espresso">{booking.customer.fullName} · {booking.departure?.tour.title ?? booking.individualTitle}</p>
+                    <p className="text-espresso-muted">{booking.organization.name} · {booking.departure ? <LocalDateTime value={booking.departure.date.toISOString()} /> : booking.travelStartDate?.toLocaleDateString("en-US", { timeZone: "UTC" })}</p>
                   </div>
                   <span className="font-medium text-terracotta-700">{formatMoney(booking.totalPrice.toString(), booking.currency)}</span>
                 </div>

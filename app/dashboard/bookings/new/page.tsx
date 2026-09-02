@@ -2,12 +2,13 @@ import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { createManualBooking } from "@/lib/actions/bookings";
+import { createIndividualBooking, createManualBooking } from "@/lib/actions/bookings";
 import { BookingForm } from "@/components/booking-form";
 import { formatMoney } from "@/lib/format";
 import { LocalDateTime } from "@/components/local-date-time";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
+import { IndividualBookingForm } from "@/components/individual-booking-form";
 
 export default async function NewBookingPage({
   searchParams,
@@ -15,12 +16,28 @@ export default async function NewBookingPage({
   searchParams: Promise<{ departureId?: string; customerId?: string }>;
 }) {
   const [{ departureId, customerId }, { locale, dict }] = await Promise.all([searchParams, getDictionary()]);
-  if (!departureId) {
-    notFound();
-  }
-
   const session = await requirePermission(PERMISSIONS.bookingsManage);
   const db = scopedPrisma(session.user.organizationId);
+
+  if (!departureId) {
+    if (!customerId) notFound();
+    const [initialCustomer, organization] = await Promise.all([
+      db.customer.findFirst({ where: { id: customerId }, select: { id: true, fullName: true } }),
+      db.organization.findFirst({ where: { id: session.user.organizationId }, select: { currency: true } }),
+    ]);
+    if (!initialCustomer || !organization) notFound();
+
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          eyebrow={dict.newBookingPage.eyebrow}
+          title={dict.newBookingPage.individualBooking}
+          subtitle={`${dict.newBookingPage.bookingFor} ${initialCustomer.fullName}`}
+        />
+        <IndividualBookingForm action={createIndividualBooking} customer={initialCustomer} currency={organization.currency} dict={dict} />
+      </div>
+    );
+  }
 
   const [departure, initialCustomer] = await Promise.all([
     db.departure.findFirst({

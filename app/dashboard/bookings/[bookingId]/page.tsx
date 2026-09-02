@@ -4,7 +4,7 @@ import { Baby } from "lucide-react";
 import { requirePermission } from "@/lib/auth/session";
 import { PERMISSIONS, roleHasPermission } from "@/lib/auth/permissions";
 import { scopedPrisma } from "@/lib/db/scoped";
-import { updateBookingStatus } from "@/lib/actions/bookings";
+import { updateBookingStatusFromForm } from "@/lib/actions/bookings";
 import { recordPayment, deletePayment } from "@/lib/actions/payments";
 import { formatMoney } from "@/lib/format";
 import { LocalDateTime } from "@/components/local-date-time";
@@ -33,6 +33,13 @@ export default async function BookingDetailPage({
   if (!booking) {
     notFound();
   }
+  const bookingTitle = booking.departure?.tour.title ?? booking.individualTitle ?? dict.newBookingPage.individualBooking;
+  const priceBreakdown = Array.isArray(booking.priceBreakdown)
+    ? booking.priceBreakdown as { category: keyof typeof dict.tourPriceCategory; description?: string; amount: number }[]
+    : [];
+  const hotels = Array.isArray(booking.hotels)
+    ? booking.hotels as { name: string; checkIn: string; checkOut: string; address?: string; roomType?: string }[]
+    : [];
 
   const [canManage, canManageFinances] = await Promise.all([
     roleHasPermission(session.user.role, PERMISSIONS.bookingsManage),
@@ -54,8 +61,10 @@ export default async function BookingDetailPage({
     <div className="flex flex-col gap-8">
       <PageHeader
         eyebrow={dict.bookingDetailPage.eyebrow}
-        title={booking.departure.tour.title}
-        subtitle={<LocalDateTime value={booking.departure.date.toISOString()} />}
+        title={bookingTitle}
+        subtitle={booking.departure
+          ? <LocalDateTime value={booking.departure.date.toISOString()} />
+          : `${booking.travelStartDate?.toLocaleDateString("ru-RU", { timeZone: "UTC" })} – ${booking.travelEndDate?.toLocaleDateString("ru-RU", { timeZone: "UTC" })}`}
       />
 
       <div className="grid grid-cols-2 gap-6 rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)] p-6">
@@ -113,6 +122,25 @@ export default async function BookingDetailPage({
         )}
       </div>
 
+      {!booking.departure && (priceBreakdown.length > 0 || hotels.length > 0) && (
+        <div className="grid gap-5 lg:grid-cols-2">
+          {priceBreakdown.length > 0 && <section className="rounded-[18px] bg-card p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+            <h2 className="mb-3 font-serif text-lg text-espresso">{dict.tourForm.priceBreakdown}</h2>
+            {priceBreakdown.map((line, index) => <div key={index} className="flex justify-between gap-4 border-b border-border py-2 text-sm last:border-0">
+              <span className="text-espresso-muted">{dict.tourPriceCategory[line.category] ?? line.category}{line.description && ` · ${line.description}`}</span>
+              <span className="font-medium">{formatMoney(line.amount, booking.currency)}</span>
+            </div>)}
+          </section>}
+          {hotels.length > 0 && <section className="rounded-[18px] bg-card p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+            <h2 className="mb-3 font-serif text-lg text-espresso">{dict.tourForm.hotels}</h2>
+            {hotels.map((hotel, index) => <div key={index} className="border-b border-border py-2 text-sm last:border-0">
+              <p className="font-medium text-espresso">{hotel.name}</p>
+              <p className="text-espresso-muted">{hotel.checkIn} – {hotel.checkOut}{hotel.roomType && ` · ${hotel.roomType}`}</p>
+            </div>)}
+          </section>}
+        </div>
+      )}
+
       {booking.paxCount > 1 && (
         <div className="rounded-[18px] bg-card p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
           <h2 className="mb-4 font-serif text-lg font-medium text-espresso">
@@ -155,49 +183,17 @@ export default async function BookingDetailPage({
 
       {canManage && (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-3">
-            {booking.status === "PENDING" && (
-              <form
-                action={updateBookingStatus.bind(null, booking.id, "CONFIRMED")}
-              >
-                <button
-                  type="submit"
-                  className="rounded-[12px] bg-terracotta px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-terracotta-700"
-                >
-                  {dict.bookingDetailPage.confirmBooking}
-                </button>
-              </form>
-            )}
-            {booking.status === "CONFIRMED" && (
-              <form
-                action={updateBookingStatus.bind(null, booking.id, "COMPLETED")}
-              >
-                <button
-                  type="submit"
-                  className="rounded-[12px] border border-terracotta/25 px-5 py-2.5 text-sm font-medium text-espresso transition-colors hover:bg-cream-100"
-                >
-                  {dict.bookingDetailPage.markCompleted}
-                </button>
-              </form>
-            )}
-            {booking.status !== "CANCELLED" &&
-              booking.status !== "COMPLETED" && (
-                <form
-                  action={updateBookingStatus.bind(
-                    null,
-                    booking.id,
-                    "CANCELLED",
-                  )}
-                >
-                  <button
-                    type="submit"
-                    className="rounded-[12px] border border-danger/30 px-5 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/10"
-                  >
-                    {dict.bookingDetailPage.cancelBooking}
-                  </button>
-                </form>
-              )}
-          </div>
+          <form action={updateBookingStatusFromForm.bind(null, booking.id)} className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-sm">
+              {dict.bookingDetailPage.changeStatus}
+              <select name="status" defaultValue={booking.status} disabled={booking.status === "CANCELLED"} className="rounded-[12px] border border-terracotta/25 bg-white px-3.5 py-2.5">
+                {Object.entries(dict.bookingStatus).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            <button type="submit" disabled={booking.status === "CANCELLED"} className="rounded-[12px] bg-terracotta px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50">
+              {dict.bookingDetailPage.saveStatus}
+            </button>
+          </form>
         </div>
       )}
 

@@ -52,12 +52,6 @@ export default async function TourDeparturesPage({
 
   const tour = await db.tour.findFirst({
     where: { id: tourId, deletedAt: null },
-    include: {
-      tourCustomers: {
-        orderBy: { createdAt: "asc" },
-        select: { customer: { select: { id: true, fullName: true } } },
-      },
-    },
   });
   if (!tour) {
     notFound();
@@ -101,6 +95,7 @@ export default async function TourDeparturesPage({
       select: { departureId: true },
     });
     for (const booking of bookings) {
+      if (!booking.departureId) continue;
       bookingCountByDeparture.set(
         booking.departureId,
         (bookingCountByDeparture.get(booking.departureId) ?? 0) + 1,
@@ -131,25 +126,6 @@ export default async function TourDeparturesPage({
           )
         }
       />
-
-      {tour.isPrivate && (
-        <div className="rounded-[18px] border border-terracotta/15 bg-card p-4 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.14em] text-espresso-muted">
-            {dict.departuresPage.designedFor}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {tour.tourCustomers.map(({ customer }) => (
-              <Link
-                key={customer.id}
-                href={`/dashboard/customers/${customer.id}`}
-                className="rounded-full bg-cream-100 px-3 py-1.5 text-sm text-terracotta-700 transition-colors hover:bg-terracotta/10"
-              >
-                {customer.fullName}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="flex flex-wrap gap-2">
         {WHEN_OPTIONS.map((opt) => (
@@ -218,11 +194,7 @@ export default async function TourDeparturesPage({
                     canManageBookings &&
                     departure.bookedCount < departure.capacity && (
                       <Link
-                        href={`/dashboard/bookings/new?departureId=${departure.id}${
-                          tour.tourCustomers.length === 1
-                            ? `&customerId=${tour.tourCustomers[0].customer.id}`
-                            : ""
-                        }`}
+                        href={`/dashboard/bookings/new?departureId=${departure.id}`}
                         className="text-sm text-terracotta-700 underline"
                       >
                         {dict.departuresPage.bookLink}

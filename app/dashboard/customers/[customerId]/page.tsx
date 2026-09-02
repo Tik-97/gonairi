@@ -25,19 +25,25 @@ export default async function CustomerDetailPage({
   const pagination = parsePagination(paginationParams);
   const numberLocale = locale === "ru" ? "ru-RU" : "en-US";
   const session = await requirePermission(PERMISSIONS.customersView);
-  const [canManage, canDelete, canManageTours] = await Promise.all([
+  const [canManage, canDelete, canManageBookings] = await Promise.all([
     roleHasPermission(session.user.role, PERMISSIONS.customersManage),
     roleHasPermission(session.user.role, PERMISSIONS.customersDelete),
-    roleHasPermission(session.user.role, PERMISSIONS.toursManage),
+    roleHasPermission(session.user.role, PERMISSIONS.bookingsManage),
   ]);
   const db = scopedPrisma(session.user.organizationId);
 
-  const customer = await db.customer.findFirst({ where: { id: customerId } });
+  const customer = await db.customer.findFirst({
+    where: { id: customerId },
+    include: {
+      documents: { orderBy: { createdAt: "desc" } },
+      statusHistory: { include: { changedByUser: { select: { name: true } } }, orderBy: { createdAt: "desc" } },
+    },
+  });
   if (!customer) {
     notFound();
   }
 
-  const [bookings, bookingStatsRows, totalItems, individualTours, assignedTourCount] = await Promise.all([
+  const [bookings, bookingStatsRows, totalItems, assignedTourCount] = await Promise.all([
     db.booking.findMany({
       where: { customerId },
       include: { departure: { include: { tour: true } } },
@@ -50,11 +56,6 @@ export default async function CustomerDetailPage({
       select: { status: true, totalPrice: true, currency: true },
     }),
     db.booking.count({ where: { customerId } }),
-    db.tourCustomer.findMany({
-      where: { customerId, tour: { deletedAt: null } },
-      include: { tour: { select: { id: true, title: true, basePrice: true, currency: true, durationDays: true } } },
-      orderBy: { createdAt: "desc" },
-    }),
     db.tourCustomer.count({ where: { customerId } }),
   ]);
 
@@ -68,7 +69,7 @@ export default async function CustomerDetailPage({
       <PageHeader
         eyebrow={dict.customersPage.eyebrow}
         title={customer.fullName}
-        subtitle={[customer.email, customer.phone, customer.nationality].filter(Boolean).join(" · ") || dict.customersPage.noContactInfo}
+        subtitle={[dict.customerStatus[customer.status], customer.email, customer.phone, customer.nationality].filter(Boolean).join(" · ")}
         action={
           <div className="flex items-center gap-4">
             {canManage && (
@@ -76,12 +77,12 @@ export default async function CustomerDetailPage({
                 {dict.customerDetailPage.editLink}
               </Link>
             )}
-            {canManageTours && (
+            {canManageBookings && (
               <Link
-                href={`/dashboard/tours/new?type=individual&customerId=${customer.id}`}
+                href={`/dashboard/bookings/new?customerId=${customer.id}`}
                 className="text-sm text-terracotta-700 underline"
               >
-                {dict.customerDetailPage.createIndividualTour}
+                {dict.customerDetailPage.createBooking}
               </Link>
             )}
             {canDelete && totalItems === 0 && assignedTourCount === 0 && (
@@ -100,6 +101,56 @@ export default async function CustomerDetailPage({
           {customer.notes}
         </p>
       )}
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <InfoCard title={dict.customerDetailPage.profileHeading}>
+          <InfoRow label="Email" value={customer.email} />
+          <InfoRow label={dict.customerForm.phone} value={customer.phone} />
+          <InfoRow label="WhatsApp" value={customer.whatsapp} />
+          <InfoRow label="Telegram" value={customer.telegram} />
+        </InfoCard>
+        <InfoCard title={dict.customerDetailPage.passportHeading}>
+          <InfoRow label={dict.customerForm.passportNumber} value={customer.passportNumber} />
+          <InfoRow label={dict.customerDetailPage.issuedBy} value={customer.passportIssuedBy} />
+          <InfoRow label={dict.customerDetailPage.expires} value={formatDate(customer.passportExpiryDate, numberLocale)} />
+        </InfoCard>
+        <InfoCard title={dict.customerDetailPage.visaHeading}>
+          <InfoRow label={dict.customerForm.visaStatus} value={dict.visaStatus[customer.visaStatus]} />
+          <InfoRow label={dict.customerForm.visaCountry} value={customer.visaCountry} />
+          <InfoRow label={dict.customerDetailPage.expires} value={formatDate(customer.visaExpiryDate, numberLocale)} />
+        </InfoCard>
+      </div>
+
+      <div>
+        <h2 className="mb-4 font-serif text-lg font-medium text-espresso">{dict.customerDetailPage.documentsHeading}</h2>
+        {customer.documents.length === 0 ? <p className="text-sm text-espresso-muted">{dict.customerDetailPage.noDocuments}</p> : (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {customer.documents.map((document) => (
+              <a key={document.id} href={`/api/customers/documents/${document.id}`} className="rounded-[12px] border border-border bg-white px-4 py-3 text-sm text-terracotta-700 underline">
+                {document.name}
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h2 className="mb-4 font-serif text-lg font-medium text-espresso">{dict.customerDetailPage.historyHeading}</h2>
+        <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+          {customer.statusHistory.map((event) => (
+            <div key={event.id} className="px-4 py-3.5 sm:px-5">
+              <p className="text-sm font-medium text-espresso">
+                {event.fromStatus ? `${dict.customerStatus[event.fromStatus]} → ` : ""}{dict.customerStatus[event.toStatus]}
+              </p>
+              <p className="text-xs text-espresso-muted">
+                <LocalDateTime value={event.createdAt.toISOString()} />
+                {event.changedByUser && ` · ${dict.customerDetailPage.changedBy} ${event.changedByUser.name}`}
+                {event.note && ` · ${event.note}`}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {totalBookings > 0 && (
         <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
@@ -123,30 +174,6 @@ export default async function CustomerDetailPage({
       )}
 
       <div>
-        <h2 className="mb-4 font-serif text-lg font-medium text-espresso">
-          {dict.customerDetailPage.individualToursHeading}
-        </h2>
-        {individualTours.length === 0 ? (
-          <p className="text-sm text-espresso-muted">{dict.customerDetailPage.noIndividualTours}</p>
-        ) : (
-          <div className="flex flex-col divide-y divide-border rounded-[18px] bg-card shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
-            {individualTours.map(({ tour }) => (
-              <Link
-                key={tour.id}
-                href={`/dashboard/tours/${tour.id}/departures`}
-                className="flex flex-col gap-1 px-4 py-3.5 transition-colors hover:bg-cream-100/70 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4"
-              >
-                <span className="font-medium text-espresso">{tour.title}</span>
-                <span className="text-sm text-espresso-muted">
-                  {tour.durationDays}{dict.toursPage.daySuffix} · {formatMoney(tour.basePrice.toString(), tour.currency)}
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
         <h2 className="mb-4 font-serif text-lg font-medium text-espresso">{dict.customerDetailPage.bookingsHeading}</h2>
         {bookings.length === 0 ? (
           <p className="text-sm text-espresso-muted">{dict.dashboardPage.noBookingsYet}</p>
@@ -159,9 +186,11 @@ export default async function CustomerDetailPage({
                 className="flex flex-col gap-2 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4 transition-colors hover:bg-cream-100/70"
               >
                 <div>
-                  <p className="font-medium text-espresso">{booking.departure.tour.title}</p>
+                  <p className="font-medium text-espresso">{booking.departure?.tour.title ?? booking.individualTitle}</p>
                   <p className="text-sm text-espresso-muted">
-                    <LocalDateTime value={booking.departure.date.toISOString()} /> · {booking.paxCount} {dict.bookingsPage.paxSuffix} ·{" "}
+                    {booking.departure
+                      ? <LocalDateTime value={booking.departure.date.toISOString()} />
+                      : booking.travelStartDate?.toLocaleDateString(numberLocale, { timeZone: "UTC" })} · {booking.paxCount} {dict.bookingsPage.paxSuffix} ·{" "}
                     {formatMoney(booking.totalPrice.toString(), booking.currency)}
                   </p>
                 </div>
@@ -176,4 +205,20 @@ export default async function CustomerDetailPage({
       <PaginationControls totalItems={totalItems} page={pagination.page} perPage={pagination.perPage} />
     </div>
   );
+}
+
+function formatDate(value: Date | null, locale: string): string | null {
+  return value?.toLocaleDateString(locale, { timeZone: "UTC" }) ?? null;
+}
+
+function InfoCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section className="rounded-[18px] border border-terracotta/15 bg-card p-5">
+    <h2 className="mb-3 font-serif text-lg text-espresso">{title}</h2>
+    <dl className="flex flex-col gap-2">{children}</dl>
+  </section>;
+}
+
+function InfoRow({ label, value }: { label: string; value: string | null }) {
+  if (!value) return null;
+  return <div className="flex justify-between gap-4 text-sm"><dt className="text-espresso-muted">{label}</dt><dd className="text-right text-espresso">{value}</dd></div>;
 }

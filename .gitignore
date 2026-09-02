@@ -40,6 +40,7 @@ yarn-error.log*
 
 # locally-uploaded photos (fallback storage before a Vercel Blob store is set up)
 /public/uploads
+/data/customer-uploads
 
 # typescript
 *.tsbuildinfo

@@ -87,6 +87,7 @@ export async function getDashboardStats(organizationId: string) {
 
   const tourBookingCounts = new Map<string, { id: string; title: string; count: number; image: string | null }>();
   for (const booking of recentBookingsForWindow) {
+    if (!booking.departure) continue;
     const tourId = booking.departure.tourId;
     const existing = tourBookingCounts.get(tourId);
     if (existing) {

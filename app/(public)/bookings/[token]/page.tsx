@@ -13,7 +13,7 @@ export default async function GuestBookingStatusPage({
 
   const booking = await prisma.booking.findUnique({
     where: { lookupToken: token },
-    include: { departure: { include: { tour: { include: { organization: true } } } }, customer: true },
+    include: { departure: { include: { tour: { include: { organization: true } } } }, organization: true, customer: true },
   });
   if (!booking) {
     notFound();
@@ -23,10 +23,10 @@ export default async function GuestBookingStatusPage({
     <div className="mx-auto flex max-w-lg flex-col gap-6">
       <h1 className="font-serif text-3xl font-semibold text-espresso">{dict.guestBookingStatusPage.title}</h1>
       <div className="rounded-2xl border border-terracotta/15 bg-white/70 p-6">
-        <p className="font-serif text-lg font-medium text-espresso">{booking.departure.tour.title}</p>
-        <p className="text-sm text-espresso/60">{booking.departure.tour.organization.name}</p>
+        <p className="font-serif text-lg font-medium text-espresso">{booking.departure?.tour.title ?? booking.individualTitle}</p>
+        <p className="text-sm text-espresso/60">{booking.departure?.tour.organization.name ?? booking.organization.name}</p>
         <p className="mt-4 text-sm text-espresso/80">
-          <LocalDateTime value={booking.departure.date.toISOString()} /> · {booking.paxCount} {dict.guestBookingStatusPage.paxSuffix}
+          {booking.departure ? <LocalDateTime value={booking.departure.date.toISOString()} /> : booking.travelStartDate?.toLocaleDateString("en-US", { timeZone: "UTC" })} · {booking.paxCount} {dict.guestBookingStatusPage.paxSuffix}
         </p>
         <p className="text-sm font-medium text-terracotta-700">
           {formatMoney(booking.totalPrice.toString(), booking.currency)}
@@ -37,7 +37,7 @@ export default async function GuestBookingStatusPage({
         </p>
       </div>
       <p className="text-sm text-espresso/60">
-        {booking.departure.tour.organization.name} {dict.guestBookingStatusPage.contactMessagePrefix} {booking.customer.email} {dict.guestBookingStatusPage.contactMessageSuffix}
+        {(booking.departure?.tour.organization.name ?? booking.organization.name)} {dict.guestBookingStatusPage.contactMessagePrefix} {booking.customer.email} {dict.guestBookingStatusPage.contactMessageSuffix}
       </p>
     </div>
   );

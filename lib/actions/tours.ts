@@ -12,7 +12,6 @@ import { formStateFromZodError, type FormState } from "@/lib/form-state";
 const MAX_TOUR_IMAGES = 10;
 const MAX_TOUR_REGIONS = 50;
 const MAX_TOUR_CATEGORIES = 10;
-const MAX_TOUR_CUSTOMERS = 50;
 
 const TourSchema = z.object({
   title: z.string().trim().min(2, "Title must be at least 2 characters."),
@@ -24,25 +23,12 @@ const TourSchema = z.object({
   durationDays: z.coerce.number().int().min(1),
   basePrice: z.coerce.number().min(0),
   isPublished: z.coerce.boolean().optional(),
-  isPrivate: z.enum(["true", "false"]).transform((value) => value === "true"),
   images: z.array(z.string().trim()).max(MAX_TOUR_IMAGES, `You can add up to ${MAX_TOUR_IMAGES} images.`),
   regionIds: z
     .array(z.string().trim().min(1))
     .min(1, "Select at least one region.")
     .max(MAX_TOUR_REGIONS, `You can select up to ${MAX_TOUR_REGIONS} regions.`)
     .refine((values) => new Set(values).size === values.length, "A region can be selected only once."),
-  customerIds: z
-    .array(z.string().trim().min(1))
-    .max(MAX_TOUR_CUSTOMERS, `You can select up to ${MAX_TOUR_CUSTOMERS} customers.`)
-    .refine((values) => new Set(values).size === values.length, "A customer can be selected only once."),
-}).superRefine((tour, context) => {
-  if (tour.isPrivate && tour.customerIds.length === 0) {
-    context.addIssue({
-      code: "custom",
-      path: ["customerIds"],
-      message: "Select at least one customer for an individual tour.",
-    });
-  }
 });
 
 async function uniqueTourSlug(
@@ -74,11 +60,6 @@ function parseTourForm(formData: FormData) {
     .getAll("categoryIds")
     .map((v) => v.toString().trim())
     .filter(Boolean);
-  const customerIds = formData
-    .getAll("customerIds")
-    .map((v) => v.toString().trim())
-    .filter(Boolean);
-
   return TourSchema.safeParse({
     title: formData.get("title"),
     description: formData.get("description"),
@@ -86,19 +67,9 @@ function parseTourForm(formData: FormData) {
     durationDays: formData.get("durationDays"),
     basePrice: formData.get("basePrice"),
     isPublished: formData.get("isPublished"),
-    isPrivate: formData.get("isPrivate") ?? "false",
     images,
     regionIds,
-    customerIds,
   });
-}
-
-async function customerSelectionIsValid(
-  db: ReturnType<typeof scopedPrisma>,
-  customerIds: string[],
-) {
-  if (customerIds.length === 0) return true;
-  return (await db.customer.count({ where: { id: { in: customerIds } } })) === customerIds.length;
 }
 
 async function categorySelectionIsValid(
@@ -157,9 +128,6 @@ export async function createTour(_prevState: FormState, formData: FormData): Pro
   if (!(await categorySelectionIsValid(db, parsed.data.categoryIds))) {
     return { error: "One or more selected hashtags are unavailable. Refresh the page and try again." };
   }
-  if (!(await customerSelectionIsValid(db, parsed.data.customerIds))) {
-    return { error: "One or more selected customers are unavailable. Refresh the page and try again." };
-  }
   const slug = await uniqueTourSlug(db, parsed.data.title);
 
   const tour = await db.tour.create({
@@ -170,8 +138,8 @@ export async function createTour(_prevState: FormState, formData: FormData): Pro
       description: parsed.data.description || null,
       durationDays: parsed.data.durationDays,
       basePrice: parsed.data.basePrice,
-      isPublished: parsed.data.isPrivate ? false : Boolean(parsed.data.isPublished),
-      isPrivate: parsed.data.isPrivate,
+      isPublished: Boolean(parsed.data.isPublished),
+      isPrivate: false,
       tourRegions: {
         create: parsed.data.regionIds.map((regionId, position) => ({ regionId, position })),
       },
@@ -179,16 +147,6 @@ export async function createTour(_prevState: FormState, formData: FormData): Pro
         ? {
             tourCategories: {
               create: parsed.data.categoryIds.map((categoryId, position) => ({ categoryId, position })),
-            },
-          }
-        : {}),
-      ...(parsed.data.isPrivate
-        ? {
-            tourCustomers: {
-              create: parsed.data.customerIds.map((customerId) => ({
-                organizationId: session.user.organizationId,
-                customerId,
-              })),
             },
           }
         : {}),
@@ -217,7 +175,6 @@ export async function updateTour(
     include: {
       tourRegions: { select: { regionId: true } },
       tourCategories: { select: { categoryId: true } },
-      tourCustomers: { select: { customerId: true } },
     },
   });
   if (!existing) {
@@ -231,9 +188,6 @@ export async function updateTour(
     ))
   ) {
     return { error: "One or more selected regions are unavailable. Refresh the page and try again." };
-  }
-  if (!(await customerSelectionIsValid(db, parsed.data.customerIds))) {
-    return { error: "One or more selected customers are unavailable. Refresh the page and try again." };
   }
   if (
     !(await categorySelectionIsValid(
@@ -258,8 +212,8 @@ export async function updateTour(
       description: parsed.data.description || null,
       durationDays: parsed.data.durationDays,
       basePrice: parsed.data.basePrice,
-      isPublished: parsed.data.isPrivate ? false : Boolean(parsed.data.isPublished),
-      isPrivate: parsed.data.isPrivate,
+      isPublished: Boolean(parsed.data.isPublished),
+      isPrivate: false,
       images: parsed.data.images,
       tourRegions: {
         deleteMany: {},
@@ -270,17 +224,6 @@ export async function updateTour(
         ...(parsed.data.categoryIds.length > 0
           ? {
               create: parsed.data.categoryIds.map((categoryId, position) => ({ categoryId, position })),
-            }
-          : {}),
-      },
-      tourCustomers: {
-        deleteMany: {},
-        ...(parsed.data.isPrivate
-          ? {
-              create: parsed.data.customerIds.map((customerId) => ({
-                organizationId: session.user.organizationId,
-                customerId,
-              })),
             }
           : {}),
       },
