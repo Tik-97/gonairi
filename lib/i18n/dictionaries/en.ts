@@ -767,6 +767,8 @@ export interface Dictionary {
       whatLookingForLabel: string;
       whatLookingForPlaceholder: string;
       submit: string;
+      submitting: string;
+      genericError: string;
       consent: string;
       thankYouTitle: string;
       thankYouBody: string;
@@ -1691,6 +1693,8 @@ const en: Dictionary = {
       whatLookingForLabel: "What are you looking for with GoNairi?",
       whatLookingForPlaceholder: "I am looking for a CRM to manage tours, bookings and vehicles...",
       submit: "Schedule my demo",
+      submitting: "Sending…",
+      genericError: "Something went wrong. Please try again.",
       consent: "I agree that my information will be used by GoNairi to get in touch about this request.",
       thankYouTitle: "Thanks for reaching out!",
       thankYouBody: "We've received your request and will contact you shortly to help set up your agency's account.",
