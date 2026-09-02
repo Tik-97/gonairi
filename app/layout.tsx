@@ -14,9 +14,9 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "GoNairi — Armenia tour booking & agency back-office",
+  title: "GoNairi — Tour booking & agency back-office",
   description:
-    "Back-office for Armenian tour agencies and a public marketplace for booking their tours.",
+    "Back-office for travel agencies and a public marketplace for booking their tours.",
 };
 
 // The app is intentionally light-only (no dark mode) — without this, browsers
