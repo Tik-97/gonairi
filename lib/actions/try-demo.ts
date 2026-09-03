@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { getZohoTransport, getZohoSenderAddress } from "@/lib/email/zoho-transport";
+import { sendZohoEmail } from "@/lib/email/zoho-api";
 import { logError } from "@/lib/log";
 
 // Public, unauthenticated form (app/(marketing)) — re-validate everything
@@ -33,19 +33,15 @@ export async function submitTryDemoRequest(_prevState: TryDemoState | undefined,
   }
   const { agencyName, email, phone, employees, message } = parsed.data;
 
-  const transport = getZohoTransport();
-  const from = getZohoSenderAddress();
   const to = process.env.TRY_DEMO_LEAD_EMAIL_TO;
-  if (!transport || !from || !to) {
-    logError("submitTryDemoRequest", new Error("Zoho SMTP is not configured (ZOHO_SMTP_* / TRY_DEMO_LEAD_EMAIL_TO)."));
+  if (!to) {
+    logError("submitTryDemoRequest", new Error("TRY_DEMO_LEAD_EMAIL_TO is not configured."));
     return { success: false, error: "Something went wrong. Please try again later." };
   }
 
   try {
-    await transport.sendMail({
-      from,
+    await sendZohoEmail({
       to,
-      replyTo: email,
       subject: `New Try Demo request — ${agencyName}`,
       text: [
         `Agency: ${agencyName}`,
